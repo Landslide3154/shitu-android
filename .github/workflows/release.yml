@@ -1,0 +1,91 @@
+name: Release
+
+# 打 tag（v*）就自动构建并发 Release；也可以在 Actions 页面手动指定一个已存在的 tag 跑。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（例如 v0.6.0，必须已经存在）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 缓存
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Android SDK 命令行工具
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 API 37 平台（目前只在 canary 频道）
+        run: sdkmanager --channel=3 --install "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: 准备签名文件（从 Secrets 还原，仓库里不放 keystore）
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::缺少签名 Secrets：需要在仓库 Settings → Secrets and variables → Actions 里配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD"
+            exit 1
+          fi
+          mkdir -p ci-keys
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > ci-keys/shitu-release.jks
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/ci-keys/shitu-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > ci-keys/shitu-release.properties
+
+      - name: 单测 + 打包 release
+        run: |
+          ./gradlew --no-daemon \
+            -Pshitu.signingProperties="$GITHUB_WORKSPACE/ci-keys/shitu-release.properties" \
+            -Pandroid.sdk.channel=3 \
+            :app:testDebugUnitTest :app:assembleRelease
+
+      - name: 单测报告（失败时也能下载）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          if-no-files-found: ignore
+
+      - name: 按版本号重命名 APK
+        id: apk
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VER="${TAG#v}"
+          cp app/build/outputs/apk/release/app-release.apk "shitu-$VER.apk"
+          ls -lh "shitu-$VER.apk"
+          echo "file=shitu-$VER.apk" >> "$GITHUB_OUTPUT"
+
+      - name: 建/更新 Release 并上传 APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: ${{ steps.apk.outputs.file }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true

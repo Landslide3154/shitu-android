@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FF1F6FEB</color>
+    <!-- 深色模式启动窗口的背景（见 values-night/themes.xml） -->
+    <color name="window_background_dark">#FF101418</color>
 </resources>

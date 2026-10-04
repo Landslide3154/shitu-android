@@ -23,3 +23,6 @@ keystore.properties
 # 日志与临时文件
 *.log
 *.hprof
+
+# 本地一次性脚本（写 GitHub Secrets 用），不入库
+.ci-setup/

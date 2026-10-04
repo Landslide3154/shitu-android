@@ -1,5 +1,6 @@
 package com.landslide.shitu.ui.rules
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -42,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.data.db.RuleState
@@ -68,7 +71,9 @@ fun RuleListScreen(
     onSelfCheck: () -> Unit,
     onRequestPermission: () -> Unit,
     onAdd: () -> Unit,
+    onAddFromTemplate: (RuleTemplate) -> Unit,
     onEdit: (RuleEntity) -> Unit,
+    onCopy: (RuleEntity) -> Unit,
     onRunNow: (RuleEntity) -> Unit,
     onUndo: (RuleEntity) -> Unit,
     onResume: (RuleEntity) -> Unit,
@@ -81,16 +86,44 @@ fun RuleListScreen(
     onCompactChange: (Boolean) -> Unit,
 ) {
     var selected by remember { mutableStateOf(emptySet<Long>()) }
+    var showNew by remember { mutableStateOf(false) }
     LaunchedEffect(rules) {
         selected = selected intersect rules.map { it.id }.toSet()
     }
     val allSelected = rules.isNotEmpty() && selected.size == rules.size
 
+    if (showNew) {
+        AlertDialog(
+            onDismissRequest = { showNew = false },
+            title = { Text("新建规则") },
+            text = {
+                Column {
+                    NewRuleOption("空白规则", "源目录从 /sdcard 开始自己往下选") {
+                        showNew = false
+                        onAdd()
+                    }
+                    RuleTemplate.ALL.forEach { t ->
+                        NewRuleOption(t.title, t.detail) {
+                            showNew = false
+                            onAddFromTemplate(t)
+                        }
+                    }
+                    Text(
+                        "选完会进编辑页，还能随便改；点「保存并开始搬运」才真的建出来。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showNew = false }) { Text("取消") } },
+        )
+    }
+
     Scaffold(
         // 外层 Scaffold 已经处理过状态栏内边距，这里再叠一次会多出一条空白
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            FloatingActionButton(onClick = { showNew = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "新建规则")
             }
         },
@@ -184,7 +217,11 @@ fun RuleListScreen(
                     )
                 }
             } else {
-                LazyColumn(Modifier.weight(1f)) {
+                // 底部留出悬浮按钮的高度：否则最后一张卡片的按钮会被 FAB 盖住点不到
+                LazyColumn(
+                    Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                ) {
                     items(rules, key = { it.id }) { rule ->
                         RuleCard(
                             rule = rule,
@@ -194,6 +231,7 @@ fun RuleListScreen(
                                 selected = if (on) selected + rule.id else selected - rule.id
                             },
                             onEdit = { onEdit(rule) },
+                            onCopy = { onCopy(rule) },
                             onRunNow = { onRunNow(rule) },
                             onUndo = { onUndo(rule) },
                             onResume = { onResume(rule) },
@@ -207,6 +245,20 @@ fun RuleListScreen(
     }
 }
 
+/** 「新建规则」弹窗里的一行：标题 + 说明，点哪都算选中。 */
+@Composable
+private fun NewRuleOption(title: String, detail: String, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Text(detail, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
 @Composable
 private fun RuleCard(
     rule: RuleEntity,
@@ -214,6 +266,7 @@ private fun RuleCard(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
+    onCopy: () -> Unit,
     onRunNow: () -> Unit,
     onUndo: () -> Unit,
     onResume: () -> Unit,
@@ -319,13 +372,16 @@ private fun RuleCard(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(
                     Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    TextButton(onClick = onRunNow) { Text("立即运行") }
-                    TextButton(onClick = onEdit) { Text("编辑") }
-                    TextButton(onClick = onUndo) { Text("撤回") }
-                    if (paused) TextButton(onClick = onResume) { Text("恢复") }
-                    TextButton(onClick = onDelete) { Text("删除") }
+                    // 5 个按钮要挤在一行里，内边距收紧一点；挤不下还能左右划（字体放大时）
+                    val pad = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                    TextButton(onClick = onRunNow, contentPadding = pad) { Text("立即运行") }
+                    TextButton(onClick = onEdit, contentPadding = pad) { Text("编辑") }
+                    TextButton(onClick = onCopy, contentPadding = pad) { Text("复制") }
+                    TextButton(onClick = onUndo, contentPadding = pad) { Text("撤回") }
+                    if (paused) TextButton(onClick = onResume, contentPadding = pad) { Text("恢复") }
+                    TextButton(onClick = onDelete, contentPadding = pad) { Text("删除") }
                 }
                 // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)

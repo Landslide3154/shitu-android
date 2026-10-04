@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      系统深色模式下的启动窗口：用深色背景 + 浅色系统栏图标，
+      避免冷启动时先闪一下白屏（Compose 起来后的颜色由 ShituTheme 决定）。
+    -->
+    <style name="Theme.Shitu" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -3,12 +3,15 @@ package com.landslide.shitu.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
+import com.landslide.shitu.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 
@@ -138,6 +142,40 @@ fun SettingsScreen(
             Text("事件通知（暂停/失败/未就绪）")
             Switch(checked = settings.notifyEnabled, onCheckedChange = { scope.launch { store.setNotifyEnabled(it) } })
         }
+
+        HorizontalDivider()
+        Text("外观", style = MaterialTheme.typography.titleMedium)
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("主题")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(
+                    selected = settings.themeMode == ThemeMode.SYSTEM,
+                    onClick = { scope.launch { store.setThemeMode(ThemeMode.SYSTEM) } },
+                    label = { Text("跟随系统") },
+                )
+                Spacer(Modifier.width(6.dp))
+                FilterChip(
+                    selected = settings.themeMode == ThemeMode.LIGHT,
+                    onClick = { scope.launch { store.setThemeMode(ThemeMode.LIGHT) } },
+                    label = { Text("浅色") },
+                )
+                Spacer(Modifier.width(6.dp))
+                FilterChip(
+                    selected = settings.themeMode == ThemeMode.DARK,
+                    onClick = { scope.launch { store.setThemeMode(ThemeMode.DARK) } },
+                    label = { Text("深色") },
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("动态取色（Material You）")
+            Switch(checked = settings.dynamicColor, onCheckedChange = { scope.launch { store.setDynamicColor(it) } })
+        }
+        Text(
+            "安卓 12 及以上：颜色跟着壁纸走，整个 App 和系统一个色调。关掉就用固定的蓝色。",
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         HorizontalDivider()
         Text("自检", style = MaterialTheme.typography.titleMedium)

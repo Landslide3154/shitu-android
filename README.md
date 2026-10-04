@@ -64,9 +64,12 @@
 - 右上角「简略 / 详细」切换显示方式（会记住）：**简略**一行一条，只显示名称和开关；
   **详细**显示源目录 → 目标目录、模式、间隔、后缀、上次运行时间、累计张数
 - 卡片右上角开关单独控制这一条；左下角复选框配合底部「全选 / 开启 / 停止」批量操作
-- 卡上按钮（详细模式）：**立即运行**（不等间隔马上搬一次）、**编辑**、**撤回**（把这条规则搬过的图退回原位）、
+- 卡上按钮（详细模式）：**立即运行**（不等间隔马上搬一次）、**编辑**、**复制**（复制出一条一样的，
+  默认暂停，改好再开）、**撤回**（把这条规则搬过的图退回原位）、
   **恢复**（被自动暂停后才出现）、**删除**。另外，点卡片的空白处 = 进编辑，不用专找「编辑」两个字
-- 右下角 **+** = 新建规则
+- 右下角 **+** = 新建规则：可以「空白规则」从零填，也可以套模板快速起步——
+  **某个 App 的图片目录**、**相册图片按来源分类**（`/sdcard/DCIM` 本层）、
+  **下载目录里的图片**（`/sdcard/Download`，默认先按「复制」模式试）。模板只是帮你预填，进去还能改
 
 **编辑规则页**
 - 源目录、目标目录、是否包含子目录、最大深度、移动/复制、轮询间隔（1–30 分钟）、扩展名白名单、**文件名后缀**
@@ -77,8 +80,10 @@
 - 可按结果类型、规则、路径关键字筛选；右上角 **导出 CSV**（含完整路径，注意隐私）
 
 **设置页**
-- 全部运行参数（见下表）、检测速度（含「熄屏后暂停扫描」）、通知开关、加速清空、自检入口、关于
+- 全部运行参数（见下表）、检测速度（含「熄屏后暂停扫描」）、开关、**外观**、自检入口、关于
 - 「熄屏后暂停扫描」打开后：熄屏**或锁屏**时停下（省电），**亮屏解锁后会自动接着搬**，不用打开 App、也不用点通知栏
+- **外观**：主题三选一（跟随系统 / 浅色 / 深色）+「动态取色（Material You）」开关。
+  动态取色打开时颜色跟着壁纸走，关掉就用固定的蓝色
 
 ### 文件名后缀怎么填
 
@@ -192,7 +197,7 @@ HyperOS / MIUI 对后台管得很严，做完这几项它才能一直在后面�
 
 .\gradlew.bat :app:assembleDebug          # debug APK
 .\gradlew.bat :app:assembleRelease        # release APK（签名取自仓库外 D:/keys/shitu-release.properties）
-.\gradlew.bat :app:testDebugUnitTest      # 64 个 JVM 单测
+.\gradlew.bat :app:testDebugUnitTest      # 91 个 JVM 单测
 adb install -r -t app\build\outputs\apk\debug\app-debug.apk
 # 真机端到端用例（注意：connectedDebugAndroidTest 跑完会卸载 App，Shizuku 授权会随之失效）
 adb install -r -t app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
@@ -206,3 +211,8 @@ adb shell "am instrument -w com.landslide.shitu.test/androidx.test.runner.Androi
 `engine/`（单文件事务 / 一轮编排 / 撤回 / 自检）、`service/`（常驻服务 / 开机 / 兜底 / 通知）、`ui/`（四页界面）
 
 设计文档：[设计规格](docs/superpowers/specs/2026-10-04-shitu-design.md) · [实现计划](docs/superpowers/plans/2026-10-04-shitu-implementation.md) · [验证记录](docs/2026-10-04-shitu-验证记录.md)
+
+发版：`.github/workflows/release.yml`。推 `v*` 标签（或在 Actions 页面手动 `workflow_dispatch` 填 tag）会自动
+装 SDK → 跑单测 → 用 Secrets 里的 keystore 签 release → 把 `shitu-<版本>.apk` 传上 GitHub Release。
+需要 4 个仓库 Secrets：`KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`。
+（CI 里 Android SDK 走 dl.google.com 正常，但要额外 `--channel=3` 才装得到 `platforms;android-37.0`。）

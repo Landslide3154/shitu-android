@@ -251,6 +251,37 @@ fun ShituRoot(app: ShituApp) {
                         editingDirty = false
                         editing = fresh
                     },
+                    onAddFromTemplate = { template ->
+                        val fresh = template.toEntity(System.currentTimeMillis())
+                        draft = fresh
+                        editingDirty = false
+                        editing = fresh
+                    },
+                    onCopy = { r ->
+                        scope.launch {
+                            val now = System.currentTimeMillis()
+                            // 副本默认「暂停」：避免复制出来就立刻重复搬一遍；改好再打开
+                            app.repo.insertRule(
+                                r.copy(
+                                    id = 0,
+                                    name = "${r.name} 副本",
+                                    enabled = false,
+                                    state = RuleState.IDLE,
+                                    pauseReason = null,
+                                    lastRunAt = null,
+                                    lastMoved = 0,
+                                    lastFailed = 0,
+                                    totalMoved = 0,
+                                    totalFailed = 0,
+                                    consecutiveFailures = 0,
+                                    createdAt = now,
+                                    updatedAt = now,
+                                ),
+                            )
+                            refresh()
+                            snackbar.showSnackbar("已复制「${r.name} 副本」（默认暂停，改好再开）")
+                        }
+                    },
                     onEdit = {
                         draft = it
                         editingDirty = false

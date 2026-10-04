@@ -37,6 +37,10 @@ data class Settings(
     val screenOffPause: Boolean = false,
     /** 规则卡片是否用简略样式（只显示名称 + 开关） */
     val ruleCardsCompact: Boolean = false,
+    /** 主题模式：0 跟随系统 / 1 浅色 / 2 深色（见 ThemeMode） */
+    val themeMode: Int = 0,
+    /** Material You 动态取色（Android 12+ 从壁纸取色） */
+    val dynamicColor: Boolean = true,
     // —— 界面与运行状态项 ——
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
@@ -65,6 +69,8 @@ class SettingsStore(private val context: Context) {
         val SETTLE_GAP_SEC = intPreferencesKey("settle_gap_sec")
         val SCREEN_OFF_PAUSE = booleanPreferencesKey("screen_off_pause")
         val RULE_CARDS_COMPACT = booleanPreferencesKey("rule_cards_compact")
+        val THEME_MODE = intPreferencesKey("theme_mode")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
@@ -91,6 +97,8 @@ class SettingsStore(private val context: Context) {
             settleGapSec = p[K.SETTLE_GAP_SEC] ?: 3,
             screenOffPause = p[K.SCREEN_OFF_PAUSE] ?: false,
             ruleCardsCompact = p[K.RULE_CARDS_COMPACT] ?: false,
+            themeMode = p[K.THEME_MODE] ?: 0,
+            dynamicColor = p[K.DYNAMIC_COLOR] ?: true,
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
@@ -116,6 +124,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setSettleGapSec(v: Int) = put(K.SETTLE_GAP_SEC, v)
     suspend fun setScreenOffPause(v: Boolean) = put(K.SCREEN_OFF_PAUSE, v)
     suspend fun setRuleCardsCompact(v: Boolean) = put(K.RULE_CARDS_COMPACT, v)
+    suspend fun setThemeMode(v: Int) = put(K.THEME_MODE, v)
+    suspend fun setDynamicColor(v: Boolean) = put(K.DYNAMIC_COLOR, v)
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

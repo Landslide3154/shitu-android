@@ -60,6 +60,8 @@ fun RuleEditScreen(
     }
 
     val srcIsRoot = rule.srcPath.trimEnd('/') == "/sdcard"
+    // 所有 App 的数据根目录：不往下选到具体 App 的话，会把各个 App 里的图片都搬走
+    val srcIsAllAppData = rule.srcPath.trimEnd('/') == "/sdcard/Android/data"
     val srcTrim = rule.srcPath.trimEnd('/')
     val dstTrim = rule.dstPath.trimEnd('/')
     val dstInsideSrc = srcTrim.isNotBlank() && dstTrim.isNotBlank() &&
@@ -90,9 +92,16 @@ fun RuleEditScreen(
             trailingIcon = { TextButton(onClick = { picking = "src" }) { Text("选择") } },
             supportingText = {
                 Text(
-                    if (srcIsRoot) "⚠ 这是整个存储根目录，会搬走手机里几乎所有图片"
-                    else "从 /sdcard 开始往下点，选到具体的图片文件夹最安全",
-                    color = if (srcIsRoot) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                    when {
+                        srcIsRoot -> "⚠ 这是整个存储根目录，会搬走手机里几乎所有图片"
+                        srcIsAllAppData -> "⚠ 这是所有 App 的数据根目录，会搬走各个 App 里的图片；建议点「选择」往下选到具体那个 App"
+                        else -> "从 /sdcard 开始往下点，选到具体的图片文件夹最安全"
+                    },
+                    color = if (srcIsRoot || srcIsAllAppData) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
                 )
             },
             modifier = Modifier.fillMaxWidth(),
