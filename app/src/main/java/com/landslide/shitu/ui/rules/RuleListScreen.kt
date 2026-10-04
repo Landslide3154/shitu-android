@@ -121,10 +121,7 @@ fun RuleListScreen(
                             NewRuleOption(
                                 title = t.name,
                                 detail = t.detail(),
-                                onDelete = {
-                                    showNew = false
-                                    onDeleteTemplate(t)
-                                },
+                                onDelete = { onDeleteTemplate(t) },
                             ) {
                                 showNew = false
                                 onAddFromTemplate(t)
