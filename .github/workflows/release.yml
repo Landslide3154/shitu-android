@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '要发布的 tag（例如 v0.6.0，必须已经存在）'
+        description: '要发布的 tag（例如 v0.7.0，必须已经存在）'
         required: true
         type: string
 
@@ -96,11 +96,23 @@ jobs:
           ls -lh "shitu-$VER.apk"
           echo "file=shitu-$VER.apk" >> "$GITHUB_OUTPUT"
 
+      - name: 从 CHANGELOG 里取本版说明
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VER="${TAG#v}"
+          awk -v h="## $VER" 'index($0,h)==1{f=1;next} f&&/^## /{exit} f{print}' docs/CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "本版没有单独写在 CHANGELOG 里的说明，点上面的 Full Changelog 看改了哪些提交。" > release-notes.md
+          fi
+          echo "--- release-notes.md ---"
+          cat release-notes.md
+
       - name: 建/更新 Release 并上传 APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}
+          body_path: release-notes.md
           files: ${{ steps.apk.outputs.file }}
           generate_release_notes: true
           fail_on_unmatched_files: true
