@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 相片底框 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M30,34 h48 a4,4 0 0 1 4,4 v32 a4,4 0 0 1 -4,4 h-48 a4,4 0 0 1 -4,-4 v-32 a4,4 0 0 1 4,-4 z" />
+    <!-- 山峰 -->
+    <path
+        android:fillColor="#FF1F6FEB"
+        android:pathData="M34,66 l12,-14 l9,10 l7,-8 l12,12 z" />
+    <!-- 太阳 -->
+    <path
+        android:fillColor="#FFF5A623"
+        android:pathData="M63,44 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <!-- 搬运箭头 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M74,84 h-26 v-6 h26 v-5 l12,8 l-12,8 z" />
+</vector>
