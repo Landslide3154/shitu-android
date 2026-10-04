@@ -5,7 +5,7 @@
 - 中文名：拾图　·　仓库名：`shitu-android`　·　包名：`com.landslide.shitu`
 - 仓库地址：https://github.com/Landslide3154/shitu-android
 - 许可：GPL-3.0
-- 当前状态：**代码完成（0.1.0），JVM 单测 61/61 通过，可构建出 debug APK；真机验证待设备接回后执行**
+- 当前状态：**0.1.0 代码完成，已验证**——61 个 JVM 单测 + 12 个真机用例全绿；真机上能经 Shizuku 读写别的 App 的 `Android/data`、自检 6 项全绿、界面四页中文可用。仅剩「重启手机后能否自动恢复」待验证（见验证记录 V10）
 
 ## 开发前必读
 

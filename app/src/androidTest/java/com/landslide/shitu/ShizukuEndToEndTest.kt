@@ -34,6 +34,17 @@ class ShizukuEndToEndTest {
         const val SRC = "/sdcard/Download/_shitu_instr"
         const val DST = "/sdcard/Pictures/_shitu_instr"
         const val PROBE = "/dev/null"
+
+        /**
+         * 整类共用一个桥：Shizuku 的 UserService 是 shell 侧常驻进程，
+         * 每个测试方法都重新绑定会在手机上留下一堆进程（实测 6 个方法 = 6 个进程）。
+         */
+        @Volatile
+        private var shared: ShizukuBridge? = null
+
+        fun sharedBridge(ctx: Context): ShizukuBridge = shared ?: synchronized(this) {
+            shared ?: ShizukuBridge(ctx.applicationContext).also { shared = it }
+        }
     }
 
     private lateinit var ctx: Context
@@ -49,15 +60,20 @@ class ShizukuEndToEndTest {
     @Before
     fun setUp() {
         ctx = ApplicationProvider.getApplicationContext()
-        bridge = ShizukuBridge(ctx)
+        bridge = sharedBridge(ctx)
         if (bridge.state() != ShizukuState.READY) {
             runBlocking { bridge.bindWithRetry(2) }
         }
-        assumeTrue("Shizuku 未就绪（${bridge.state()}），跳过真机用例", bridge.state() == ShizukuState.READY)
         runBlocking {
-            bridge.mkdirs(SRC)
-            bridge.mkdirs(DST)
+            runCatching { bridge.mkdirs(SRC) }
+            runCatching { bridge.mkdirs(DST) }
         }
+    }
+
+    /** 桥未就绪时跳过（真机环境依赖 Shizuku 授权，CI 上不一定有）。 */
+    private fun assumeReady() {
+        val state = bridge.state()
+        assumeTrue("Shizuku 未就绪（$state），跳过真机用例", state == ShizukuState.READY)
     }
 
     @After
@@ -68,11 +84,15 @@ class ShizukuEndToEndTest {
                 .forEach { bridge.delete(it.path) }
             runCatching { bridge.list(DST, false, 1, 500, null) }.getOrDefault(emptyList())
                 .forEach { bridge.delete(it.path) }
+            // 空目录也删掉（File.delete 对空目录有效），别在用户相册里留下测试目录
+            runCatching { bridge.delete(SRC) }
+            runCatching { bridge.delete(DST) }
         }
     }
 
     @Test
     fun canListOtherAppAndroidData() = runBlocking {
+        assumeReady()
         val androidData = bridge.list("/sdcard/Android/data", false, 1, 50, null)
         assertTrue("应能列出别的 App 的 Android/data", androidData.isNotEmpty())
         val env = bridge.describeEnvironment()
@@ -80,7 +100,45 @@ class ShizukuEndToEndTest {
     }
 
     @Test
+    fun canWriteInsideOtherAppAndroidData() = runBlocking {
+        assumeReady()
+        val dir = "/sdcard/Android/data/com.qidian.QDReader/files"
+        val stat = bridge.stat(dir)
+        assumeTrue("目标 App 的 Android/data 目录不存在，跳过", stat?.isDirectory == true)
+
+        val a = "$dir/_shitu_probe_${System.currentTimeMillis()}"
+        val b = "${a}_renamed"
+        val ok = bridge.copy("/dev/null", a) && bridge.move(a, b) && bridge.delete(b)
+        assertTrue("应能在别的 App 的 Android/data 里 新建→改名→删除", ok)
+        assertTrue("临时文件必须清理干净", !bridge.exists(b) && !bridge.exists(a))
+    }
+
+    /** 只用来把桥的细节暴露到测试报告里（失败时能直接看到原因）。 */
+    @Test
+    fun diagnosticBridgeDetails() = runBlocking {
+        val sb = StringBuilder()
+        sb.append("state=").append(bridge.state())
+        sb.append(" isInstalled=").append(bridge.isInstalled())
+        sb.append(" pingBinder=").append(runCatching { rikka.shizuku.Shizuku.pingBinder() })
+        sb.append(" checkSelfPermission=").append(runCatching { rikka.shizuku.Shizuku.checkSelfPermission() })
+        sb.append(" permitted=").append(bridge.isPermitted())
+        sb.append(" bound=").append(bridge.isBound())
+        sb.append(" shizukuVersion=").append(bridge.shizukuVersion())
+        val bind = runCatching { bridge.bindOnce() }
+        sb.append("\nbindOnce=").append(bind.getOrNull() ?: bind.exceptionOrNull().toString())
+        sb.append(" lastError=").append(bridge.lastError)
+        sb.append(" stateAfterBind=").append(bridge.state())
+        val env = runCatching { bridge.describeEnvironment() }
+        sb.append("\nenv=").append(env.getOrNull() ?: env.exceptionOrNull().toString())
+        val list = runCatching { bridge.list("/sdcard/Android/data", false, 1, 5, null) }
+        sb.append("\nlist=").append(list.getOrNull()?.map { it.name } ?: list.exceptionOrNull().toString())
+        android.util.Log.i("ShituInstr", sb.toString())
+        println("ShituInstr " + sb.toString())
+    }
+
+    @Test
     fun selfCheckAllGreen() = runBlocking {
+        assumeReady()
         val report = HealthChecker(bridge, SRC, DST) { bridge.environmentLine() }.run()
         val failed = report.filter { !it.passed }
         assertTrue("自检失败项：$failed", failed.isEmpty())
@@ -89,6 +147,7 @@ class ShizukuEndToEndTest {
 
     @Test
     fun copyModeKeepsSourceAndAddsSuffix() = runBlocking {
+        assumeReady()
         bridge.copy(PROBE, "$SRC/端到端测试.png")
         val rule = RuleEntity(
             id = 999, name = "instr", srcPath = SRC, dstPath = DST,
@@ -107,6 +166,7 @@ class ShizukuEndToEndTest {
 
     @Test
     fun moveModeRemovesSourceAndUndoRestoresIt() = runBlocking {
+        assumeReady()
         bridge.copy(PROBE, "$SRC/可撤回.png")
         val rule = RuleEntity(
             id = 998, name = "instr", srcPath = SRC, dstPath = DST,
@@ -126,6 +186,7 @@ class ShizukuEndToEndTest {
 
     @Test
     fun neverOverwritesAndSkipsIdenticalTarget() = runBlocking {
+        assumeReady()
         // 先在目标放一个"同 size + 同 mtime"的文件，模拟"已经搬过了"
         bridge.copy(PROBE, "$DST/同名_起点.png")
         val existing = bridge.stat("$DST/同名_起点.png")!!

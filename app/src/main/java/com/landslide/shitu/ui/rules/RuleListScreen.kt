@@ -58,31 +58,40 @@ fun RuleListScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // 顶部状态条
+            // 顶部状态条：第一行 Shizuku 状态与授权，第二行暂停全部与累计数（避免窄屏挤压）
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AssistChip(
+                        onClick = onSelfCheck,
+                        label = {
+                            Text(
+                                "Shizuku：${state.display()}",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (state == ShizukuState.NO_PERMISSION) {
+                        TextButton(onClick = onRequestPermission) {
+                            Text("请求授权", maxLines = 1)
+                        }
+                    }
+                }
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Text("累计已搬 $movedTotal 张", style = MaterialTheme.typography.bodySmall)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AssistChip(
-                            onClick = onSelfCheck,
-                            label = { Text("Shizuku：${state.display()}") },
-                        )
-                        if (state == ShizukuState.NO_PERMISSION) {
-                            TextButton(onClick = onRequestPermission) { Text("请求授权") }
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("暂停全部", style = MaterialTheme.typography.bodyMedium)
+                        Text("暂停全部", style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                         Switch(checked = pauseAll, onCheckedChange = onTogglePauseAll)
                     }
                 }
-                Text(
-                    "累计已搬 $movedTotal 张",
-                    style = MaterialTheme.typography.bodySmall,
-                )
             }
             HorizontalDivider()
 

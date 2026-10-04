@@ -1,9 +1,7 @@
 package com.landslide.shitu.shizuku
 
 import android.os.Build
-import android.os.Environment
 import android.os.Process
-import android.os.StatFs
 import com.landslide.shitu.IShituService
 import java.io.File
 import java.io.FileInputStream
@@ -88,7 +86,8 @@ class ShituUserService : IShituService.Stub() {
     override fun copy(srcPath: String, dstPath: String): Boolean {
         val src = File(srcPath)
         val dst = File(dstPath)
-        if (!src.isFile) return false
+        // 注意：不能要求 src.isFile —— 自检要拿 /dev/null 当"空文件源"造临时文件
+        if (!src.exists() || src.isDirectory) return false
         if (dst.exists()) return false
         dst.parentFile?.mkdirs()
         return runCatching {
@@ -104,11 +103,15 @@ class ShituUserService : IShituService.Stub() {
 
     override fun delete(path: String): Boolean = runCatching { File(path).delete() }.getOrDefault(false)
 
+    /**
+     * 注意：这里是 shell 身份的进程，**不能**用 Environment / StatFs 这类会去问系统"当前用户/调用包名"的 API
+     * （会抛 SecurityException: callingPackage does not match UID）。只用纯 java.io 的 statvfs。
+     */
     override fun describeEnvironment(): String {
         val selinux = runCatching { File("/proc/self/attr/current").readText().trim() }.getOrDefault("?")
-        val ext = Environment.getExternalStorageDirectory()
-        val free = runCatching { StatFs(ext.path).availableBytes }.getOrDefault(-1L)
-        val total = runCatching { StatFs(ext.path).totalBytes }.getOrDefault(-1L)
+        val storage = File("/sdcard")
+        val free = runCatching { storage.usableSpace }.getOrDefault(-1L)
+        val total = runCatching { storage.totalSpace }.getOrDefault(-1L)
         return buildString {
             append("uid=").append(Process.myUid()).append(' ')
             append("selinux=").append(selinux).append(' ')
