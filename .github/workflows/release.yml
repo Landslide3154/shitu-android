@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -31,11 +31,26 @@ jobs:
       - name: Gradle 缓存
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Android SDK 命令行工具
-        uses: android-actions/setup-android@v3
-
-      - name: 安装 API 37 平台（目前只在 canary 频道）
-        run: sdkmanager --channel=3 --install "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+      # runner 自带 Android SDK，但 platform 37 目前只在 canary 频道，所以要自己装。
+      # 这里先打印两个频道里到底有什么，再依次尝试，装完把目录列出来，方便排错。
+      - name: 安装 Android SDK 组件（platform 37）
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK"
+          ls "$SDK" || true
+          CM=$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | tail -1)
+          echo "sdkmanager=$CM"
+          "$CM" --version || true
+          yes | "$CM" --licenses >/dev/null 2>&1 || true
+          echo "--- 稳定频道里的 android-3x 平台 ---"
+          "$CM" --list 2>/dev/null | grep -E "platforms;android-3[0-9]" | sort -u || true
+          echo "--- canary 频道里的 android-37 ---"
+          "$CM" --channel=3 --list 2>/dev/null | grep -E "platforms;android-37" | sort -u || true
+          "$CM" --install "platform-tools" "build-tools;37.0.0" "platforms;android-37.0" \
+            || "$CM" --channel=3 --install "platform-tools" "build-tools;37.0.0" "platforms;android-37.0" \
+            || "$CM" --install "platform-tools" "build-tools;37.0.0" "platforms;android-37"
+          echo "--- platforms ---"; ls "$SDK/platforms" || true
+          echo "--- build-tools ---"; ls "$SDK/build-tools" || true
 
       - name: 准备签名文件（从 Secrets 还原，仓库里不放 keystore）
         env:
@@ -61,7 +76,6 @@ jobs:
         run: |
           ./gradlew --no-daemon \
             -Pshitu.signingProperties="$GITHUB_WORKSPACE/ci-keys/shitu-release.properties" \
-            -Pandroid.sdk.channel=3 \
             :app:testDebugUnitTest :app:assembleRelease
 
       - name: 单测报告（失败时也能下载）
