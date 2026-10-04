@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.provider.MediaStore
 import com.landslide.shitu.core.AppLabel
 import com.landslide.shitu.core.DirProbe
+import com.landslide.shitu.core.FileStability
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.data.LogExporter
@@ -68,6 +69,12 @@ class ShituApp : Application() {
      */
     private val pendingRecheck = ConcurrentHashMap<Long, Long>()
 
+    /** 连续重查次数：把重查间隔逐步拉长，避免一个"永远在写"的文件把我们拖成忙轮询 */
+    private val recheckCount = ConcurrentHashMap<Long, Int>()
+
+    /** 「写完就搬」的判定器：跨轮保存每个文件的 size/mtime 观察 */
+    private val stability = FileStability()
+
     /** 系统媒体库（相册）刚有新增的时间戳——用它兜住"下载到公共目录"的情况 */
     @Volatile private var mediaHintAt = 0L
 
@@ -101,6 +108,9 @@ class ShituApp : Application() {
 
         /** 稳定期过后再多等一点，确保 mtime 已经不会再变 */
         private const val RECHECK_SLACK_MS = 3_000L
+
+        /** 重查的最小间隔（"写完就搬"模式下用） */
+        private const val RECHECK_MIN_MS = 4_000L
     }
 
     override fun onCreate() {
@@ -248,11 +258,23 @@ class ShituApp : Application() {
             // 搬完目录 mtime 又变了：对齐基线，避免下一拍又白跑一轮
             runCatching { probe.sync(probeDirs(rule)) { p -> bridge.stat(p)?.mtimeMillis } }
 
-            // 看到候选但一个都没搬（多半是没过稳定期）→ 等稳定期过后再来看一次
+            // 看到候选但一个都没搬（多半是文件还在写）→ 过一会儿再看一次
             if (outcome.moved == 0 && outcome.failed == 0 && outcome.scanned > 0) {
-                pendingRecheck[rule.id] = now + s.stableSec * 1000L + RECHECK_SLACK_MS
+                val n = (recheckCount[rule.id] ?: 0) + 1
+                recheckCount[rule.id] = n
+                val base = if (s.settleDetect) {
+                    maxOf(s.settleGapSec * 1000L + 1_500L, RECHECK_MIN_MS)
+                } else {
+                    s.stableSec * 1000L + RECHECK_SLACK_MS
+                }
+                // 逐次翻倍（4s、8s、16s、32s…），但不超过"稳定期兜底"那条线，
+                // 免得一个永远在长大的文件把我们拖成忙轮询
+                val grown = base * (1L shl minOf(n - 1, 3))
+                val cap = maxOf(s.stableSec * 1000L + RECHECK_SLACK_MS, base)
+                pendingRecheck[rule.id] = now + grown.coerceAtMost(cap)
             } else {
                 pendingRecheck.remove(rule.id)
+                recheckCount.remove(rule.id)
             }
         }
 
@@ -289,6 +311,7 @@ class ShituApp : Application() {
             namePolicy = namePolicy,
             settings = cfg,
             sourceAppLabel = ::sourceAppLabel,
+            stability = if (cfg.settleDetect) stability else null,
         )
         val guard = guardFor(rule, cfg)
         val result = try {

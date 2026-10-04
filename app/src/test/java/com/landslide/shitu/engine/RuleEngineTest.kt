@@ -83,6 +83,41 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `写完就搬：大小没变就不等满稳定期`() = runBlocking {
+        val bridge = FakeFileBridge()
+        // 距 now 只有 1 秒，按「稳定期 30 秒」的老口径搬不走
+        bridge.put("/src/new.png", size = 10, mtime = 1_999_000)
+        var t = 2_000_000L
+        val cfg = settings.copy(stableSec = 30, settleDetect = true, settleGapSec = 3)
+        val engine = RuleEngine(
+            bridge, NamePolicy(), cfg, now = { t },
+            stability = com.landslide.shitu.core.FileStability(minConfirmMillis = 3_000),
+        )
+        // 第一次只是记下观察
+        assertEquals(0, engine.runOnce(rule(), LoopGuard(60_000, 99)).moved)
+        // 4 秒后 size/mtime 都没变 → 判定写完，立刻搬
+        t += 4_000
+        assertEquals(1, engine.runOnce(rule(), LoopGuard(60_000, 99)).moved)
+        assertFalse(bridge.exists("/src/new.png"))
+    }
+
+    @Test
+    fun `关掉写完就搬时仍按稳定期等待`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/new.png", size = 10, mtime = 1_999_000)
+        var t = 2_000_000L
+        val cfg = settings.copy(stableSec = 30, settleDetect = false)
+        val engine = RuleEngine(
+            bridge, NamePolicy(), cfg, now = { t },
+            stability = com.landslide.shitu.core.FileStability(minConfirmMillis = 3_000),
+        )
+        assertEquals(0, engine.runOnce(rule(), LoopGuard(60_000, 99)).moved)
+        t += 4_000
+        assertEquals(0, engine.runOnce(rule(), LoopGuard(60_000, 99)).moved)
+        assertTrue(bridge.exists("/src/new.png"))
+    }
+
+    @Test
     fun `源目录不可读时记错误而不是抛异常`() = runBlocking {
         val bridge = FakeFileBridge().apply { listThrows = true }
         val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 })

@@ -29,6 +29,10 @@ data class Settings(
     /** 快节奏检测：屏幕亮着且解锁时，每隔 fastIntervalSec 秒看一眼目录有没有变（变了才真扫） */
     val fastWhileActive: Boolean = true,
     val fastIntervalSec: Int = 10,
+    /** 写完就搬：用"大小/mtime 不再变化"判定文件写完了，不必等满稳定期 */
+    val settleDetect: Boolean = true,
+    /** 判定窗口：两次观察至少间隔这么多秒才算确认写完 */
+    val settleGapSec: Int = 3,
     // —— 界面与运行状态项 ——
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
@@ -53,6 +57,8 @@ class SettingsStore(private val context: Context) {
         val FAST_DRAIN = booleanPreferencesKey("fast_drain")
         val FAST_WHILE_ACTIVE = booleanPreferencesKey("fast_while_active")
         val FAST_INTERVAL_SEC = intPreferencesKey("fast_interval_sec")
+        val SETTLE_DETECT = booleanPreferencesKey("settle_detect")
+        val SETTLE_GAP_SEC = intPreferencesKey("settle_gap_sec")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
@@ -75,6 +81,8 @@ class SettingsStore(private val context: Context) {
             fastDrain = p[K.FAST_DRAIN] ?: false,
             fastWhileActive = p[K.FAST_WHILE_ACTIVE] ?: true,
             fastIntervalSec = p[K.FAST_INTERVAL_SEC] ?: 10,
+            settleDetect = p[K.SETTLE_DETECT] ?: true,
+            settleGapSec = p[K.SETTLE_GAP_SEC] ?: 3,
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
@@ -96,6 +104,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setFastDrain(v: Boolean) = put(K.FAST_DRAIN, v)
     suspend fun setFastWhileActive(v: Boolean) = put(K.FAST_WHILE_ACTIVE, v)
     suspend fun setFastIntervalSec(v: Int) = put(K.FAST_INTERVAL_SEC, v)
+    suspend fun setSettleDetect(v: Boolean) = put(K.SETTLE_DETECT, v)
+    suspend fun setSettleGapSec(v: Int) = put(K.SETTLE_GAP_SEC, v)
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

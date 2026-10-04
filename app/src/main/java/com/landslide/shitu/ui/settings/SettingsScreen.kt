@@ -58,7 +58,7 @@ fun SettingsScreen(
         intField("单轮最长运行（秒）", settings.maxRunSec, 10..300) {
             scope.launch { store.setMaxRunSec(it) }
         }
-        intField("文件稳定期（秒）", settings.stableSec, 0..300) {
+        intField("文件稳定期（兜底等待，秒）", settings.stableSec, 0..300) {
             scope.launch { store.setStableSec(it) }
         }
         intField("重复抑制窗口（分钟）", settings.loopWindowMin, 5..120) {
@@ -93,6 +93,20 @@ fun SettingsScreen(
         Text(
             "开着它：屏幕亮着时每隔上面这个秒数看一眼源目录有没有变化（只看目录时间，很省电），" +
                 "一变就立刻搬，所以下载完十几秒内就能进相册。屏幕熄灭后回到每条规则自己的间隔。",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("写完就搬（不等满稳定期）")
+            Switch(checked = settings.settleDetect, onCheckedChange = { scope.launch { store.setSettleDetect(it) } })
+        }
+        intField("写完判定窗口（秒）", settings.settleGapSec, 2..15) {
+            scope.launch { store.setSettleGapSec(it) }
+        }
+        Text(
+            "同一个文件两次看到的「大小 + 修改时间」都没变、间隔超过上面这个秒数，就认为它写完了，" +
+                "立刻搬走——不用干等「文件稳定期」。正在下载的文件每隔一会儿就变一次，不会被误判。" +
+                "关掉它则退回按「文件稳定期」等待。",
             style = MaterialTheme.typography.bodySmall,
         )
 

@@ -1,5 +1,6 @@
 package com.landslide.shitu.engine
 
+import com.landslide.shitu.core.FileStability
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.core.RateLimiter
@@ -23,6 +24,11 @@ class RuleEngine(
     private val settings: Settings,
     private val now: () -> Long = System::currentTimeMillis,
     private val sourceAppLabel: (srcPath: String, ruleName: String) -> String = { _, rule -> rule },
+    /**
+     * 「写完就搬」：同一个文件两次观察到 size/mtime 都没变就可以搬，不必等满固定稳定期。
+     * 为 null（单测默认 / 设置里关掉）时退回"固定稳定期"口径。
+     */
+    private val stability: FileStability? = null,
 ) {
     /** 扫描出口 */
     companion object {
@@ -65,6 +71,21 @@ class RuleEngine(
         )
     }
 
+    /**
+     * 一个文件要不要搬：
+     * 1) 白名单命中；
+     * 2) 不在目标目录里（否则"目标在源里面"会反复改名）；
+     * 3) 过了固定稳定期 **或者** 用"大小不再变化"确认写完了。
+     */
+    private fun isCandidate(filter: ScanFilter, f: RemoteFile, dstRoot: String): Boolean {
+        if (!filter.matches(f)) return false
+        if (isInside(f.path, dstRoot)) return false
+        val t = now()
+        if (filter.isStable(f, t)) return true
+        return settings.settleDetect &&
+            stability?.settled(f.path, f.size, f.mtimeMillis, t) == true
+    }
+
     suspend fun runOnce(rule: RuleEntity, guard: LoopGuard, recorder: Recorder? = null): RunResult {
         val t0 = now()
         val filter = ScanFilter(rule.extensions.split(',').toSet(), settings.stableSec)
@@ -85,7 +106,7 @@ class RuleEngine(
                 if (page.isEmpty()) break
                 scanned += page.size
                 after = page.last().path
-                candidates += page.filter { filter.accept(it, now()) && !isInside(it.path, dstRoot) }
+                candidates += page.filter { f -> isCandidate(filter, f, dstRoot) }
             } while (page.size == PAGE_SIZE && now() < deadline)
         } catch (t: Throwable) {
             scanError = "扫描失败：${t.message}"

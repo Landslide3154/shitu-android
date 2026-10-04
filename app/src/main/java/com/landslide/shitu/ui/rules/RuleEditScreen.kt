@@ -96,6 +96,20 @@ fun RuleEditScreen(
             )
             Text("包含子目录")
         }
+        Text(
+            if (rule.includeSubdirs) {
+                "会把源目录下面所有层级的图片都搬走" +
+                    if (dstInsideSrc) "；注意目标目录就在源目录里面，会把刚搬进去的文件又当成源" else ""
+            } else {
+                "只搬源目录这一层里的图片，子文件夹不看（目标目录在源目录里时更安全）"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = if (rule.includeSubdirs && dstInsideSrc) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.outline
+            },
+        )
 
         OutlinedTextField(
             value = rule.maxDepth?.toString() ?: "",
@@ -173,7 +187,9 @@ fun RuleEditScreen(
                     val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
                     when {
                         srcIsRoot -> confirmRoot = true
-                        dstInsideSrc -> confirmNested = true
+                        // 只有"勾了包含子目录 + 目标在源里面"才需要确认：
+                        // 不勾子目录时，子文件夹（含目标目录）根本不会被扫描，是安全的
+                        dstInsideSrc && rule.includeSubdirs -> confirmNested = true
                         else -> onSave(fixed)
                     }
                 },
