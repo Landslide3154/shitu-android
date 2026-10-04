@@ -1,5 +1,6 @@
 package com.landslide.shitu.service
 
+import android.app.KeyguardManager
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,7 +30,8 @@ import kotlinx.coroutines.launch
  *
  * 两种节奏：
  * - **屏幕亮着且解锁** → 每 fastIntervalSec 秒跑一次「快节奏检测」（只 stat 目录，真变了才扫）；
- * - **其他时候** → 每 30 秒按规则自己的间隔跑，另加 WorkManager 15 分钟兜底。
+ * - **其他时候** → 每 30 秒按规则自己的间隔跑（设置里开了「熄屏后暂停扫描」则跳过），
+ *   另加 WorkManager 15 分钟兜底；亮屏解锁会立刻补跑一次。
  */
 class WatchService : Service() {
 
@@ -50,17 +52,32 @@ class WatchService : Service() {
 
     @Volatile private var busy = false
 
-    @Volatile private var screenOn = false
+    @Volatile private var screenUsable = false
 
     /** 屏幕开关/解锁：只在服务存活期间用运行时注册（清单里注册收不到这类广播）。 */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> screenOn = true
-                Intent.ACTION_SCREEN_OFF -> screenOn = false
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                screenUsable = false
+                return
+            }
+            // 刚亮屏那一瞬间 KeyguardManager 还没报告"已锁"，等 0.7 秒再问一次真实状态：
+            // 有锁屏 → 继续暂停，等 USER_PRESENT；没锁屏 → 立刻补跑一次
+            scope.launch {
+                delay(700)
+                val was = screenUsable
+                screenUsable = computeScreenUsable()
+                if (screenUsable && !was) tick(force = false)
             }
         }
     }
+
+    /** 亮屏且已解锁才算"用户在用手机"。 */
+    private fun computeScreenUsable(): Boolean = runCatching {
+        val pm = getSystemService(PowerManager::class.java)
+        val km = getSystemService(KeyguardManager::class.java)
+        pm?.isInteractive == true && km?.isKeyguardLocked != true
+    }.getOrDefault(false)
 
     override fun onCreate() {
         super.onCreate()
@@ -80,9 +97,7 @@ class WatchService : Service() {
             stopSelf()
             return
         }
-        screenOn = runCatching {
-            getSystemService(PowerManager::class.java)?.isInteractive == true
-        }.getOrDefault(false)
+        screenUsable = computeScreenUsable()
         runCatching {
             registerReceiver(
                 screenReceiver,
@@ -110,7 +125,7 @@ class WatchService : Service() {
     private suspend fun loop() {
         while (scope.isActive) {
             val s = app.currentSettings()
-            if (screenOn && s.fastWhileActive) {
+            if (screenUsable && s.fastWhileActive) {
                 if (app.bridge.state() != ShizukuState.READY) {
                     // 未就绪：走常规节奏，顺便把"未就绪"提示刷新到通知上
                     runCatching { tick(force = false) }

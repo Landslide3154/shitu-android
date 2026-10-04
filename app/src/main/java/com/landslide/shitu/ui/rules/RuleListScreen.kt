@@ -152,7 +152,12 @@ fun RuleListScreen(
                     Text("累计 $movedTotal 张", style = MaterialTheme.typography.bodySmall)
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("卡片：", style = MaterialTheme.typography.bodySmall)
+                    if (compact) {
+                        Text("简略：只看名称和开关", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("卡片", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.width(4.dp))
                     FilterChip(
                         selected = compact,
                         onClick = { onCompactChange(true) },
@@ -164,10 +169,6 @@ fun RuleListScreen(
                         onClick = { onCompactChange(false) },
                         label = { Text("详细") },
                     )
-                    Spacer(Modifier.weight(1f))
-                    if (compact) {
-                        Text("简略模式：只显示名称和开关", style = MaterialTheme.typography.bodySmall)
-                    }
                 }
             }
             HorizontalDivider()
@@ -254,7 +255,11 @@ private fun RuleCard(
         return
     }
 
-    Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+    // 详细模式：整张卡片可点 = 进编辑（里面的按钮/开关/勾选框照常各自响应）
+    Card(
+        onClick = onEdit,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
         Column(Modifier.padding(12.dp)) {
             Row(
                 Modifier.fillMaxWidth(),

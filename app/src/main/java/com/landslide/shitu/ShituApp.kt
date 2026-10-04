@@ -1,6 +1,7 @@
 package com.landslide.shitu
 
 import android.app.Application
+import android.app.KeyguardManager
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.BatteryManager
@@ -159,9 +160,9 @@ class ShituApp : Application() {
     suspend fun runDueRules(force: Boolean = false): RunSummary = runMutex.withLock {
         val s = currentSettings()
         if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary(message = "低电量/省电模式暂停")
-        // 熄屏暂停：手动触发（打开 App、「立即扫一次」）不受影响，只有定时调度会被挡住
-        if (!force && s.screenOffPause && !isScreenOn()) {
-            return@withLock RunSummary(message = "熄屏暂停中（设置里可改为继续）")
+        // 熄屏/锁屏暂停：手动触发（打开 App、「立即扫一次」）不受影响，亮屏解锁后自动继续
+        if (!force && s.screenOffPause && !isScreenUsable()) {
+            return@withLock RunSummary(message = "熄屏暂停中（亮屏解锁后自动继续）")
         }
 
         if (bridge.state() != ShizukuState.READY && !bridge.bindWithRetry(1)) {
@@ -494,7 +495,10 @@ class ShituApp : Application() {
         return pct in 1..s.lowBatteryPct
     }
 
-    /** 屏幕是否亮着（用于"熄屏后暂停/继续"的开关判断）。 */
-    fun isScreenOn(): Boolean =
-        runCatching { getSystemService(PowerManager::class.java)?.isInteractive == true }.getOrDefault(true)
+    /** 屏幕亮着**且已解锁**：只有这种状态才算"用户在用手机"。 */
+    fun isScreenUsable(): Boolean = runCatching {
+        val pm = getSystemService(PowerManager::class.java)
+        val km = getSystemService(KeyguardManager::class.java)
+        pm?.isInteractive == true && km?.isKeyguardLocked != true
+    }.getOrDefault(true)
 }
