@@ -1,5 +1,8 @@
 package com.landslide.shitu.ui.rules
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,10 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -46,6 +52,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.core.RuleTemplate
@@ -104,23 +113,67 @@ fun RuleListScreen(
             onDismissRequest = { showNew = false },
             title = { Text("新建规则") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    NewRuleOption("空白规则", "源目录从 /sdcard 开始自己往下选") {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    NewRuleOption(
+                        title = "空白规则",
+                        detail = "源目录从 /sdcard 开始自己往下选",
+                        icon = Icons.Filled.Add,
+                    ) {
                         showNew = false
                         onAdd()
                     }
                     if (templates.isEmpty()) {
-                        Text(
-                            "还没有自己的模板。想让某条规则变成模板：点开那条规则的「编辑」，" +
-                                "在编辑页下面点「存为模板」。",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp).padding(top = 2.dp),
+                            )
+                            Text(
+                                "还没有自己的模板。想让某条规则变成模板：点开那条规则的「编辑」，" +
+                                    "在编辑页下面点「存为模板」。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
                     } else {
-                        Text("我的模板", style = MaterialTheme.typography.labelLarge)
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                "我的模板",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 6.dp),
+                            )
+                            HorizontalDivider(
+                                Modifier.weight(1f).padding(start = 10.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                        }
                         templates.forEach { t ->
                             NewRuleOption(
                                 title = t.name,
                                 detail = t.detail(),
+                                icon = Icons.Filled.Star,
                                 onDelete = { onDeleteTemplate(t) },
                             ) {
                                 showNew = false
@@ -131,6 +184,8 @@ fun RuleListScreen(
                     Text(
                         "选完会进编辑页，还能随便改；点「保存并开始搬运」才真的建出来。",
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             },
@@ -265,27 +320,56 @@ fun RuleListScreen(
     }
 }
 
-/** 「新建规则」弹窗里的一行：标题 + 说明，点哪都算选中；右侧可选的 ✕ = 删掉这条模板。 */
+/** 「新建规则」弹窗里的一行：图标 + 标题 + 说明，整块都能点；右侧可选的 ✕ = 删掉这条模板。 */
 @Composable
 private fun NewRuleOption(
     title: String,
     detail: String,
+    icon: ImageVector,
     onDelete: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(
-            Modifier
-                .weight(1f)
-                .clickable(onClick = onClick)
-                .padding(vertical = 10.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(detail, style = MaterialTheme.typography.bodySmall)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(start = 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 6.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
         if (onDelete != null) {
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Close, contentDescription = "删除模板", modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "删除模板",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
     }
