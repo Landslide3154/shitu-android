@@ -4,8 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,15 +24,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -55,14 +63,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.RuleEntity
-import com.landslide.shitu.data.db.RuleState
 import com.landslide.shitu.shizuku.ShizukuState
-import com.landslide.shitu.shizuku.display
+import com.landslide.shitu.ui.components.BannerCard
+import com.landslide.shitu.ui.components.StatusDot
+import com.landslide.shitu.ui.components.StatusPill
+import com.landslide.shitu.ui.status.canResume
+import com.landslide.shitu.ui.status.ruleStatusText
+import com.landslide.shitu.ui.status.ruleTone
+import com.landslide.shitu.ui.status.shizukuActionLabel
+import com.landslide.shitu.ui.status.shizukuAdvice
+import com.landslide.shitu.ui.status.shizukuTitle
+import com.landslide.shitu.ui.status.shizukuTone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,6 +100,8 @@ fun RuleListScreen(
     movedTotal: Long,
     onSelfCheck: () -> Unit,
     onRequestPermission: () -> Unit,
+    /** 打开 Shizuku 应用（没装则打开官网），给「未运行 / 未安装」状态一个出口 */
+    onOpenShizuku: () -> Unit,
     onAdd: () -> Unit,
     onAddFromTemplate: (RuleTemplate) -> Unit,
     /** 我自己的模板（在编辑页点「存为模板」存下来的） */
@@ -103,6 +122,8 @@ fun RuleListScreen(
 ) {
     var selected by remember { mutableStateOf(emptySet<Long>()) }
     var showNew by remember { mutableStateOf(false) }
+    // 删除前问一次：这个按钮以前紧挨着「撤回」，容易点错
+    var pendingDelete by remember { mutableStateOf<RuleEntity?>(null) }
     LaunchedEffect(rules) {
         selected = selected intersect rules.map { it.id }.toSet()
     }
@@ -194,6 +215,32 @@ fun RuleListScreen(
         )
     }
 
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除「${target.name}」？") },
+            text = {
+                Text(
+                    "只删掉这条规则和它的运行记录。已经搬过去的图片会留在原处，" +
+                        "不会被搬回来，也不会被删掉。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDelete = null
+                        onDelete(target)
+                    },
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+            },
+        )
+    }
+
     Scaffold(
         // 外层 Scaffold 已经处理过状态栏内边距，这里再叠一次会多出一条空白
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -217,8 +264,16 @@ fun RuleListScreen(
                             },
                         )
                         Text("全选", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(8.dp))
-                        Text("已选 ${selected.size}", style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            if (selected.isEmpty()) "勾选后可批量开关" else "已选 ${selected.size} 条",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (selected.isEmpty()) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
                         Spacer(Modifier.weight(1f))
                         Button(
                             onClick = { onEnableSelected(selected.toList()) },
@@ -237,35 +292,41 @@ fun RuleListScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // 顶部状态条（尽量紧凑，给规则卡留空间）
-            Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    AssistChip(
-                        onClick = onSelfCheck,
-                        label = {
-                            Text(
-                                "Shizuku：${state.display()}",
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (state == ShizukuState.NO_PERMISSION) {
-                        TextButton(onClick = onRequestPermission) {
-                            Text("请求授权", maxLines = 1)
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Shizuku 通道：颜色分状态 + 一句「现在该干什么」+ 一个按钮；点整块 = 重新自检
+                BannerCard(
+                    tone = shizukuTone(state),
+                    icon = if (state == ShizukuState.READY) {
+                        Icons.Filled.CheckCircle
+                    } else {
+                        Icons.Filled.Warning
+                    },
+                    title = shizukuTitle(state),
+                    body = shizukuAdvice(state),
+                    actionLabel = shizukuActionLabel(state),
+                    onAction = {
+                        when (state) {
+                            ShizukuState.NO_PERMISSION -> onRequestPermission()
+                            ShizukuState.NOT_INSTALLED, ShizukuState.NOT_RUNNING -> onOpenShizuku()
+                            else -> onSelfCheck()
                         }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text("累计 $movedTotal 张", style = MaterialTheme.typography.bodySmall)
-                }
+                    },
+                    onClick = onSelfCheck,
+                )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    if (compact) {
-                        Text("简略：只看名称和开关", style = MaterialTheme.typography.bodySmall)
-                    }
+                    Text("累计已搬", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "$movedTotal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    Text("张", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.weight(1f))
-                    Text("卡片", style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.width(4.dp))
                     FilterChip(
                         selected = compact,
                         onClick = { onCompactChange(true) },
@@ -282,14 +343,30 @@ fun RuleListScreen(
             HorizontalDivider()
 
             if (rules.isEmpty()) {
-                Column(Modifier.fillMaxSize().padding(24.dp)) {
-                    Text("还没有规则。", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "点右下角「新建规则」：源目录从存储根目录 /sdcard 开始往下点，" +
-                            "选到你想清空的图片文件夹（例如 Android/data/com.qidian.QDReader/files/...）；" +
-                            "目标目录默认 /sdcard/DCIM。首次建议先用「复制」模式试一天。",
-                        style = MaterialTheme.typography.bodyMedium,
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.List,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.size(56.dp),
                     )
+                    Spacer(Modifier.height(12.dp))
+                    Text("还没有规则", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "源目录从 /sdcard 往下点，选到要清空的图片文件夹（例如 " +
+                            "Android/data/com.qidian.QDReader/files）；目标目录默认 /sdcard/DCIM。" +
+                            "第一次建议先用「复制」模式试一天。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Button(onClick = { showNew = true }) { Text("新建第一条规则") }
                 }
             } else {
                 // 底部留出悬浮按钮的高度：否则最后一张卡片的按钮会被 FAB 盖住点不到
@@ -310,7 +387,7 @@ fun RuleListScreen(
                             onRunNow = { onRunNow(rule) },
                             onUndo = { onUndo(rule) },
                             onResume = { onResume(rule) },
-                            onDelete = { onDelete(rule) },
+                            onDelete = { pendingDelete = rule },
                             onToggleEnabled = { on -> onToggleRuleEnabled(rule, on) },
                         )
                     }
@@ -389,9 +466,10 @@ private fun RuleCard(
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
 ) {
-    val paused = rule.state == RuleState.PAUSED_LOOP || rule.state == RuleState.PAUSED_ERROR
+    val tone = ruleTone(rule)
+    var menu by remember { mutableStateOf(false) }
 
-    // 简略模式：一行——勾选框 + 规则名 + 开关（点名字进编辑）
+    // 简略模式：一行——勾选框 + 状态点 + 规则名 + 状态胶囊 + 开关（点名字进编辑）
     if (compact) {
         Card(
             onClick = onEdit,
@@ -404,20 +482,16 @@ private fun RuleCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+                StatusDot(tone)
                 Text(
                     rule.name,
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
-                if (paused) {
-                    Text(
-                        "已暂停",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+                StatusPill(ruleStatusText(rule), tone)
+                Spacer(Modifier.width(10.dp))
                 Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
             }
         }
@@ -435,72 +509,128 @@ private fun RuleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                StatusDot(tone, size = 10.dp)
                 Text(
                     rule.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (rule.enabled) Labels.state(rule.state) else "已停止",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (rule.enabled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        },
-                    )
-                    // 每条规则自己的开关（也能用底部「全选 + 开启/停止」批量操作）
-                    Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
-                }
+                StatusPill(ruleStatusText(rule), tone)
+                Spacer(Modifier.width(10.dp))
+                // 每条规则自己的开关（也能用底部「全选 + 开启/停止」批量操作）
+                Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
             }
+            Spacer(Modifier.height(6.dp))
             Text(
                 rule.srcPath,
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 "→ ${rule.dstPath}",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Spacer(Modifier.height(4.dp))
             Text(
                 "模式 ${Labels.mode(rule.mode)} · 间隔 ${rule.intervalMinutes} 分钟" +
                     " · 后缀 ${if (rule.suffix.isBlank()) "无" else rule.suffix}",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             rule.pauseReason?.let {
-                Text(
-                    "暂停原因：$it",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
             }
+            Spacer(Modifier.height(6.dp))
             Text(
                 "上次 ${rule.lastRunAt?.let { timeFmt.format(Date(it)) } ?: "—"} · " +
                     "上次搬 ${rule.lastMoved} · 累计 ${rule.totalMoved} · 失败 ${rule.totalFailed}",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                FilledTonalButton(
+                    onClick = onRunNow,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 ) {
-                    // 5 个按钮要挤在一行里，内边距收紧一点；挤不下还能左右划（字体放大时）
-                    val pad = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
-                    TextButton(onClick = onRunNow, contentPadding = pad) { Text("立即运行") }
-                    TextButton(onClick = onEdit, contentPadding = pad) { Text("编辑") }
-                    TextButton(onClick = onCopy, contentPadding = pad) { Text("复制") }
-                    TextButton(onClick = onUndo, contentPadding = pad) { Text("撤回") }
-                    if (paused) TextButton(onClick = onResume, contentPadding = pad) { Text("恢复") }
-                    TextButton(onClick = onDelete, contentPadding = pad) { Text("删除") }
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("立即运行")
                 }
+                Spacer(Modifier.width(6.dp))
+                TextButton(onClick = onEdit) { Text("编辑") }
+                Spacer(Modifier.weight(1f))
                 // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = "更多操作",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("复制一条") },
+                            onClick = {
+                                menu = false
+                                onCopy()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("撤回已搬的图") },
+                            onClick = {
+                                menu = false
+                                onUndo()
+                            },
+                        )
+                        if (canResume(rule)) {
+                            DropdownMenuItem(
+                                text = { Text("恢复运行") },
+                                onClick = {
+                                    menu = false
+                                    onResume()
+                                },
+                            )
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                menu = false
+                                onDelete()
+                            },
+                        )
+                    }
+                }
             }
         }
     }

@@ -4,12 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -35,7 +39,10 @@ import androidx.compose.ui.unit.dp
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.FileBridge
+import com.landslide.shitu.ui.components.BannerCard
 import com.landslide.shitu.ui.components.DirPickerDialog
+import com.landslide.shitu.ui.components.SectionCard
+import com.landslide.shitu.ui.theme.Tone
 
 /** 规则编辑（规格 §10 页面 2）。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,126 +88,147 @@ fun RuleEditScreen(
     ) {
         Text("编辑规则", style = MaterialTheme.typography.titleLarge)
 
-        OutlinedTextField(
-            value = rule.name,
-            onValueChange = { rule = rule.copy(name = it) },
-            label = { Text("规则名称") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = rule.srcPath,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("源目录（从这里把图片搬走）") },
-            trailingIcon = { TextButton(onClick = { picking = "src" }) { Text("选择") } },
-            supportingText = {
-                Text(
-                    when {
-                        srcIsRoot -> "⚠ 这是整个存储根目录，会搬走手机里几乎所有图片"
-                        srcIsAllAppData -> "⚠ 这是所有 App 的数据根目录，会搬走各个 App 里的图片；建议点「选择」往下选到具体那个 App"
-                        else -> "从 /sdcard 开始往下点，选到具体的图片文件夹最安全"
-                    },
-                    color = if (srcIsRoot || srcIsAllAppData) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = rule.includeSubdirs,
-                onCheckedChange = { rule = rule.copy(includeSubdirs = it) },
+        // 配置提醒放到最上面：改的时候一眼能看到哪里有问题
+        conflicts.forEach { c ->
+            BannerCard(
+                tone = Tone.WARN,
+                icon = Icons.Filled.Warning,
+                title = "配置提醒",
+                body = c,
+                modifier = Modifier.padding(bottom = 6.dp),
             )
-            Text("包含子目录")
         }
-        Text(
-            if (rule.includeSubdirs) {
-                "会把源目录下面所有层级的图片都搬走" +
-                    if (dstInsideSrc) "；注意目标目录就在源目录里面，会把刚搬进去的文件又当成源" else ""
-            } else {
-                "只搬源目录这一层里的图片，子文件夹不看（目标目录在源目录里时更安全）"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = if (rule.includeSubdirs && dstInsideSrc) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.outline
-            },
-        )
 
-        OutlinedTextField(
-            value = rule.maxDepth?.toString() ?: "",
-            onValueChange = { t ->
-                val digits = t.filter { it.isDigit() }.take(2)
-                rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
-            },
-            label = { Text("最大深度（留空 = 不限）") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        SectionCard(title = "规则与源目录") {
+            OutlinedTextField(
+                value = rule.name,
+                onValueChange = { rule = rule.copy(name = it) },
+                label = { Text("规则名称") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        OutlinedTextField(
-            value = rule.dstPath,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("目标目录（搬到这里）") },
-            trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text("选择") } },
-            supportingText = { Text("建议放在 DCIM 或 Pictures 下，相册才能立刻看到") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+            OutlinedTextField(
+                value = rule.srcPath,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("源目录（从这里把图片搬走）") },
+                trailingIcon = { TextButton(onClick = { picking = "src" }) { Text("选择") } },
+                supportingText = {
+                    Text(
+                        when {
+                            srcIsRoot -> "这是整个存储根目录，会搬走手机里几乎所有图片"
+                            srcIsAllAppData ->
+                                "这是所有 App 的数据根目录，会搬走各个 App 里的图片；" +
+                                    "建议点「选择」往下选到具体那个 App"
+                            else -> "从 /sdcard 开始往下点，选到具体的图片文件夹最安全"
+                        },
+                        color = if (srcIsRoot || srcIsAllAppData) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            Mode.entries.forEachIndexed { i, m ->
-                SegmentedButton(
-                    selected = rule.mode == m,
-                    onClick = { rule = rule.copy(mode = m) },
-                    shape = SegmentedButtonDefaults.itemShape(i, Mode.entries.size),
-                ) { Text(if (m == Mode.MOVE) "移动" else "复制") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = rule.includeSubdirs,
+                    onCheckedChange = { rule = rule.copy(includeSubdirs = it) },
+                )
+                Text("包含子目录")
             }
+            Text(
+                if (rule.includeSubdirs) {
+                    "会把源目录下面所有层级的图片都搬走" +
+                        if (dstInsideSrc) "；注意目标目录就在源目录里面，会把刚搬进去的文件又当成源" else ""
+                } else {
+                    "只搬源目录这一层里的图片，子文件夹不看（目标目录在源目录里时更安全）"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (rule.includeSubdirs && dstInsideSrc) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+
+            OutlinedTextField(
+                value = rule.maxDepth?.toString() ?: "",
+                onValueChange = { t ->
+                    val digits = t.filter { it.isDigit() }.take(2)
+                    rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
+                },
+                label = { Text("最大深度（留空 = 不限）") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        Text(
-            if (rule.mode == Mode.MOVE) "移动：源文件会被搬到目标目录（推荐）"
-            else "复制：源文件保留，只复制一份到目标目录（第一天建议用它）",
-            style = MaterialTheme.typography.bodySmall,
-        )
 
-        Text("轮询间隔：${rule.intervalMinutes} 分钟")
-        Slider(
-            value = rule.intervalMinutes.toFloat(),
-            onValueChange = { rule = rule.copy(intervalMinutes = it.toInt().coerceIn(1, 30)) },
-            valueRange = 1f..30f,
-            steps = 28,
-        )
+        SectionCard(title = "目标与模式") {
+            OutlinedTextField(
+                value = rule.dstPath,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("目标目录（搬到这里）") },
+                trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text("选择") } },
+                supportingText = { Text("建议放在 DCIM 或 Pictures 下，相册才能立刻看到") },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        OutlinedTextField(
-            value = rule.extensions,
-            onValueChange = { rule = rule.copy(extensions = it) },
-            label = { Text("扩展名白名单（逗号分隔）") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+            Spacer(Modifier.height(8.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                Mode.entries.forEachIndexed { i, m ->
+                    SegmentedButton(
+                        selected = rule.mode == m,
+                        onClick = { rule = rule.copy(mode = m) },
+                        shape = SegmentedButtonDefaults.itemShape(i, Mode.entries.size),
+                    ) { Text(if (m == Mode.MOVE) "移动" else "复制") }
+                }
+            }
+            Text(
+                if (rule.mode == Mode.MOVE) "移动：源文件会被搬到目标目录（推荐）"
+                else "复制：源文件保留，只复制一份到目标目录（第一天建议用它）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
 
-        // 文件名后缀：可自定义（原来的「加来源 App 后缀」开关改成这里填）
-        OutlinedTextField(
-            value = rule.suffix,
-            onValueChange = { rule = rule.copy(suffix = it) },
-            label = { Text("文件名后缀") },
-            singleLine = true,
-            supportingText = {
-                Text("填 {app} = 自动用来源 App 名（封面_{app}.png → 封面_起点读书.png）；填自己的文字 = 固定后缀（如 _拾图）；留空 = 不改文件名")
-            },
-            placeholder = { Text("{app}") },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        SectionCard(title = "频率与文件名") {
+            Text("轮询间隔：${rule.intervalMinutes} 分钟", style = MaterialTheme.typography.bodyLarge)
+            Slider(
+                value = rule.intervalMinutes.toFloat(),
+                onValueChange = { rule = rule.copy(intervalMinutes = it.toInt().coerceIn(1, 30)) },
+                valueRange = 1f..30f,
+                steps = 28,
+            )
 
-        conflicts.forEach {
-            Text("⚠ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(
+                value = rule.extensions,
+                onValueChange = { rule = rule.copy(extensions = it) },
+                label = { Text("扩展名白名单（逗号分隔）") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            // 文件名后缀：可自定义（原来的「加来源 App 后缀」开关改成这里填）
+            OutlinedTextField(
+                value = rule.suffix,
+                onValueChange = { rule = rule.copy(suffix = it) },
+                label = { Text("文件名后缀") },
+                singleLine = true,
+                supportingText = {
+                    Text(
+                        "填 {app} = 自动用来源 App 名（封面_{app}.png → 封面_起点读书.png）；" +
+                            "填自己的文字 = 固定后缀（如 _拾图）；留空 = 不改文件名",
+                    )
+                },
+                placeholder = { Text("{app}") },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {

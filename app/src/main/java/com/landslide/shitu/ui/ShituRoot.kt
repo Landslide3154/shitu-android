@@ -221,6 +221,22 @@ fun ShituRoot(app: ShituApp) {
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
                     onRequestPermission = { app.bridge.requestPermission() },
+                    onOpenShizuku = {
+                        val pkg = "moe.shizuku.manager"
+                        val launch = context.packageManager.getLaunchIntentForPackage(pkg)
+                        runCatching {
+                            if (launch != null) {
+                                context.startActivity(launch)
+                            } else {
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://shizuku.rikka.app/"),
+                                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
+                        }
+                    },
                     onToggleRuleEnabled = { rule, enabled ->
                         scope.launch {
                             app.setRulesEnabled(listOf(rule.id), enabled)

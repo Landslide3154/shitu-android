@@ -4,15 +4,21 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -22,13 +28,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.RuleEntity
+import com.landslide.shitu.ui.components.SectionCard
+import com.landslide.shitu.ui.components.StatusPill
+import com.landslide.shitu.ui.status.logTone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,89 +66,165 @@ fun LogScreen(
                 (l.dstPath ?: "").contains(keyword, ignoreCase = true))
     }
 
-    Column(Modifier.fillMaxSize().padding(12.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("日志（${shown.size} / ${logs.size}）", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onExport) { Text("导出 CSV") }
-        }
-        Text(
-            "导出文件包含完整文件路径，请留意隐私。",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        OutlinedTextField(
-            value = keyword,
-            onValueChange = { keyword = it },
-            label = { Text("按路径搜索") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            FilterChip(
-                selected = resultFilter == null,
-                onClick = { resultFilter = null },
-                label = { Text("全部结果") },
-            )
-            LogResult.entries.forEach { r ->
-                FilterChip(
-                    selected = resultFilter == r,
-                    onClick = { resultFilter = if (resultFilter == r) null else r },
-                    label = { Text(Labels.result(r)) },
+            Column {
+                Text("日志", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "显示 ${shown.size} 条 / 共 ${logs.size} 条",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            TextButton(onClick = onExport) { Text("导出 CSV") }
         }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            FilterChip(
-                selected = ruleFilter == null,
-                onClick = { ruleFilter = null },
-                label = { Text("全部规则") },
+
+        Spacer(Modifier.height(8.dp))
+
+        // 搜索 + 两级筛选收进一张卡，别把列表挤到屏幕外
+        SectionCard(title = "筛选") {
+            OutlinedTextField(
+                value = keyword,
+                onValueChange = { keyword = it },
+                label = { Text("按文件路径搜索") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
-            rules.forEach { r ->
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 FilterChip(
-                    selected = ruleFilter == r.id,
-                    onClick = { ruleFilter = if (ruleFilter == r.id) null else r.id },
-                    label = { Text(r.name) },
+                    selected = resultFilter == null,
+                    onClick = { resultFilter = null },
+                    label = { Text("全部结果") },
+                )
+                LogResult.entries.forEach { r ->
+                    FilterChip(
+                        selected = resultFilter == r,
+                        onClick = { resultFilter = if (resultFilter == r) null else r },
+                        label = { Text(Labels.result(r)) },
+                    )
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FilterChip(
+                    selected = ruleFilter == null,
+                    onClick = { ruleFilter = null },
+                    label = { Text("全部规则") },
+                )
+                rules.forEach { r ->
+                    FilterChip(
+                        selected = ruleFilter == r.id,
+                        onClick = { ruleFilter = if (ruleFilter == r.id) null else r.id },
+                        label = { Text(r.name) },
+                    )
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    "导出的 CSV 含完整文件路径，分享前留意隐私。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 6.dp),
                 )
             }
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(shown, key = { it.id }) { l ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Column(Modifier.padding(10.dp)) {
-                        Text(
-                            "${timeFmt.format(Date(l.ts))} · ${Labels.result(l.result)} · ${l.durationMs} ms",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        l.srcPath?.let {
-                            Text(
-                                "源：$it",
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        l.dstPath?.let {
-                            Text(
-                                "目标：$it",
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        l.message?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
+        Spacer(Modifier.height(8.dp))
+
+        if (shown.isEmpty()) {
+            Column(
+                Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("没有符合条件的日志", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (logs.isEmpty()) "还没搬过东西；去规则页点「立即运行」试试" else "换个筛选条件看看",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(shown, key = { it.id }) { l -> LogRow(l) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogRow(l: LogEntity) {
+    val tone = logTone(l.result)
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                StatusPill(Labels.result(l.result), tone)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    timeFmt.format(Date(l.ts)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    " · ${l.durationMs} ms",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            l.srcPath?.let {
+                Text(
+                    "源  $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+            l.dstPath?.let {
+                Text(
+                    "目标  $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            l.message?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (l.result == LogResult.FAILED) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
