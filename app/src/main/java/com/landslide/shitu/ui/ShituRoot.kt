@@ -169,7 +169,7 @@ fun ShituRoot(app: ShituApp) {
             NavigationBar {
                 NavigationBarItem(
                     selected = tab == 0,
-                    onClick = { tab = 0 },
+                    onClick = { leaveEditor(0) },
                     icon = { Icon(Icons.Filled.Share, contentDescription = null) },
                     label = { Text("规则") },
                 )
