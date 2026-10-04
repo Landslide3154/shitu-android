@@ -225,7 +225,7 @@ dependencies {
 </manifest>
 ```
 
-- [ ] **步骤 6：写 `ShituApp.kt` 与 `MainActivity.kt` 占位实现**
+- [ ] **步骤 6：写 `ShituApp.kt` 与 `MainActivity.kt` 的最小可运行实现**
 
 ```kotlin
 // ShituApp.kt
