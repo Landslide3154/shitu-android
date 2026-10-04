@@ -114,6 +114,13 @@ class ShituApp : Application() {
         var skipped = 0
         var sawFailure = false
 
+        // 进程上次被杀可能留下"运行中"状态：超过 5 分钟就当作异常中断，放回待命
+        for (stale in repo.enabledRules()) {
+            if (stale.state == RuleState.RUNNING && (stale.lastRunAt == null || now - stale.lastRunAt!! > 5 * 60_000L)) {
+                repo.setRuleState(stale.id, RuleState.IDLE, null)
+            }
+        }
+
         for (rule in repo.enabledRules()) {
             if (rule.state == RuleState.PAUSED_LOOP || rule.state == RuleState.PAUSED_ERROR) continue
             if (rule.state == RuleState.RUNNING) continue
@@ -234,13 +241,20 @@ class ShituApp : Application() {
         }
     }
 
-    /** 来源 App 标签（规格 §6.5）：包名 → 系统显示名 → 包名末段。 */
+    /**
+     * 来源 App 标签（规格 §6.5）：Android/data/<包名> → 系统显示名 → 包名末段；
+     * 不是 App 私有目录时退回上一层目录名；都取不到就返回空串（不加后缀）。
+     */
     fun sourceAppLabel(srcPath: String, ruleName: String): String {
-        val pkg = AppLabel.packageFromPath(srcPath) ?: return ruleName
-        val info = runCatching { packageManager.getApplicationInfo(pkg, 0) }.getOrNull()
-            ?: return AppLabel.lastSegment(pkg)
-        val label = runCatching { packageManager.getApplicationLabel(info).toString() }.getOrNull()
-        return label?.takeIf { it.isNotBlank() } ?: AppLabel.lastSegment(pkg)
+        val pkg = AppLabel.packageFromPath(srcPath)
+        if (pkg != null) {
+            val info = runCatching { packageManager.getApplicationInfo(pkg, 0) }.getOrNull()
+                ?: return AppLabel.lastSegment(pkg)
+            val label = runCatching { packageManager.getApplicationLabel(info).toString() }.getOrNull()
+            return label?.takeIf { it.isNotBlank() } ?: AppLabel.lastSegment(pkg)
+        }
+        val parent = srcPath.trimEnd('/').substringBeforeLast('/', "").substringAfterLast('/')
+        return if (parent.isBlank() || parent == "sdcard" || parent == "0") "" else parent
     }
 
     /** 撤回一条规则最近成功搬走的文件（规格 §6.6）。 */

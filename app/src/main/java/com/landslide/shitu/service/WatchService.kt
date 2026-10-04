@@ -48,12 +48,20 @@ class WatchService : Service() {
         super.onCreate()
         app = application as ShituApp
         app.notifier.ensureChannels()
-        ServiceCompat.startForeground(
-            this,
-            Notifier.ID_WATCH,
-            app.notifier.watchNotification("正在启动…"),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-        )
+        val ok = runCatching {
+            ServiceCompat.startForeground(
+                this,
+                Notifier.ID_WATCH,
+                app.notifier.watchNotification("正在启动…"),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        }.isSuccess
+        if (!ok) {
+            // 系统拒绝前台化（例如从后台直接拉起被限制）：交给 WorkManager 兜底
+            app.notifier.event("拾图未能常驻", "系统拒绝了常驻服务，已改用 15 分钟兜底任务。打开 App 可恢复正常。")
+            stopSelf()
+            return
+        }
         scope.launch { loop() }
     }
 

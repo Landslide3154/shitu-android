@@ -43,7 +43,7 @@ class Notifier(private val context: Context) {
         val pause = action(WatchService.ACTION_PAUSE_ALL, 1)
         val scan = action(WatchService.ACTION_RUN_NOW, 2)
         return NotificationCompat.Builder(context, CH_WATCH)
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle("拾图正在监控")
             .setContentText(text)
             .setOngoing(true)
@@ -71,7 +71,7 @@ class Notifier(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val n = NotificationCompat.Builder(context, CH_EVENT)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

@@ -42,6 +42,7 @@ fun RuleListScreen(
     pauseAll: Boolean,
     movedTotal: Long,
     onSelfCheck: () -> Unit,
+    onRequestPermission: () -> Unit,
     onTogglePauseAll: (Boolean) -> Unit,
     onAdd: () -> Unit,
     onEdit: (RuleEntity) -> Unit,
@@ -64,10 +65,15 @@ fun RuleListScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AssistChip(
-                        onClick = onSelfCheck,
-                        label = { Text("Shizuku：${state.display()}") },
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AssistChip(
+                            onClick = onSelfCheck,
+                            label = { Text("Shizuku：${state.display()}") },
+                        )
+                        if (state == ShizukuState.NO_PERMISSION) {
+                            TextButton(onClick = onRequestPermission) { Text("请求授权") }
+                        }
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("暂停全部", style = MaterialTheme.typography.bodyMedium)
                         Switch(checked = pauseAll, onCheckedChange = onTogglePauseAll)

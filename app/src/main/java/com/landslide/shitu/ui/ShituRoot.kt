@@ -94,7 +94,18 @@ fun ShituRoot(app: ShituApp) {
     fun selfCheck() {
         scope.launch {
             checking = true
-            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(1)
+            when (app.bridge.state()) {
+                ShizukuState.NOT_INSTALLED ->
+                    snackbar.showSnackbar("没找到 Shizuku，请先安装并启动它")
+                ShizukuState.NOT_RUNNING ->
+                    snackbar.showSnackbar("Shizuku 未运行，请先在 Shizuku 里启动服务")
+                ShizukuState.NO_PERMISSION -> {
+                    app.bridge.requestPermission()
+                    snackbar.showSnackbar("已弹出授权请求，请在 Shizuku 里允许「拾图」")
+                }
+                else -> Unit
+            }
+            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(2)
             val first = rules.firstOrNull()
             val report = HealthChecker(
                 bridge = app.bridge,
@@ -159,6 +170,7 @@ fun ShituRoot(app: ShituApp) {
                     pauseAll = settings.pauseAll,
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
+                    onRequestPermission = { app.bridge.requestPermission() },
                     onTogglePauseAll = { scope.launch { app.settings.setPauseAll(it); snackbar.showSnackbar(if (it) "已暂停全部" else "已恢复") } },
                     onAdd = {
                         val now = System.currentTimeMillis()

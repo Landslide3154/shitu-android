@@ -79,6 +79,20 @@ fun RuleEditScreen(
         }
 
         OutlinedTextField(
+            value = rule.maxDepth?.toString() ?: "",
+            onValueChange = { t ->
+                val digits = t.filter { it.isDigit() }.take(2)
+                rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
+            },
+            label = { Text("最大深度（留空 = 不限）") },
+            singleLine = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        OutlinedTextField(
             value = rule.dstPath,
             onValueChange = {},
             readOnly = true,

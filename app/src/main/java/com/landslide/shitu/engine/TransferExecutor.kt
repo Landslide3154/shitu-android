@@ -42,7 +42,7 @@ class TransferExecutor(
         addSourceAppSuffix: Boolean = true,
     ): ItemEntity {
         val ts = timestamp(now)
-        val tag = if (addSourceAppSuffix) sourceApp else null
+        val tag = if (addSourceAppSuffix) sourceApp.takeIf { it.isNotBlank() } else null
 
         // ---- 1) 目标已有"同 size + 同 mtime"的文件：视为同一文件 ----
         val naturalName = namePolicy.candidates(src.name, tag, ts).first()
