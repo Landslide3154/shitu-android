@@ -97,7 +97,6 @@ class ShituApp : Application() {
     /** 供 WatchService / Worker 调用：跑所有"到期且启用"的规则。 */
     suspend fun runDueRules(force: Boolean = false): RunSummary = runMutex.withLock {
         val s = currentSettings()
-        if (s.pauseAll) return@withLock RunSummary(message = "已暂停全部")
         if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary(message = "低电量/省电模式暂停")
 
         if (bridge.state() != ShizukuState.READY && !bridge.bindWithRetry(1)) {
@@ -223,6 +222,33 @@ class ShituApp : Application() {
             ),
         )
     }
+
+    /** 批量开启 / 停止规则（规则列表里多选之后用），返回实际处理的条数。 */
+    suspend fun setRulesEnabled(ids: Collection<Long>, enabled: Boolean): Int {
+        var count = 0
+        for (id in ids) {
+            val rule = repo.ruleById(id) ?: continue
+            if (enabled) {
+                resetGuard(id)
+                repo.updateRule(
+                    rule.copy(
+                        enabled = true,
+                        state = RuleState.IDLE,
+                        pauseReason = null,
+                        consecutiveFailures = 0,
+                    ),
+                )
+            } else {
+                repo.setRuleEnabled(rule, false)
+            }
+            count++
+        }
+        return count
+    }
+
+    /** 「全部停止」：把当前所有启用的规则停掉（通知栏按钮用）。 */
+    suspend fun stopAllRules(): Int =
+        setRulesEnabled(repo.enabledRules().map { it.id }, enabled = false)
 
     private val recorder = object : RuleEngine.Recorder {
         override suspend fun onItem(item: ItemEntity) {

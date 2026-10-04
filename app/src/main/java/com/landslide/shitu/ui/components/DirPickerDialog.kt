@@ -45,8 +45,9 @@ fun DirPickerDialog(
         error = null
         entries = runCatching {
             bridge.list(path, false, 1, 500, null)
-                .filter { it.isDirectory }
-                .sortedBy { it.name }
+                // 只列目录，且不列 . 开头的系统隐藏目录（否则从 /sdcard 进去满屏都是 .DataStorage 之类）
+                .filter { it.isDirectory && !it.name.startsWith(".") }
+                .sortedBy { it.name.lowercase() }
         }.onFailure { error = it.message ?: "读取失败" }.getOrDefault(emptyList())
         loading = false
     }

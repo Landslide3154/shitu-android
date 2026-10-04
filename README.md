@@ -1,95 +1,186 @@
 # 拾图 Shitu
 
-把指定目录（尤其是 `Android/data/<包名>/...` 这种普通 App 进不去的目录）里的图片，**全自动、后台常驻、持续地**搬到用户指定的目标目录；搬完相册立刻可见；可暂停、可撤回、绝不误删。
+**把手机里"藏起来"的图片自动捡出来，放进你自己的文件夹。**
 
-- 中文名：拾图　·　仓库名：`shitu-android`　·　包名：`com.landslide.shitu`
-- 仓库地址：https://github.com/Landslide3154/shitu-android
-- 许可：GPL-3.0
-- 当前状态：**0.1.0 代码完成，已验证**——61 个 JVM 单测 + 12 个真机用例全绿；真机上能经 Shizuku 读写别的 App 的 `Android/data`、自检 6 项全绿、界面四页中文可用。仅剩「重启手机后能否自动恢复」待验证（见验证记录 V10）
+很多 App 会把图片存在自己的私有目录里（`Android/data/<包名>/...`），普通应用**进不去**，相册也就不显示，你想自己整理更是无从下手。拾图借着 **Shizuku**（相当于把电脑用数据线连手机时的那个权限）替你把这类目录里的图片**自动、持续地**搬到你能看见的目录里——搬完相册立刻就有。
 
-## 开发前必读
+- 中文名：拾图　|　仓库：`shitu-android`　|　包名：`com.landslide.shitu`　|　许可：GPL-3.0
+- 下载：**https://github.com/Landslide3154/shitu-android/releases** （取最新版的 `app-release.apk`）
+- 当前版本：0.1.1　|　更新内容见 [CHANGELOG](docs/CHANGELOG.md)
 
-📄 **[设计规格](docs/superpowers/specs/2026-10-04-shitu-design.md)** —— 唯一开发依据，包含：
+---
 
-- 背景、目标与非目标、术语
-- 在本机与真机上实测的 10 条证据（E1–E10）
-- 总体架构、组件边界、AIDL 接口、Room 数据模型
-- 全部运行参数默认值、"搬空"语义、命名管线、重复抑制
-- 20 条错误处理、权限清单、测试计划、12 条验收标准
-- 里程碑、风险与缓解、HyperOS 3 设置清单
-- 附录 A：可复现的权限探针脚本；附录 B：实现细节备忘
+## 一、它适合谁
 
-🛠 **[实现计划](docs/superpowers/plans/2026-10-04-shitu-implementation.md)** —— 15 个任务、每步含代码/命令/预期结果与 commit，按 TDD 小步推进
+- 某个 App（看书、追漫、刷图、下载器）存了一堆图，你想把它们收进自己的相册
+- 不想每次都手动找、手动复制
+- 手机已装（或愿意装）Shizuku
 
-🧪 **[验证记录](docs/2026-10-04-shitu-验证记录.md)** —— 与实现计划的偏差、已跑通的验证、待真机的项目
+**它不做的事**：不搬视频/音频/文档；不支持外置 SD 卡与工作资料；不做图片去重、不做云同步；不负责让 Shizuku 自己开机启动。
 
-📦 **[更新日志](docs/CHANGELOG.md)** —— 版本功能与安装/首次使用步骤
+---
 
-## 安装与首次使用（真机已跑通）
+## 二、装之前：Shizuku 准备好了吗
 
-1. 侧载 `app-release.apk`（GitHub Releases；签名证书指纹见验证记录 §3.1）
-2. 打开 Shizuku → 给「拾图」授权：App 里点顶部「请求授权」会弹窗，选「允许」
-   （注意：`adb shell pm grant ... API_V23` 不管用，Shizuku 服务端只认它自己的授权名单）
-3. 系统设置 → 应用设置 → 拾图 → **自启动：允许**、**省电策略：无限制**、允许通知；最近任务里给拾图加锁
-4. App 里「新建规则」：源目录选 `Android/data/<包名>/…`，目标默认 `/sdcard/Pictures/拾图`，**先用「复制」模式试一天**
-5. 确认搬出来的确实是你想要的图，再切「移动」模式
+拾图**自己没有**读写别人目录的权限——这份能力来自 Shizuku。
 
-## 构建与运行（本机实测可用）
+1. 装好 **Shizuku** 并启动它（非 root 手机一般是用「无线调试」启动，Shizuku 应用里有引导）
+2. 确认 Shizuku 显示"正在运行"
+3. 打开拾图 → 顶部若显示 **未授权**，点旁边的 **「请求授权」** → 弹窗里选 **允许**
+
+> 注意：用电脑 `adb shell pm grant ...` 那种方式授权**不管用**，Shizuku 只认它自己的授权名单，必须点它的弹窗或在 Shizuku 应用里手动允许。
+
+---
+
+## 三、安装
+
+1. 手机浏览器打开 Releases 页面，下载 `app-release.apk`（约 26 MB）
+2. 点安装（首次会提示"允许安装未知应用"，同意即可）
+3. 打开拾图
+
+---
+
+## 四、第一次使用（照做就行）
+
+| 步骤 | 做什么 |
+|---|---|
+| 1 | 打开拾图，确认顶部是绿色 **「Shizuku：就绪」**；不是的话点它 → 按提示授权 |
+| 2 | 点右下角 **「新建规则」** |
+| 3 | **源目录**点「选择」：默认从存储根目录 `/sdcard` 开始，一层层点进去，点到你要清空的图片夹（如 `Android/data/com.qidian.QDReader/files/...`），然后点「选择此目录」 |
+| 4 | **目标目录**默认 `/sdcard/DCIM/杂图`，不动也行（放这条规则搬出来的图） |
+| 5 | **模式先选「复制」**，间隔保持 5 分钟，点「保存并开始搬运」 |
+| 6 | 等 5~10 分钟，去相册看看 `DCIM/杂图` 里有没有出现图。确认是你想要的，再回来把这条规则改成 **「移动」** |
+
+> 为什么先复制？复制不动原文件，最坏情况只是多出一份；确认规则选对了再移动，更稳。
+
+**开启 / 停止规则**：每条规则右下角有个**复选框**，勾上几条，点底部的 **「开启」** 或 **「停止」**；勾最左边的 **「全选」** 就是一次全开或全停。
+
+---
+
+## 五、四个页面都干什么
+
+**规则页**（首页）
+- 顶部：Shizuku 状态（点它 = 跑一次自检）、累计已搬张数
+- 每张规则卡：源目录 → 目标目录、模式、间隔、后缀、上次运行时间、累计张数
+- 卡上按钮：**立即运行**（不等间隔，马上搬一次）、**编辑**、**撤回**（把这条规则搬过的图退回原位）、**恢复**（被自动暂停后才出现）、**删除**
+- 右下角复选框 + 底部「全选 / 开启 / 停止」
+
+**编辑规则页**
+- 源目录、目标目录、是否包含子目录、最大深度、移动/复制、轮询间隔（1–30 分钟）、扩展名白名单、**文件名后缀**
+
+**日志页**
+- 每次处理的记录（时间、结果、源 → 目标、耗时、失败原因）
+- 可按结果类型、规则、路径关键字筛选；右上角 **导出 CSV**（含完整路径，注意隐私）
+
+**设置页**
+- 全部运行参数（见下表）、通知开关、加速清空、自检入口、关于
+
+### 文件名后缀怎么填
+
+| 你填的 | 效果 |
+|---|---|
+| `{app}`（默认） | 自动用来源 App 的名字：`封面.png` → `封面_起点读书.png` |
+| 比如 `_拾图` | 固定后缀：`封面.png` → `封面_拾图.png` |
+| 留空 | 不改文件名：`封面.png` → `封面.png` |
+
+重复的文件**永远不会被覆盖**：同名时会自动加时间戳或序号（`封面_起点读书_20261004-101500.png`、`封面_起点读书_1.png`）。
+
+---
+
+## 六、默认参数（都能在设置页改）
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| 轮询间隔 | 5 分钟 | 每条规则独立 |
+| 单轮扫描时间预算 | 20 秒 | 到点停止扫描，下次接着来 |
+| 单轮最多搬运 | 20 个 | 一次最多搬几张 |
+| 每分钟最多搬运 | 120 个 | 防止一瞬间搬太多 |
+| 单轮最长运行 | 60 秒 | 硬上限 |
+| 文件稳定期 | 30 秒 | 刚生成/正在下载的文件先不动，等它安定 |
+| 重复抑制窗口/阈值 | 30 分钟 / 3 次 | 同一文件名被搬走 3 次 → 判定"这个 App 会自动重建"，自动暂停该规则并通知 |
+| 连续失败阈值 | 5 次 | 连续失败就自动暂停，避免白耗电 |
+| 低电量暂停 | 开，15% | 低于 15% 或系统省电模式时暂停；可关 |
+| 日志保留 | 30 天 / 5 万条 | 先到者为准 |
+| 目标默认目录 | `/sdcard/DCIM/杂图` | 建议留在 DCIM 或 Pictures 下 |
+| 扩展名白名单 | `jpg,jpeg,png,gif,webp,bmp,heic,heif,avif` | 大小写不敏感 |
+| 加速清空 | 关 | 开了一轮结束立刻开下一轮（仍受每分钟上限约束） |
+
+> 举例：起步 328 张图，默认参数下约 85 分钟搬完（20 张/轮 × 5 分钟）。嫌慢可以开「加速清空」，或把间隔调到 1 分钟。
+
+---
+
+## 七、手机上还要做这几步（很重要）
+
+HyperOS / MIUI 对后台管得很严，做完这几项它才能一直在后面干活：
+
+1. 设置 → 应用设置 → 拾图 → **自启动：允许**（不开的话，重启手机后要手动打开一次拾图）
+2. 设置 → 应用设置 → 拾图 → **省电策略：无限制**
+3. 最近任务界面给拾图**加锁**（防止一键清理时被清掉）
+4. 允许拾图的**通知**权限（常驻通知是它还在工作的标志）
+5. Shizuku 那边也建议设为"自启动 + 无限制"
+
+> Shizuku 在非 root 手机上通常**不能自己开机启动**。重启手机后一般要先用"无线调试"重新启动 Shizuku，拾图会在 Shizuku 就绪后 30 秒内自动接着干。
+
+---
+
+## 八、常见问题
+
+**Q：显示"未授权"，点了请求授权也没反应？**
+打开 Shizuku 应用 → 已授权应用 → 找到拾图 → 允许。或确认 Shizuku 正在运行。
+
+**Q：规则开着但一张都没搬？**
+按顺序查：① 顶部是否"就绪" ② 点自检看 6 项是否全绿 ③ 源目录里是不是真的有符合后缀白名单的图 ④ 图是不是刚生成（30 秒稳定期）⑤ 看日志页的失败原因。
+自检报告可以直接点「复制结果」发给别人看。
+
+**Q：系统更新后突然不搬了？**
+这是 Shizuku 这类"补丁级"能力的已知风险。先在拾图里点一次**自检**：如果红了，说明当前系统版本不允许这么读写 `Android/data` 了，等 Shizuku 更新或换方法。
+
+**Q：App 一直重建图片，拾图反复搬？**
+会自动暂停该规则并通知（30 分钟内同名搬走 3 次）。建议把源目录选得更精确，或改用复制模式。
+
+**Q：撤回会出错吗？**
+只会撤回**拾图自己搬的、且你没改过、且原位置还空着**的文件；任何一条不满足都会跳过并在结果里说明原因。撤回是逐条进行的，不会回滚已成功的部分。
+
+**Q：会不会误删我的图？**
+不会。任何失败情况下源文件都保持不动；移动模式下如果搬完校验不通过，还会自动把文件移回原位。它也**从不覆盖**已存在的文件。
+
+**Q：占多少电、多少流量？**
+完全不联网（**没有申请网络权限**）。每 5 分钟扫一次目录、只读文件属性不读内容。开了"低电量暂停"后，电量低时会自动停。
+
+**Q：怎么彻底卸载干净？**
+先在拾图里把规则**停掉**，再用系统卸载。已经搬走的文件不会被删；想退回就用「撤回」或自己拖回去。App 也不申请"所有文件访问"权限。
+
+---
+
+## 九、隐私
+
+- 完全离线：没有 INTERNET 权限
+- 不申请 `MANAGE_EXTERNAL_STORAGE`（"所有文件访问"）
+- 所有文件操作都交给 Shizuku 的执行进程（等同 adb 的 shell 身份）完成，App 本身不直接读写
+- 日志与数据库存在手机本地的应用目录里，**不加密**；导出的 CSV 含完整路径，请自行注意
+- 自检只用自己创建的临时文件，绝不碰你的真实图片
+
+---
+
+## 十、给开发者（想自己构建/改代码）
 
 ```powershell
-# 1) 依赖与 SDK（本机已装好）
-#    SDK: D:\Android（platform-tools / platforms;android-37 / build-tools;37.0.0 / cmdline-tools）
-#    本机 dl.google.com 与 services.gradle.org 直连不通：
-#      - Gradle 分发包来自本机缓存 ~/.gradle/wrapper/dists
-#      - Maven 依赖走阿里云镜像（已在 settings.gradle.kts 里配好 google/public/gradle-plugin）
-#    SDK 组件可用腾讯镜像下载：https://mirrors.cloud.tencent.com/AndroidSDK/
+# 环境：JDK 17+（本机 JDK 25）· Android SDK · Gradle 9.5.0（仓库自带 wrapper）
+# 本机 dl.google.com 不通，依赖走阿里云镜像（已配在 settings.gradle.kts）
 
-# 2) 构建 debug APK
-.\gradlew.bat :app:assembleDebug
-# 产物：app\build\outputs\apk\debug\app-debug.apk
-
-# 3) 跑 JVM 单元测试（61 个）
-.\gradlew.bat :app:testDebugUnitTest
-
-# 4) 真机用例（Room 三表 + Shizuku 端到端），需先接手机并授权
-.\gradlew.bat :app:connectedDebugAndroidTest
+.\gradlew.bat :app:assembleDebug          # debug APK
+.\gradlew.bat :app:assembleRelease        # release APK（签名取自仓库外 D:/keys/shitu-release.properties）
+.\gradlew.bat :app:testDebugUnitTest      # 64 个 JVM 单测
+adb install -r -t app\build\outputs\apk\debug\app-debug.apk
+# 真机端到端用例（注意：connectedDebugAndroidTest 跑完会卸载 App，Shizuku 授权会随之失效）
+adb install -r -t app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
+adb shell "am instrument -w com.landslide.shitu.test/androidx.test.runner.AndroidJUnitRunner"
 ```
 
-**工具链版本**：Gradle 9.5.0 · AGP 9.2.1 · Kotlin 2.3.20 · KSP 2.3.4 · JDK 25
-`minSdk 30 / targetSdk 36 / compileSdk 37`（compileSdk 由 36 提升到 37：Compose 1.12 与 core-ktx 1.19 硬性要求；targetSdk 仍按规格保持 36，运行行为不变）
-> AGP 9 起 Kotlin 支持内置，**不要**再应用 `org.jetbrains.kotlin.android` 插件（会直接报错）。
+技术栈：Kotlin · Jetpack Compose · Room · DataStore · WorkManager · Shizuku API 13.1.5
+`minSdk 30 / targetSdk 36 / compileSdk 37`（compileSdk 提升到 37 是 AndroidX 1.12/1.19 的硬性要求，运行行为仍按 targetSdk 36）
 
-## 代码结构
+代码结构：`core/`（命名/过滤/限速/去重）、`data/`（Room + DataStore）、`shizuku/`（AIDL 桥 + shell 身份执行者）、
+`engine/`（单文件事务 / 一轮编排 / 撤回 / 自检）、`service/`（常驻服务 / 开机 / 兜底 / 通知）、`ui/`（四页界面）
 
-```
-app/src/main/java/com/landslide/shitu/
-├── core/       NamePolicy 命名管线 · ScanFilter · RateLimiter · LoopGuard · RuleConflictChecker · AppLabel
-├── data/       Room 三表(规则/条目/日志) · DataStore 全参数 · RuleRepository · 日志 CSV 导出
-├── shizuku/    AIDL 7 接口 · ShituUserService(shell 身份) · ShizukuBridge(状态机/退避绑定) · FileBridge
-├── engine/     TransferExecutor(单文件事务) · RuleEngine(一轮 Run) · UndoService · HealthChecker(自检)
-├── service/    WatchService(specialUse 常驻) · BootReceiver · RestartReceiver · FallbackWorker · Notifier
-└── ui/         规则列表/编辑 · 日志 · 设置 · Shizuku 目录选择器 · 自检弹窗
-app/src/test/        JVM 单测（纯逻辑 + FakeFileBridge，61 个用例）
-app/src/androidTest/ 真机用例（Room 三表、Shizuku 端到端、自检全绿）
-```
-
-## 关键事实（实测结论，2026-10-04）
-
-- 目标机：Redmi K90 Pro Max（25102RKBEC / HyperOS 3.0.309.0.WPMCNXM.C11 / Android 16 / 安全补丁 2026-07-01），Shizuku 13.6.0.r1091（adb 模式，非 root）。
-- Shizuku 服务进程与 adb shell **同一身份**（`uid=2000(shell)`、`u:r:shell:s0`、含 `ext_data_rw`），因此可读、写、改名、删除别的 App 的 `Android/data`，并可把文件移动出来。
-- 移动/复制进 `/sdcard/Pictures/...` 后 **8 秒内自动出现在 MediaStore**，不需要额外扫描。
-- 该能力是"系统补丁级"的（参见 Shizuku issue #1574 / #1807），**可能被系统更新破坏**，因此 App 内置自检按钮。
-
-## 技术栈
-
-Kotlin + Jetpack Compose + Room + DataStore + WorkManager + Shizuku API 13.x（Maven Central）
-minSdk 30 / targetSdk 36 / compileSdk 36
-
-## 环境备注
-
-本机 Android SDK 安装在 `D:\Android`（`local.properties` 已指向它）。`D:\soft\scrcpy\adb.exe` 可用于真机调试。
-本机 **dl.google.com / services.gradle.org 直连不通**，因此仓库依赖走阿里云镜像、Gradle 分发用本机缓存；安装 SDK 组件可用腾讯镜像。
-
-## 非目标（v1）
-
-不搬视频/音频/文档、不支持外置 SD 卡与工作资料、不做去重/云同步、不负责 Shizuku 自身开机自启、不上架应用商店、不做"预览/试运行"步骤。
+设计文档：[设计规格](docs/superpowers/specs/2026-10-04-shitu-design.md) · [实现计划](docs/superpowers/plans/2026-10-04-shitu-implementation.md) · [验证记录](docs/2026-10-04-shitu-验证记录.md)

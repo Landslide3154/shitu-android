@@ -27,7 +27,6 @@ data class Settings(
     val logKeepCount: Int = 50_000,
     val fastDrain: Boolean = false,
     // —— 界面与运行状态项 ——
-    val pauseAll: Boolean = false,
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
     val lastSelfCheckAt: Long? = null,
@@ -49,7 +48,6 @@ class SettingsStore(private val context: Context) {
         val LOG_KEEP_DAYS = intPreferencesKey("log_keep_days")
         val LOG_KEEP_COUNT = intPreferencesKey("log_keep_count")
         val FAST_DRAIN = booleanPreferencesKey("fast_drain")
-        val PAUSE_ALL = booleanPreferencesKey("pause_all")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
@@ -70,7 +68,6 @@ class SettingsStore(private val context: Context) {
             logKeepDays = p[K.LOG_KEEP_DAYS] ?: 30,
             logKeepCount = p[K.LOG_KEEP_COUNT] ?: 50_000,
             fastDrain = p[K.FAST_DRAIN] ?: false,
-            pauseAll = p[K.PAUSE_ALL] ?: false,
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
@@ -90,7 +87,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setLogKeepDays(v: Int) = put(K.LOG_KEEP_DAYS, v)
     suspend fun setLogKeepCount(v: Int) = put(K.LOG_KEEP_COUNT, v)
     suspend fun setFastDrain(v: Boolean) = put(K.FAST_DRAIN, v)
-    suspend fun setPauseAll(v: Boolean) = put(K.PAUSE_ALL, v)
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

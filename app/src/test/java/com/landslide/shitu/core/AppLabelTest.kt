@@ -32,4 +32,22 @@ class AppLabelTest {
     fun `包名最后一段作为兜底标签`() {
         assertEquals("QDReader", AppLabel.lastSegment("com.qidian.QDReader"))
     }
+
+    @Test
+    fun `后缀模板 app 用来源 App 名`() {
+        assertEquals("起点读书", AppLabel.expandSuffix("{app}", "起点读书"))
+        assertEquals("封面素材", AppLabel.expandSuffix("封面素材", "起点读书"))
+        assertEquals(null, AppLabel.expandSuffix("", "起点读书"))
+        assertEquals(null, AppLabel.expandSuffix("   ", "起点读书"))
+        // 取不到 App 名时不加后缀，而不是加个空段
+        assertEquals(null, AppLabel.expandSuffix("{app}", ""))
+    }
+
+    @Test
+    fun `自定义后缀会吃掉多余的连接符`() {
+        assertEquals("拾图", AppLabel.expandSuffix("_拾图", "起点读书"))
+        assertEquals("拾图", AppLabel.expandSuffix("拾图", "起点读书"))
+        assertEquals("my-tag", AppLabel.expandSuffix("-my-tag", "起点读书"))
+        assertEquals(null, AppLabel.expandSuffix("_", "起点读书"))
+    }
 }

@@ -40,7 +40,7 @@ class Notifier(private val context: Context) {
             Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val pause = action(WatchService.ACTION_PAUSE_ALL, 1)
+        val stopAll = action(WatchService.ACTION_STOP_ALL, 1)
         val scan = action(WatchService.ACTION_RUN_NOW, 2)
         return NotificationCompat.Builder(context, CH_WATCH)
             .setSmallIcon(R.drawable.ic_notify)
@@ -50,7 +50,7 @@ class Notifier(private val context: Context) {
             .setSilent(true)
             .setShowWhen(false)
             .setContentIntent(open)
-            .addAction(0, "暂停全部", pause)
+            .addAction(0, "全部停止", stopAll)
             .addAction(0, "立即扫一次", scan)
             .build()
     }

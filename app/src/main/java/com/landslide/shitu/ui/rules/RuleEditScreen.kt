@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,7 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
@@ -43,6 +47,9 @@ fun RuleEditScreen(
 ) {
     var rule by remember { mutableStateOf(initial) }
     var picking by remember { mutableStateOf<String?>(null) }
+    var confirmRoot by remember { mutableStateOf(false) }
+
+    val srcIsRoot = rule.srcPath.trimEnd('/') == "/sdcard"
 
     Column(
         Modifier
@@ -65,12 +72,19 @@ fun RuleEditScreen(
             value = rule.srcPath,
             onValueChange = {},
             readOnly = true,
-            label = { Text("源目录（默认从 Android/data 开始）") },
+            label = { Text("源目录（从这里把图片搬走）") },
             trailingIcon = { TextButton(onClick = { picking = "src" }) { Text("选择") } },
+            supportingText = {
+                Text(
+                    if (srcIsRoot) "⚠ 这是整个存储根目录，会搬走手机里几乎所有图片"
+                    else "从 /sdcard 开始往下点，选到具体的图片文件夹最安全",
+                    color = if (srcIsRoot) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = rule.includeSubdirs,
                 onCheckedChange = { rule = rule.copy(includeSubdirs = it) },
@@ -86,9 +100,7 @@ fun RuleEditScreen(
             },
             label = { Text("最大深度（留空 = 不限）") },
             singleLine = true,
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -96,8 +108,9 @@ fun RuleEditScreen(
             value = rule.dstPath,
             onValueChange = {},
             readOnly = true,
-            label = { Text("目标目录（建议留在 Pictures/DCIM）") },
+            label = { Text("目标目录（搬到这里）") },
             trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text("选择") } },
+            supportingText = { Text("建议放在 DCIM 或 Pictures 下，相册才能立刻看到") },
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -131,38 +144,66 @@ fun RuleEditScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Checkbox(
-                checked = rule.addSourceAppSuffix,
-                onCheckedChange = { rule = rule.copy(addSourceAppSuffix = it) },
-            )
-            Text("文件名加来源 App 后缀（如 封面_起点读书.png）")
-        }
+        // 文件名后缀：可自定义（原来的「加来源 App 后缀」开关改成这里填）
+        OutlinedTextField(
+            value = rule.suffix,
+            onValueChange = { rule = rule.copy(suffix = it) },
+            label = { Text("文件名后缀") },
+            singleLine = true,
+            supportingText = {
+                Text("填 {app} = 自动用来源 App 名（封面_{app}.png → 封面_起点读书.png）；填自己的文字 = 固定后缀（如 _拾图）；留空 = 不改文件名")
+            },
+            placeholder = { Text("{app}") },
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         conflicts.forEach {
             Text("⚠ $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text("取消") }
-            Button(onClick = {
-                if (rule.name.isBlank()) rule = rule.copy(name = "新规则")
-                onSave(rule)
-            }) { Text("保存并开始搬运") }
+            Button(
+                onClick = {
+                    val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
+                    if (srcIsRoot) confirmRoot = true else onSave(fixed)
+                },
+                enabled = rule.srcPath.isNotBlank() && rule.dstPath.isNotBlank(),
+            ) { Text("保存并开始搬运") }
         }
     }
 
     picking?.let { which ->
         DirPickerDialog(
             bridge = bridge,
-            startPath = if (which == "src") RuleEntity.PICKER_ROOT else "/sdcard/Pictures",
+            startPath = if (which == "src") RuleEntity.PICKER_ROOT else "/sdcard/DCIM",
             onDismiss = { picking = null },
             onPick = { p ->
                 rule = if (which == "src") rule.copy(srcPath = p) else rule.copy(dstPath = p)
                 picking = null
+            },
+        )
+    }
+
+    if (confirmRoot) {
+        AlertDialog(
+            onDismissRequest = { confirmRoot = false },
+            title = { Text("确定要搬整个存储？") },
+            text = {
+                Text(
+                    "你把源目录选成了 /sdcard（整个手机存储）。保存后，手机里几乎所有图片都会按这条规则被搬走" +
+                        "（移动模式下原图会离开原位）。如果只是想清理某个 App 的图片，" +
+                        "请回去点进 Android/data/<包名>/… 再选一层。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRoot = false
+                    onSave(rule.copy(name = if (rule.name.isBlank()) "新规则" else rule.name))
+                }) { Text("我知道，就这么办") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRoot = false }) { Text("回去重选") }
             },
         )
     }

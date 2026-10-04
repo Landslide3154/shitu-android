@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 class WatchService : Service() {
 
     companion object {
-        const val ACTION_PAUSE_ALL = "com.landslide.shitu.action.PAUSE_ALL"
+        const val ACTION_STOP_ALL = "com.landslide.shitu.action.STOP_ALL"
         const val ACTION_RUN_NOW = "com.landslide.shitu.action.RUN_NOW"
         const val TICK_MS = 30_000L
 
@@ -67,9 +67,9 @@ class WatchService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PAUSE_ALL -> scope.launch {
-                app.settings.setPauseAll(true)
-                notify("已暂停全部")
+            ACTION_STOP_ALL -> scope.launch {
+                val n = app.stopAllRules()
+                notify("已全部停止（$n 条规则）")
             }
             ACTION_RUN_NOW -> scope.launch { tick(force = true) }
         }

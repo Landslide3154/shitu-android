@@ -23,7 +23,7 @@ class Converters {
 
 @Database(
     entities = [RuleEntity::class, ItemEntity::class, LogEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

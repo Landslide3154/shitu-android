@@ -167,11 +167,23 @@ fun ShituRoot(app: ShituApp) {
                 tab == 0 -> RuleListScreen(
                     rules = rules,
                     state = state,
-                    pauseAll = settings.pauseAll,
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
                     onRequestPermission = { app.bridge.requestPermission() },
-                    onTogglePauseAll = { scope.launch { app.settings.setPauseAll(it); snackbar.showSnackbar(if (it) "已暂停全部" else "已恢复") } },
+                    onEnableSelected = { ids ->
+                        scope.launch {
+                            val n = app.setRulesEnabled(ids, enabled = true)
+                            refresh()
+                            snackbar.showSnackbar("已开启 $n 条规则")
+                        }
+                    },
+                    onDisableSelected = { ids ->
+                        scope.launch {
+                            val n = app.setRulesEnabled(ids, enabled = false)
+                            refresh()
+                            snackbar.showSnackbar("已停止 $n 条规则")
+                        }
+                    },
                     onAdd = {
                         val now = System.currentTimeMillis()
                         editing = RuleEntity(
@@ -183,12 +195,6 @@ fun ShituRoot(app: ShituApp) {
                         )
                     },
                     onEdit = { editing = it },
-                    onToggleEnabled = { r, on ->
-                        scope.launch {
-                            app.repo.setRuleEnabled(r, on)
-                            refresh()
-                        }
-                    },
                     onRunNow = { r ->
                         scope.launch {
                             snackbar.showSnackbar("正在跑「${r.name}」…")

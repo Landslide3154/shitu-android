@@ -202,7 +202,7 @@ class ShizukuEndToEndTest {
             src = srcStat.copy(mtimeMillis = existing.mtimeMillis),
             srcPath = "$SRC/同名.png",
             dstDir = DST,
-            sourceApp = "起点",
+            suffixTag = "起点",
             mode = Mode.COPY,
             ruleId = 1,
             now = System.currentTimeMillis(),

@@ -101,11 +101,20 @@ class TransferExecutorTest {
     fun `不追加来源后缀时用原名`() = runBlocking {
         val bridge = FakeFileBridge().apply { put("/src/a.png") }
         val item = executor(bridge).transfer(
-            src("a.png"), "/src/a.png", "/dst", "起点", Mode.MOVE, 1, 2_000,
-            addSourceAppSuffix = false,
+            src("a.png"), "/src/a.png", "/dst", null, Mode.MOVE, 1, 2_000,
         )
         assertEquals(ItemStatus.MOVED, item.status)
         assertTrue(bridge.exists("/dst/a.png"))
+    }
+
+    @Test
+    fun `自定义固定后缀`() = runBlocking {
+        val bridge = FakeFileBridge().apply { put("/src/a.png") }
+        val item = executor(bridge).transfer(
+            src("a.png"), "/src/a.png", "/dst", "_拾图", Mode.MOVE, 1, 2_000,
+        )
+        assertEquals(ItemStatus.MOVED, item.status)
+        assertTrue(bridge.exists("/dst/a_拾图.png"))
     }
 
     @Test

@@ -12,11 +12,13 @@ class NamePolicy(private val maxBytes: Int = 180) {
     fun sanitize(name: String): String =
         name.replace(illegal, "_").trim().trimEnd('.')
 
-    /** 原名_来源.ext（无扩展名时直接追加）。 */
+    /** 原名_来源.ext（无扩展名时直接追加）；后缀自己带 `_`/`-` 开头时不再重复加连接符。 */
     fun withSourceSuffix(name: String, sourceApp: String): String {
         val dot = name.lastIndexOf('.')
-        if (dot <= 0) return "${name}_$sourceApp"
-        return name.substring(0, dot) + "_" + sourceApp + name.substring(dot)
+        val base = if (dot <= 0) name else name.substring(0, dot)
+        val ext = if (dot <= 0) "" else name.substring(dot)
+        val separator = if (sourceApp.startsWith("_") || sourceApp.startsWith("-")) "" else "_"
+        return base + separator + sourceApp + ext
     }
 
     /** 按 UTF-8 字节数截断主体，保留扩展名。 */

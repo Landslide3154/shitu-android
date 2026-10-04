@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.landslide.shitu.service.WatchService
 import com.landslide.shitu.ui.ShituRoot
@@ -16,6 +17,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 让状态栏/导航栏图标跟随浅色主题变深色（否则白底白图标看不见）
+        enableEdgeToEdge()
         requestNotificationPermission()
         WatchService.start(this)
         setContent {

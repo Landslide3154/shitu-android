@@ -20,4 +20,16 @@ object AppLabel {
     }
 
     fun lastSegment(pkg: String): String = pkg.substringAfterLast('.').ifBlank { pkg }
+
+    /**
+     * 文件名后缀模板展开：
+     * - 空白 → 不加后缀（返回 null）
+     * - `{app}` → 用来源 App 标签；标签为空则退化为不加后缀
+     * - 其他内容 → 原样作为后缀（分隔用的下划线由命名管线统一加，这里吃掉用户多写的 `_`/`-`）
+     */
+    fun expandSuffix(template: String, appLabel: String): String? = when {
+        template.isBlank() -> null
+        template.trim() == "{app}" -> appLabel.takeIf { it.isNotBlank() }
+        else -> template.trim().trimStart('_', '-').takeIf { it.isNotBlank() }
+    }
 }

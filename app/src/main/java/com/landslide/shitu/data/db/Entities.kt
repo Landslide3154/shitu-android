@@ -15,7 +15,8 @@ data class RuleEntity(
     val mode: Mode = Mode.MOVE,
     val intervalMinutes: Int = 5,
     val extensions: String = DEFAULT_EXTENSIONS,
-    val addSourceAppSuffix: Boolean = true,
+    /** 文件名后缀模板：空 = 不加后缀；`{app}` = 用来源 App 名；其他内容原样使用 */
+    val suffix: String = DEFAULT_SUFFIX,
     val enabled: Boolean = true,
     val state: RuleState = RuleState.IDLE,
     val pauseReason: String? = null,
@@ -30,8 +31,13 @@ data class RuleEntity(
 ) {
     companion object {
         const val DEFAULT_EXTENSIONS = "jpg,jpeg,png,gif,webp,bmp,heic,heif,avif"
-        const val DEFAULT_DST = "/sdcard/Pictures/拾图"
-        const val PICKER_ROOT = "/sdcard/Android/data"
+
+        /** `{app}` = 用来源 App 的名字，例如 封面_{app}.png → 封面_起点读书.png */
+        const val DEFAULT_SUFFIX = "{app}"
+        const val DEFAULT_DST = "/sdcard/DCIM/杂图"
+
+        /** 目录选择器打开时的起始目录（用户从存储根目录往下点） */
+        const val PICKER_ROOT = "/sdcard"
     }
 }
 

@@ -90,16 +90,18 @@ class RuleEngine(
         for (src in candidates.sortedBy { it.mtimeMillis }) {
             if (!limiter.tryAcquire(now())) break
             val fileStart = now()
-            val app = sourceAppLabel(src.path, rule.name)
+            val tag = com.landslide.shitu.core.AppLabel.expandSuffix(
+                rule.suffix,
+                sourceAppLabel(src.path, rule.name),
+            )
             val item = executor.transfer(
                 src = src,
                 srcPath = src.path,
                 dstDir = rule.dstPath,
-                sourceApp = app,
+                suffixTag = tag,
                 mode = rule.mode,
                 ruleId = rule.id,
                 now = fileStart,
-                addSourceAppSuffix = rule.addSourceAppSuffix,
             )
             recorder?.onItem(item)
             val cost = now() - fileStart

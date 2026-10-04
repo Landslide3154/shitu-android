@@ -35,14 +35,14 @@ class TransferExecutor(
         src: RemoteFile,
         srcPath: String,
         dstDir: String,
-        sourceApp: String,
+        /** 文件名后缀标签；null 或空白 = 不加后缀 */
+        suffixTag: String?,
         mode: Mode,
         ruleId: Long,
         now: Long,
-        addSourceAppSuffix: Boolean = true,
     ): ItemEntity {
         val ts = timestamp(now)
-        val tag = if (addSourceAppSuffix) sourceApp.takeIf { it.isNotBlank() } else null
+        val tag = suffixTag?.takeIf { it.isNotBlank() }
 
         // ---- 1) 目标已有"同 size + 同 mtime"的文件：视为同一文件 ----
         val naturalName = namePolicy.candidates(src.name, tag, ts).first()
