@@ -7,8 +7,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -66,6 +68,10 @@ fun ShituRoot(app: ShituApp) {
 
     var tab by remember { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<RuleEntity?>(null) }
+    var draft by remember { mutableStateOf<RuleEntity?>(null) }
+    var editingDirty by remember { mutableStateOf(false) }
+    var askSave by remember { mutableStateOf(false) }
+    var pendingTab by remember { mutableStateOf<Int?>(null) }
     var rules by remember { mutableStateOf<List<RuleEntity>>(emptyList()) }
     var logs by remember { mutableStateOf<List<LogEntity>>(emptyList()) }
     var state by remember { mutableStateOf(app.bridge.state()) }
@@ -78,6 +84,44 @@ fun ShituRoot(app: ShituApp) {
         rules = app.repo.allRules()
         logs = app.repo.recentLogs(500)
         state = app.bridge.state()
+    }
+
+    fun closeEditor(nextTab: Int?) {
+        editing = null
+        draft = null
+        editingDirty = false
+        pendingTab = null
+        if (nextTab != null) tab = nextTab
+    }
+
+    fun saveDraft() {
+        val r = draft ?: editing ?: return
+        val next = pendingTab
+        scope.launch {
+            if (r.id == 0L) app.repo.insertRule(r) else app.repo.updateRule(r)
+            closeEditor(next)
+            refresh()
+            snackbar.showSnackbar("已保存「${r.name}」")
+        }
+    }
+
+    /** 离开编辑页（返回键 / 点标签页 / 取消）统一走这里：改过就先问一句。 */
+    fun leaveEditor(nextTab: Int?) {
+        when {
+            editing == null -> if (nextTab != null) tab = nextTab
+            !editingDirty -> closeEditor(nextTab)
+            else -> {
+                pendingTab = nextTab
+                askSave = true
+            }
+        }
+    }
+
+    if (editing != null) {
+        BackHandler { leaveEditor(null) }
+    } else if (tab != 0) {
+        // 在日志/设置页按返回，回到规则页，而不是直接退出 App
+        BackHandler { tab = 0 }
     }
 
     LaunchedEffect(Unit) {
@@ -131,13 +175,13 @@ fun ShituRoot(app: ShituApp) {
                 )
                 NavigationBarItem(
                     selected = tab == 1,
-                    onClick = { tab = 1 },
+                    onClick = { leaveEditor(1) },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
                     label = { Text("日志") },
                 )
                 NavigationBarItem(
                     selected = tab == 2,
-                    onClick = { tab = 2 },
+                    onClick = { leaveEditor(2) },
                     icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                     label = { Text("设置") },
                 )
@@ -153,15 +197,14 @@ fun ShituRoot(app: ShituApp) {
                     conflicts = RuleConflictChecker.check(
                         rules.filter { it.id != current.id } + current,
                     ),
+                    onDraftChange = { draft = it },
+                    onDirtyChange = { editingDirty = it },
                     onSave = { r ->
-                        scope.launch {
-                            if (r.id == 0L) app.repo.insertRule(r) else app.repo.updateRule(r)
-                            editing = null
-                            refresh()
-                            snackbar.showSnackbar("已保存「${r.name}」")
-                        }
+                        draft = r
+                        saveDraft()
                     },
-                    onCancel = { editing = null },
+                    // 取消 = 放弃本次修改，直接回规则列表
+                    onCancel = { closeEditor(null) },
                 )
 
                 tab == 0 -> RuleListScreen(
@@ -193,17 +236,26 @@ fun ShituRoot(app: ShituApp) {
                             snackbar.showSnackbar("已停止 $n 条规则")
                         }
                     },
+                    compact = settings.ruleCardsCompact,
+                    onCompactChange = { compact -> scope.launch { app.settings.setRuleCardsCompact(compact) } },
                     onAdd = {
                         val now = System.currentTimeMillis()
-                        editing = RuleEntity(
+                        val fresh = RuleEntity(
                             name = "新规则",
                             srcPath = RuleEntity.PICKER_ROOT,
                             dstPath = RuleEntity.DEFAULT_DST,
                             createdAt = now,
                             updatedAt = now,
                         )
+                        draft = fresh
+                        editingDirty = false
+                        editing = fresh
                     },
-                    onEdit = { editing = it },
+                    onEdit = {
+                        draft = it
+                        editingDirty = false
+                        editing = it
+                    },
                     onRunNow = { r ->
                         scope.launch {
                             snackbar.showSnackbar("正在跑「${r.name}」…")
@@ -262,6 +314,37 @@ fun ShituRoot(app: ShituApp) {
                 )
             }
         }
+    }
+
+    if (askSave) {
+        AlertDialog(
+            onDismissRequest = { askSave = false },
+            title = { Text("还没保存") },
+            text = {
+                Text(
+                    "「${draft?.name ?: "这条规则"}」改过了。要保存吗？" +
+                        if (pendingTab != null) "保存/放弃后会切到对应页面。" else "",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    askSave = false
+                    saveDraft()
+                }) { Text("保存") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        askSave = false
+                        pendingTab = null
+                    }) { Text("继续编辑") }
+                    TextButton(onClick = {
+                        askSave = false
+                        closeEditor(pendingTab)
+                    }) { Text("放弃修改") }
+                }
+            },
+        )
     }
 
     if (checking) {

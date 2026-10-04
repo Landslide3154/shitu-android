@@ -22,6 +22,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,11 +45,19 @@ fun RuleEditScreen(
     conflicts: List<String>,
     onSave: (RuleEntity) -> Unit,
     onCancel: () -> Unit,
+    /** 把当前草稿同步给上层：返回键/切标签页时要问"存不存" */
+    onDraftChange: (RuleEntity) -> Unit = {},
+    onDirtyChange: (Boolean) -> Unit = {},
 ) {
     var rule by remember { mutableStateOf(initial) }
     var picking by remember { mutableStateOf<String?>(null) }
     var confirmRoot by remember { mutableStateOf(false) }
     var confirmNested by remember { mutableStateOf(false) }
+
+    LaunchedEffect(rule) {
+        onDraftChange(rule)
+        onDirtyChange(rule != initial)
+    }
 
     val srcIsRoot = rule.srcPath.trimEnd('/') == "/sdcard"
     val srcTrim = rule.srcPath.trimEnd('/')

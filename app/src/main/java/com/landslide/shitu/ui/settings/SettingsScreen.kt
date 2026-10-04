@@ -97,6 +97,19 @@ fun SettingsScreen(
         )
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("熄屏后暂停扫描")
+            Switch(checked = settings.screenOffPause, onCheckedChange = { scope.launch { store.setScreenOffPause(it) } })
+        }
+        Text(
+            if (settings.screenOffPause) {
+                "开着：手机熄屏后完全停下，只有打开 App、点通知栏「立即扫一次」才动（最省电）。"
+            } else {
+                "关着（默认）：熄屏后仍按每条规则自己的间隔继续搬（推荐，晚上充电时也能把没搬完的清掉）。"
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("写完就搬（不等满稳定期）")
             Switch(checked = settings.settleDetect, onCheckedChange = { scope.launch { store.setSettleDetect(it) } })
         }

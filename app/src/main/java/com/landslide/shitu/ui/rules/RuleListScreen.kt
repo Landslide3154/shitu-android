@@ -3,8 +3,10 @@ package com.landslide.shitu.ui.rules
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,13 +14,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -70,6 +76,9 @@ fun RuleListScreen(
     onToggleRuleEnabled: (RuleEntity, Boolean) -> Unit,
     onEnableSelected: (List<Long>) -> Unit,
     onDisableSelected: (List<Long>) -> Unit,
+    /** 简略模式：每张卡片只显示规则名 + 开关 */
+    compact: Boolean,
+    onCompactChange: (Boolean) -> Unit,
 ) {
     var selected by remember { mutableStateOf(emptySet<Long>()) }
     LaunchedEffect(rules) {
@@ -78,15 +87,19 @@ fun RuleListScreen(
     val allSelected = rules.isNotEmpty() && selected.size == rules.size
 
     Scaffold(
+        // 外层 Scaffold 已经处理过状态栏内边距，这里再叠一次会多出一条空白
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = onAdd) { Text("新建规则") }
+            FloatingActionButton(onClick = onAdd) {
+                Icon(Icons.Filled.Add, contentDescription = "新建规则")
+            }
         },
         bottomBar = {
             // 批量操作条放进 bottomBar：Scaffold 会把悬浮按钮自动抬高，避免遮住「停止」
             if (rules.isNotEmpty()) {
                 Surface(tonalElevation = 3.dp) {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Checkbox(
@@ -96,17 +109,19 @@ fun RuleListScreen(
                             },
                         )
                         Text("全选", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(12.dp))
-                        Text("已选 ${selected.size} 条", style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.width(8.dp))
+                        Text("已选 ${selected.size}", style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.weight(1f))
                         Button(
                             onClick = { onEnableSelected(selected.toList()) },
                             enabled = selected.isNotEmpty(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         ) { Text("开启") }
                         Spacer(Modifier.width(8.dp))
                         OutlinedButton(
                             onClick = { onDisableSelected(selected.toList()) },
                             enabled = selected.isNotEmpty(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         ) { Text("停止") }
                     }
                 }
@@ -114,8 +129,8 @@ fun RuleListScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // 顶部状态条：Shizuku 状态与授权
-            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+            // 顶部状态条（尽量紧凑，给规则卡留空间）
+            Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     AssistChip(
                         onClick = onSelfCheck,
@@ -134,7 +149,25 @@ fun RuleListScreen(
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("累计已搬 $movedTotal 张", style = MaterialTheme.typography.bodySmall)
+                    Text("累计 $movedTotal 张", style = MaterialTheme.typography.bodySmall)
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("卡片：", style = MaterialTheme.typography.bodySmall)
+                    FilterChip(
+                        selected = compact,
+                        onClick = { onCompactChange(true) },
+                        label = { Text("简略") },
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    FilterChip(
+                        selected = !compact,
+                        onClick = { onCompactChange(false) },
+                        label = { Text("详细") },
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (compact) {
+                        Text("简略模式：只显示名称和开关", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
             HorizontalDivider()
@@ -154,6 +187,7 @@ fun RuleListScreen(
                     items(rules, key = { it.id }) { rule ->
                         RuleCard(
                             rule = rule,
+                            compact = compact,
                             checked = rule.id in selected,
                             onCheckedChange = { on ->
                                 selected = if (on) selected + rule.id else selected - rule.id
@@ -175,6 +209,7 @@ fun RuleListScreen(
 @Composable
 private fun RuleCard(
     rule: RuleEntity,
+    compact: Boolean,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
@@ -185,6 +220,40 @@ private fun RuleCard(
     onToggleEnabled: (Boolean) -> Unit,
 ) {
     val paused = rule.state == RuleState.PAUSED_LOOP || rule.state == RuleState.PAUSED_ERROR
+
+    // 简略模式：一行——勾选框 + 规则名 + 开关（点名字进编辑）
+    if (compact) {
+        Card(
+            onClick = onEdit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 3.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+                Text(
+                    rule.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (paused) {
+                    Text(
+                        "已暂停",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+            }
+        }
+        return
+    }
+
     Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Column(Modifier.padding(12.dp)) {
             Row(

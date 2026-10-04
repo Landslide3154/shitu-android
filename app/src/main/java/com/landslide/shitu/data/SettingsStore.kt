@@ -33,6 +33,10 @@ data class Settings(
     val settleDetect: Boolean = true,
     /** 判定窗口：两次观察至少间隔这么多秒才算确认写完 */
     val settleGapSec: Int = 3,
+    /** 熄屏后是否暂停扫描（默认 false = 继续按规则间隔工作） */
+    val screenOffPause: Boolean = false,
+    /** 规则卡片是否用简略样式（只显示名称 + 开关） */
+    val ruleCardsCompact: Boolean = false,
     // —— 界面与运行状态项 ——
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
@@ -59,6 +63,8 @@ class SettingsStore(private val context: Context) {
         val FAST_INTERVAL_SEC = intPreferencesKey("fast_interval_sec")
         val SETTLE_DETECT = booleanPreferencesKey("settle_detect")
         val SETTLE_GAP_SEC = intPreferencesKey("settle_gap_sec")
+        val SCREEN_OFF_PAUSE = booleanPreferencesKey("screen_off_pause")
+        val RULE_CARDS_COMPACT = booleanPreferencesKey("rule_cards_compact")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
@@ -83,6 +89,8 @@ class SettingsStore(private val context: Context) {
             fastIntervalSec = p[K.FAST_INTERVAL_SEC] ?: 10,
             settleDetect = p[K.SETTLE_DETECT] ?: true,
             settleGapSec = p[K.SETTLE_GAP_SEC] ?: 3,
+            screenOffPause = p[K.SCREEN_OFF_PAUSE] ?: false,
+            ruleCardsCompact = p[K.RULE_CARDS_COMPACT] ?: false,
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
@@ -106,6 +114,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setFastIntervalSec(v: Int) = put(K.FAST_INTERVAL_SEC, v)
     suspend fun setSettleDetect(v: Boolean) = put(K.SETTLE_DETECT, v)
     suspend fun setSettleGapSec(v: Int) = put(K.SETTLE_GAP_SEC, v)
+    suspend fun setScreenOffPause(v: Boolean) = put(K.SCREEN_OFF_PAUSE, v)
+    suspend fun setRuleCardsCompact(v: Boolean) = put(K.RULE_CARDS_COMPACT, v)
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

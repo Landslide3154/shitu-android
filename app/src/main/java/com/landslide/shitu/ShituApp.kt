@@ -159,6 +159,10 @@ class ShituApp : Application() {
     suspend fun runDueRules(force: Boolean = false): RunSummary = runMutex.withLock {
         val s = currentSettings()
         if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary(message = "低电量/省电模式暂停")
+        // 熄屏暂停：手动触发（打开 App、「立即扫一次」）不受影响，只有定时调度会被挡住
+        if (!force && s.screenOffPause && !isScreenOn()) {
+            return@withLock RunSummary(message = "熄屏暂停中（设置里可改为继续）")
+        }
 
         if (bridge.state() != ShizukuState.READY && !bridge.bindWithRetry(1)) {
             val msg = "Shizuku 未就绪（${bridge.state().name}）"
@@ -489,4 +493,8 @@ class ShituApp : Application() {
         val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         return pct in 1..s.lowBatteryPct
     }
+
+    /** 屏幕是否亮着（用于"熄屏后暂停/继续"的开关判断）。 */
+    fun isScreenOn(): Boolean =
+        runCatching { getSystemService(PowerManager::class.java)?.isInteractive == true }.getOrDefault(true)
 }
