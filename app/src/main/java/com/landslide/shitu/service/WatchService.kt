@@ -1,10 +1,13 @@
 package com.landslide.shitu.service
 
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.landslide.shitu.ShituApp
@@ -22,8 +25,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * 常驻服务（规格 §6.7）：specialUse 类型前台服务，每 30 秒探测一次 Shizuku，
- * 到期规则直接跑一轮；被厂商清理后由 WorkManager 兜底。
+ * 常驻服务（规格 §6.7）：specialUse 类型前台服务。
+ *
+ * 两种节奏：
+ * - **屏幕亮着且解锁** → 每 fastIntervalSec 秒跑一次「快节奏检测」（只 stat 目录，真变了才扫）；
+ * - **其他时候** → 每 30 秒按规则自己的间隔跑，另加 WorkManager 15 分钟兜底。
  */
 class WatchService : Service() {
 
@@ -44,6 +50,18 @@ class WatchService : Service() {
 
     @Volatile private var busy = false
 
+    @Volatile private var screenOn = false
+
+    /** 屏幕开关/解锁：只在服务存活期间用运行时注册（清单里注册收不到这类广播）。 */
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> screenOn = true
+                Intent.ACTION_SCREEN_OFF -> screenOn = false
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         app = application as ShituApp
@@ -62,6 +80,19 @@ class WatchService : Service() {
             stopSelf()
             return
         }
+        screenOn = runCatching {
+            getSystemService(PowerManager::class.java)?.isInteractive == true
+        }.getOrDefault(false)
+        runCatching {
+            registerReceiver(
+                screenReceiver,
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_USER_PRESENT)
+                },
+            )
+        }
         scope.launch { loop() }
     }
 
@@ -78,8 +109,21 @@ class WatchService : Service() {
 
     private suspend fun loop() {
         while (scope.isActive) {
-            runCatching { tick(force = false) }
-            delay(TICK_MS)
+            val s = app.currentSettings()
+            if (screenOn && s.fastWhileActive) {
+                if (app.bridge.state() != ShizukuState.READY) {
+                    // 未就绪：走常规节奏，顺便把"未就绪"提示刷新到通知上
+                    runCatching { tick(force = false) }
+                } else {
+                    // 快节奏：只 stat 目录，真变了才扫（屏幕亮着时唤醒不额外耗电）
+                    val fast = runCatching { app.runFastLane() }.getOrNull()
+                    if ((fast?.moved ?: 0) > 0) notify("快速检测：搬 ${fast?.moved} 张")
+                }
+                delay(s.fastIntervalSec.coerceIn(3, 60) * 1000L)
+            } else {
+                runCatching { tick(force = false) }
+                delay(TICK_MS)
+            }
         }
     }
 
@@ -117,6 +161,7 @@ class WatchService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        runCatching { unregisterReceiver(screenReceiver) }
         // 被杀恢复（规格 §6.7）：5 分钟后尝试重启，失败也有 WorkManager 兜底
         runCatching { RestartReceiver.schedule(this) }
         super.onDestroy()

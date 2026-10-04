@@ -48,8 +48,13 @@ fun RuleEditScreen(
     var rule by remember { mutableStateOf(initial) }
     var picking by remember { mutableStateOf<String?>(null) }
     var confirmRoot by remember { mutableStateOf(false) }
+    var confirmNested by remember { mutableStateOf(false) }
 
     val srcIsRoot = rule.srcPath.trimEnd('/') == "/sdcard"
+    val srcTrim = rule.srcPath.trimEnd('/')
+    val dstTrim = rule.dstPath.trimEnd('/')
+    val dstInsideSrc = srcTrim.isNotBlank() && dstTrim.isNotBlank() &&
+        (dstTrim == srcTrim || dstTrim.startsWith("$srcTrim/"))
 
     Column(
         Modifier
@@ -166,7 +171,11 @@ fun RuleEditScreen(
             Button(
                 onClick = {
                     val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
-                    if (srcIsRoot) confirmRoot = true else onSave(fixed)
+                    when {
+                        srcIsRoot -> confirmRoot = true
+                        dstInsideSrc -> confirmNested = true
+                        else -> onSave(fixed)
+                    }
                 },
                 enabled = rule.srcPath.isNotBlank() && rule.dstPath.isNotBlank(),
             ) { Text("保存并开始搬运") }
@@ -181,6 +190,30 @@ fun RuleEditScreen(
             onPick = { p ->
                 rule = if (which == "src") rule.copy(srcPath = p) else rule.copy(dstPath = p)
                 picking = null
+            },
+        )
+    }
+
+    if (confirmNested) {
+        AlertDialog(
+            onDismissRequest = { confirmNested = false },
+            title = { Text("目标目录在源目录里面") },
+            text = {
+                Text(
+                    "你选的源目录是 ${rule.srcPath}，目标目录 ${rule.dstPath} 在它里面。" +
+                        "这种配法虽然不会再搬已搬好的文件（App 会自动跳过目标目录），" +
+                        "但建议把目标放到源目录外面，规则更清楚、也更好撤回。" +
+                        "确定要这样保存吗？",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmNested = false
+                    onSave(rule.copy(name = if (rule.name.isBlank()) "新规则" else rule.name))
+                }) { Text("就这样保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmNested = false }) { Text("回去改") }
             },
         )
     }

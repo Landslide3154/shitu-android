@@ -56,4 +56,16 @@ class RuleConflictCheckerTest {
         )
         assertTrue(issues.isEmpty())
     }
+
+    @Test
+    fun `目标目录在源目录里面要告警`() {
+        val issues = RuleConflictChecker.check(listOf(rule(1, "/sdcard/DCIM", "/sdcard/DCIM/杂图")))
+        assertTrue(issues.any { it.contains("在源目录里面") })
+    }
+
+    @Test
+    fun `源与目标相同时要告警`() {
+        val issues = RuleConflictChecker.check(listOf(rule(1, "/sdcard/DCIM", "/sdcard/DCIM")))
+        assertTrue(issues.any { it.contains("是同一个") })
+    }
 }

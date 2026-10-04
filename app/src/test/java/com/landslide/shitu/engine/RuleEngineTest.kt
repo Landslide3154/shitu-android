@@ -8,6 +8,7 @@ import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.data.db.RuleState
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,6 +62,24 @@ class RuleEngineTest {
             engine.runOnce(rule(ext = "png"), guard)
         }
         assertEquals(RuleState.PAUSED_LOOP, engine.lastState)
+    }
+
+    @Test
+    fun `目标目录在源目录里时不会反复搬同一个文件`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/photo.png", size = 10, mtime = 1_000)
+        bridge.put("/src/dst/photo_标签.png", size = 10, mtime = 1_000)
+        val rule = RuleEntity(
+            id = 1, name = "t", srcPath = "/src", dstPath = "/src/dst",
+            extensions = "png", mode = Mode.MOVE, createdAt = 0, updatedAt = 0,
+        )
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 })
+        val result = engine.runOnce(rule, LoopGuard(60_000, 99))
+
+        assertEquals(1, result.moved)
+        // 已经在目标目录里的文件不能再被当成源（否则名字会被一轮轮加后缀）
+        assertTrue(bridge.exists("/src/dst/photo_标签.png"))
+        assertFalse(bridge.exists("/src/photo.png"))
     }
 
     @Test

@@ -1,9 +1,15 @@
 package com.landslide.shitu
 
 import android.app.Application
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
+import android.provider.MediaStore
 import com.landslide.shitu.core.AppLabel
+import com.landslide.shitu.core.DirProbe
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.data.LogExporter
@@ -51,6 +57,22 @@ class ShituApp : Application() {
     private val guards = ConcurrentHashMap<Long, LoopGuard>()
     private val runMutex = Mutex()
 
+    /** 快节奏检测：每条规则一个"目录变没变"探测器（只 stat 目录，很便宜） */
+    private val probes = ConcurrentHashMap<Long, DirProbe>()
+    private val lastFastRun = ConcurrentHashMap<Long, Long>()
+
+    /**
+     * "等它过稳定期再看一次"的时间点。
+     * 场景：文件刚创建就被发现，但没过稳定期（可能还在写），这一轮搬不走；
+     * 如果不对齐一次重查，就得等下一个间隔（默认 5 分钟）才会再看它。
+     */
+    private val pendingRecheck = ConcurrentHashMap<Long, Long>()
+
+    /** 系统媒体库（相册）刚有新增的时间戳——用它兜住"下载到公共目录"的情况 */
+    @Volatile private var mediaHintAt = 0L
+
+    private var mediaObserver: ContentObserver? = null
+
     @Volatile var watchMoved: Long = 0
         private set
 
@@ -70,6 +92,17 @@ class ShituApp : Application() {
 
     data class UndoSummary(val done: Int = 0, val skipped: Int = 0, val notes: List<String> = emptyList())
 
+    companion object {
+        /** 同一规则两次快节奏检测的最小间隔，避免目录一变就反复扫 */
+        private const val MIN_FAST_GAP_MS = 5_000L
+
+        /** 相册新增信号的有效期 */
+        private const val HINT_FRESH_MS = 5_000L
+
+        /** 稳定期过后再多等一点，确保 mtime 已经不会再变 */
+        private const val RECHECK_SLACK_MS = 3_000L
+    }
+
     override fun onCreate() {
         super.onCreate()
         db = AppDatabase.build(this)
@@ -80,6 +113,24 @@ class ShituApp : Application() {
         notifier.ensureChannels()
         FallbackWorker.schedule(this)
         registerShizukuListeners()
+        registerMediaObserver()
+    }
+
+    /** 相册（MediaStore）新增/变化 → 给快节奏通道一个"有动静"的信号。 */
+    private fun registerMediaObserver() {
+        runCatching {
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean, uri: Uri?) {
+                    mediaHintAt = System.currentTimeMillis()
+                }
+            }
+            contentResolver.registerContentObserver(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                observer,
+            )
+            mediaObserver = observer
+        }
     }
 
     private fun registerShizukuListeners() {
@@ -147,6 +198,86 @@ class ShituApp : Application() {
                 notifier.event("搬运失败较多", "本轮失败 $failed 个文件，源文件都还在。可在日志页查看原因。")
             }
         }
+    }
+
+    /**
+     * 快节奏通道：屏幕亮着时由 WatchService 每 fastIntervalSec 秒调一次。
+     *
+     * 只在"相关目录真的变了"（目录 mtime 变化）或"相册刚有新增"时才真正跑一轮，
+     * 所以它把"几分钟才发现"压到"十几秒级"，而开销只是一堆 stat（不列文件、不读内容）。
+     * 原有按间隔的调度、WorkManager 兜底一律保留——它们是这条通道失效时的后路。
+     */
+    suspend fun runFastLane(): RunSummary = runMutex.withLock {
+        val s = currentSettings()
+        if (!s.fastWhileActive) return@withLock RunSummary()
+        if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary()
+        if (bridge.state() != ShizukuState.READY && !bridge.bindOnce()) return@withLock RunSummary()
+
+        val now = System.currentTimeMillis()
+        val hintFresh = now - mediaHintAt < HINT_FRESH_MS
+        var rulesRun = 0
+        var moved = 0
+        var failed = 0
+        var skipped = 0
+
+        for (rule in repo.enabledRules()) {
+            if (rule.state == RuleState.PAUSED_LOOP ||
+                rule.state == RuleState.PAUSED_ERROR ||
+                rule.state == RuleState.RUNNING
+            ) {
+                continue
+            }
+            if (now - (lastFastRun[rule.id] ?: 0L) < MIN_FAST_GAP_MS) continue
+
+            val dirs = probeDirs(rule)
+            if (dirs.isEmpty()) continue
+            val probe = probes.getOrPut(rule.id) { DirProbe() }
+            val dueForRecheck = pendingRecheck[rule.id]?.let { now >= it } == true
+            val hot = hintFresh || dueForRecheck || runCatching {
+                probe.changed(dirs) { p -> bridge.stat(p)?.mtimeMillis }.isNotEmpty()
+            }.getOrDefault(false)
+            if (!hot) continue
+
+            lastFastRun[rule.id] = now
+            val outcome = runOne(rule, s)
+            rulesRun++
+            moved += outcome.moved
+            failed += outcome.failed
+            skipped += outcome.skipped
+
+            // 搬完目录 mtime 又变了：对齐基线，避免下一拍又白跑一轮
+            runCatching { probe.sync(probeDirs(rule)) { p -> bridge.stat(p)?.mtimeMillis } }
+
+            // 看到候选但一个都没搬（多半是没过稳定期）→ 等稳定期过后再来看一次
+            if (outcome.moved == 0 && outcome.failed == 0 && outcome.scanned > 0) {
+                pendingRecheck[rule.id] = now + s.stableSec * 1000L + RECHECK_SLACK_MS
+            } else {
+                pendingRecheck.remove(rule.id)
+            }
+        }
+
+        if (rulesRun > 0) {
+            watchMoved += moved
+            lastRunAt = System.currentTimeMillis()
+            lastMessage = "快速检测：搬 $moved 张"
+        }
+        RunSummary(rulesRun, moved, failed, skipped, if (rulesRun > 0) lastMessage else null)
+    }
+
+    /**
+     * 需要盯着"变没变"的目录：规则源目录 + 最近搬成功过的文件所在目录。
+     * 图片通常固定在同几个目录里出现，所以这一小撮目录足以代表整棵树。
+     */
+    private suspend fun probeDirs(rule: RuleEntity): List<String> {
+        val dirs = LinkedHashSet<String>()
+        val root = rule.srcPath.trimEnd('/')
+        if (root.isNotBlank()) dirs += root
+        runCatching {
+            repo.recentDoneForRule(rule.id, 200).forEach { item ->
+                item.srcPath.substringBeforeLast('/', "").takeIf { it.isNotBlank() }?.let { dirs += it }
+            }
+        }
+        return dirs.toList()
     }
 
     /** 单个规则跑一轮（"立即运行"按钮与调度共用）。 */

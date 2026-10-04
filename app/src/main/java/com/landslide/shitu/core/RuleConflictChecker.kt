@@ -7,6 +7,21 @@ object RuleConflictChecker {
 
     fun check(rules: List<RuleEntity>): List<String> {
         val out = ArrayList<String>()
+
+        // 先查每条规则自己内部的矛盾
+        rules.forEach { r ->
+            val src = r.srcPath.trimEnd('/')
+            val dst = r.dstPath.trimEnd('/')
+            when {
+                src.isBlank() || dst.isBlank() -> Unit
+                src == dst -> out += "规则「${r.name}」的源目录和目标目录是同一个"
+                dst.startsWith("$src/") ->
+                    out += "规则「${r.name}」的目标目录在源目录里面（搬到目标目录的文件又会被当成源，反复改名）"
+                src.startsWith("$dst/") ->
+                    out += "规则「${r.name}」的源目录在目标目录里面（可能形成循环）"
+            }
+        }
+
         for (i in rules.indices) {
             for (j in i + 1 until rules.size) {
                 val a = rules[i]

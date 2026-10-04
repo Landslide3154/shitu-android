@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.data.Settings
@@ -80,6 +81,22 @@ fun SettingsScreen(
         }
 
         HorizontalDivider()
+        Text("检测速度", style = MaterialTheme.typography.titleMedium)
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("正在用手机时加快检测")
+            Switch(checked = settings.fastWhileActive, onCheckedChange = { scope.launch { store.setFastWhileActive(it) } })
+        }
+        intField("加快检测间隔（秒）", settings.fastIntervalSec, 3..60) {
+            scope.launch { store.setFastIntervalSec(it) }
+        }
+        Text(
+            "开着它：屏幕亮着时每隔上面这个秒数看一眼源目录有没有变化（只看目录时间，很省电），" +
+                "一变就立刻搬，所以下载完十几秒内就能进相册。屏幕熄灭后回到每条规则自己的间隔。",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        HorizontalDivider()
         Text("开关", style = MaterialTheme.typography.titleMedium)
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -105,7 +122,14 @@ fun SettingsScreen(
 
         HorizontalDivider()
         Text("关于", style = MaterialTheme.typography.titleMedium)
-        Text("拾图 Shitu 0.1.0 · GPL-3.0", style = MaterialTheme.typography.bodyMedium)
+        // 版本号从系统读，别再写死（0.1.0 那次就是写死后忘了改）
+        val context = LocalContext.current
+        val versionName = remember {
+            runCatching {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            }.getOrNull() ?: "?"
+        }
+        Text("拾图 Shitu $versionName · GPL-3.0", style = MaterialTheme.typography.bodyMedium)
         Text(
             "https://github.com/Landslide3154/shitu-android",
             style = MaterialTheme.typography.bodySmall,

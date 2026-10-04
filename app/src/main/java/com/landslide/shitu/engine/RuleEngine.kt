@@ -24,8 +24,18 @@ class RuleEngine(
     private val now: () -> Long = System::currentTimeMillis,
     private val sourceAppLabel: (srcPath: String, ruleName: String) -> String = { _, rule -> rule },
 ) {
+    /** 扫描出口 */
     companion object {
         const val PAGE_SIZE = 500
+
+        /**
+         * 目标目录（及其子目录）里的文件一律不当候选。
+         *
+         * 否则"目标目录在源目录里面"这种配法会把刚搬进去的文件再搬一次：
+         * 每轮给同一个文件加一次后缀，名字越滚越长（files/x.png → x_标签.png → x_标签_标签.png …）。
+         */
+        fun isInside(path: String, dir: String): Boolean =
+            dir.isNotEmpty() && (path == dir || path.startsWith("$dir/"))
     }
 
     var lastState: RuleState = RuleState.IDLE
@@ -67,6 +77,7 @@ class RuleEngine(
         var scanned = 0
         var scanError: String? = null
         val deadline = t0 + settings.scanBudgetSec * 1000L
+        val dstRoot = rule.dstPath.trimEnd('/')
         var after: String? = null
         try {
             do {
@@ -74,7 +85,7 @@ class RuleEngine(
                 if (page.isEmpty()) break
                 scanned += page.size
                 after = page.last().path
-                candidates += page.filter { filter.accept(it, now()) }
+                candidates += page.filter { filter.accept(it, now()) && !isInside(it.path, dstRoot) }
             } while (page.size == PAGE_SIZE && now() < deadline)
         } catch (t: Throwable) {
             scanError = "扫描失败：${t.message}"
