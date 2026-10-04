@@ -74,6 +74,7 @@ jobs:
 
       - name: 单测 + 打包 release
         run: |
+          chmod +x ./gradlew   # 仓库在 Windows 上提交的，保险起见补一下可执行位
           ./gradlew --no-daemon \
             -Pshitu.signingProperties="$GITHUB_WORKSPACE/ci-keys/shitu-release.properties" \
             :app:testDebugUnitTest :app:assembleRelease
