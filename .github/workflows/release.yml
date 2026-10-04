@@ -1,14 +1,12 @@
 name: Release
 
-# 打 tag（v*）就自动构建并发 Release；也可以在 Actions 页面手动指定一个已存在的 tag 跑。
+# 只手动跑：Actions 页面 → Run workflow → 填一个已存在的 tag。
+# 用户明确要求平时在本机发版（更快、可控），所以**没有** push tag 自动触发。
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: '要发布的 tag（例如 v0.7.0，必须已经存在）'
+        description: '要发布的 tag（例如 v0.7.1，必须已经存在）'
         required: true
         type: string
 

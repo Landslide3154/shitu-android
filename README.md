@@ -198,7 +198,7 @@ HyperOS / MIUI 对后台管得很严，做完这几项它才能一直在后面�
 
 .\gradlew.bat :app:assembleDebug          # debug APK
 .\gradlew.bat :app:assembleRelease        # release APK（签名取自仓库外 D:/keys/shitu-release.properties）
-.\gradlew.bat :app:testDebugUnitTest      # 91 个 JVM 单测
+.\gradlew.bat :app:testDebugUnitTest      # 92 个 JVM 单测
 adb install -r -t app\build\outputs\apk\debug\app-debug.apk
 # 真机端到端用例（注意：connectedDebugAndroidTest 跑完会卸载 App，Shizuku 授权会随之失效）
 adb install -r -t app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
@@ -213,7 +213,17 @@ adb shell "am instrument -w com.landslide.shitu.test/androidx.test.runner.Androi
 
 设计文档：[设计规格](docs/superpowers/specs/2026-10-04-shitu-design.md) · [实现计划](docs/superpowers/plans/2026-10-04-shitu-implementation.md) · [验证记录](docs/2026-10-04-shitu-验证记录.md)
 
-发版：`.github/workflows/release.yml`。推 `v*` 标签（或在 Actions 页面手动 `workflow_dispatch` 填 tag）会自动
-装 SDK → 跑单测 → 用 Secrets 里的 keystore 签 release → 把 `shitu-<版本>.apk` 传上 GitHub Release。
-需要 4 个仓库 Secrets：`KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`。
-（CI 里 Android SDK 走 dl.google.com 正常，但要额外 `--channel=3` 才装得到 `platforms;android-37.0`。）
+发版（**只在本机手动做**，用户明确要求不走 GitHub Actions，快且可控）：
+
+```powershell
+# 1) 改 app/build.gradle.kts 的 versionCode/versionName + docs/CHANGELOG.md 加一段
+.\gradlew.bat :app:testDebugUnitTest :app:assembleRelease
+adb install -r app\build\outputs\apk\release\app-release.apk   # 装真机自己点一遍
+git commit -F <utf8 消息文件> ; git push origin main
+git tag -a v<版本> -m "<版本> <一句话>" ; git push origin refs/tags/v<版本>
+# 2) 建 Release 并传 APK（token 在 ~/.git-credentials，脚本用 PowerShell 的 Invoke-RestMethod）
+#    附件地址必须手拼：https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=<文件名>
+```
+
+`.github/workflows/release.yml` 保留着，但**只在 Actions 页面手动 `workflow_dispatch` 才跑**（应急用），
+推 tag 不会再自动发版。它需要 4 个仓库 Secrets：`KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`。
