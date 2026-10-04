@@ -59,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.landslide.shitu.ShituApp
-import com.landslide.shitu.core.RuleConflictChecker
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.db.LogEntity
@@ -492,9 +491,7 @@ fun ShituRoot(app: ShituApp) {
                             RuleEditScreen(
                                 initial = editShown,
                                 bridge = app.bridge,
-                                conflicts = RuleConflictChecker.check(
-                                    rules.filter { it.id != editShown.id } + editShown,
-                                ),
+                                otherRules = rules.filter { it.id != editShown.id },
                                 onDraftChange = { draft = it },
                                 onDirtyChange = { editingDirty = it },
                                 onSaveAsTemplate = { r, tplName ->

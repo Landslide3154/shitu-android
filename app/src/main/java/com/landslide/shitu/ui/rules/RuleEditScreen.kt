@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.landslide.shitu.core.RuleConflictChecker
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.FileBridge
@@ -50,7 +51,8 @@ import com.landslide.shitu.ui.theme.Tone
 fun RuleEditScreen(
     initial: RuleEntity,
     bridge: FileBridge,
-    conflicts: List<String>,
+    /** 其余规则：只用来查"这条规则跟别的规则会不会打架"，别的规则自己的问题不在这里出现 */
+    otherRules: List<RuleEntity>,
     onSave: (RuleEntity) -> Unit,
     onCancel: () -> Unit,
     /** 把当前这份设置存成模板（第二个参数是模板名） */
@@ -79,6 +81,10 @@ fun RuleEditScreen(
     val dstInsideSrc = srcTrim.isNotBlank() && dstTrim.isNotBlank() &&
         (dstTrim == srcTrim || dstTrim.startsWith("$srcTrim/"))
 
+    // 提醒跟着草稿走：改了设置（比如勾上「包含子目录」）立刻重算，
+    // 不会再出现"没勾子目录却提醒子目录的事"，也不会把别的规则的提醒搬进来
+    val conflicts = remember(rule, otherRules) { RuleConflictChecker.check(rule, otherRules) }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -88,13 +94,14 @@ fun RuleEditScreen(
     ) {
         Text("编辑规则", style = MaterialTheme.typography.titleLarge)
 
-        // 配置提醒放到最上面：改的时候一眼能看到哪里有问题
-        conflicts.forEach { c ->
+        // 配置提醒放到最上面：改的时候一眼能看到哪里有问题。
+        // 一张卡装全部（以前一条提醒一张卡，两三条就把屏幕占掉一半）
+        if (conflicts.isNotEmpty()) {
             BannerCard(
                 tone = Tone.WARN,
                 icon = Icons.Filled.Warning,
                 title = "配置提醒",
-                body = c,
+                body = conflicts.joinToString("\n\n"),
                 modifier = Modifier.padding(bottom = 6.dp),
             )
         }
