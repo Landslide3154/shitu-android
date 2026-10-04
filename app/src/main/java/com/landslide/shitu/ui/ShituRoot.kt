@@ -170,6 +170,15 @@ fun ShituRoot(app: ShituApp) {
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
                     onRequestPermission = { app.bridge.requestPermission() },
+                    onToggleRuleEnabled = { rule, enabled ->
+                        scope.launch {
+                            app.setRulesEnabled(listOf(rule.id), enabled)
+                            refresh()
+                            snackbar.showSnackbar(
+                                if (enabled) "已开启「${rule.name}」" else "已停止「${rule.name}」",
+                            )
+                        }
+                    },
                     onEnableSelected = { ids ->
                         scope.launch {
                             val n = app.setRulesEnabled(ids, enabled = true)

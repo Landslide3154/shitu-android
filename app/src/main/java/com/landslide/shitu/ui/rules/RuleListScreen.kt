@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,6 +67,7 @@ fun RuleListScreen(
     onUndo: (RuleEntity) -> Unit,
     onResume: (RuleEntity) -> Unit,
     onDelete: (RuleEntity) -> Unit,
+    onToggleRuleEnabled: (RuleEntity, Boolean) -> Unit,
     onEnableSelected: (List<Long>) -> Unit,
     onDisableSelected: (List<Long>) -> Unit,
 ) {
@@ -161,6 +163,7 @@ fun RuleListScreen(
                             onUndo = { onUndo(rule) },
                             onResume = { onResume(rule) },
                             onDelete = { onDelete(rule) },
+                            onToggleEnabled = { on -> onToggleRuleEnabled(rule, on) },
                         )
                     }
                 }
@@ -179,6 +182,7 @@ private fun RuleCard(
     onUndo: () -> Unit,
     onResume: () -> Unit,
     onDelete: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
 ) {
     val paused = rule.state == RuleState.PAUSED_LOOP || rule.state == RuleState.PAUSED_ERROR
     Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -188,16 +192,26 @@ private fun RuleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(rule.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (rule.enabled) Labels.state(rule.state) else "已停止",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (rule.enabled) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
+                    rule.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (rule.enabled) Labels.state(rule.state) else "已停止",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (rule.enabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                    )
+                    // 每条规则自己的开关（也能用底部「全选 + 开启/停止」批量操作）
+                    Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                }
             }
             Text(
                 rule.srcPath,
