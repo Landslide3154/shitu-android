@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleConflictChecker
+import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.RuleEntity
@@ -199,6 +200,13 @@ fun ShituRoot(app: ShituApp) {
                     ),
                     onDraftChange = { draft = it },
                     onDirtyChange = { editingDirty = it },
+                    onSaveAsTemplate = { r, tplName ->
+                        scope.launch {
+                            val t = RuleTemplate.fromRule(r, tplName)
+                            app.settings.setRuleTemplates(settings.ruleTemplates + t)
+                            snackbar.showSnackbar("已存为模板「${t.name}」——新建规则时可选")
+                        }
+                    },
                     onSave = { r ->
                         draft = r
                         saveDraft()
@@ -256,6 +264,13 @@ fun ShituRoot(app: ShituApp) {
                         draft = fresh
                         editingDirty = false
                         editing = fresh
+                    },
+                    templates = settings.ruleTemplates,
+                    onDeleteTemplate = { t ->
+                        scope.launch {
+                            app.settings.setRuleTemplates(settings.ruleTemplates.filterNot { it.id == t.id })
+                            snackbar.showSnackbar("已删除模板「${t.name}」")
+                        }
                     },
                     onCopy = { r ->
                         scope.launch {

@@ -2,6 +2,7 @@ package com.landslide.shitu.ui.rules
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +46,8 @@ fun RuleEditScreen(
     conflicts: List<String>,
     onSave: (RuleEntity) -> Unit,
     onCancel: () -> Unit,
+    /** 把当前这份设置存成模板（第二个参数是模板名） */
+    onSaveAsTemplate: (RuleEntity, String) -> Unit = { _, _ -> },
     /** 把当前草稿同步给上层：返回键/切标签页时要问"存不存" */
     onDraftChange: (RuleEntity) -> Unit = {},
     onDirtyChange: (Boolean) -> Unit = {},
@@ -53,6 +56,8 @@ fun RuleEditScreen(
     var picking by remember { mutableStateOf<String?>(null) }
     var confirmRoot by remember { mutableStateOf(false) }
     var confirmNested by remember { mutableStateOf(false) }
+    var askTemplateName by remember { mutableStateOf(false) }
+    var templateName by remember { mutableStateOf("") }
 
     LaunchedEffect(rule) {
         onDraftChange(rule)
@@ -199,6 +204,13 @@ fun RuleEditScreen(
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(
+                onClick = {
+                    templateName = rule.name.ifBlank { "我的模板" }
+                    askTemplateName = true
+                },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            ) { Text("存为模板") }
             TextButton(onClick = onCancel) { Text("取消") }
             Button(
                 onClick = {
@@ -214,6 +226,33 @@ fun RuleEditScreen(
                 enabled = rule.srcPath.isNotBlank() && rule.dstPath.isNotBlank(),
             ) { Text("保存并开始搬运") }
         }
+    }
+
+    if (askTemplateName) {
+        AlertDialog(
+            onDismissRequest = { askTemplateName = false },
+            title = { Text("存为模板") },
+            text = {
+                Column {
+                    Text("把这份设置存下来，以后新建规则时可以一键套用（存模板不会保存这条规则）。")
+                    OutlinedTextField(
+                        value = templateName,
+                        onValueChange = { templateName = it },
+                        label = { Text("模板名字") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    askTemplateName = false
+                    val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
+                    onSaveAsTemplate(fixed, templateName.trim().ifBlank { rule.name.ifBlank { "我的模板" } })
+                }) { Text("存下来") }
+            },
+            dismissButton = { TextButton(onClick = { askTemplateName = false }) { Text("取消") } },
+        )
     }
 
     picking?.let { which ->

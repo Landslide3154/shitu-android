@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.landslide.shitu.core.RuleTemplate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -41,6 +42,8 @@ data class Settings(
     val themeMode: Int = 0,
     /** Material You 动态取色（Android 12+ 从壁纸取色） */
     val dynamicColor: Boolean = true,
+    /** 用户自建的规则模板（存在 DataStore 的一段文本里） */
+    val ruleTemplates: List<RuleTemplate> = emptyList(),
     // —— 界面与运行状态项 ——
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
@@ -71,6 +74,7 @@ class SettingsStore(private val context: Context) {
         val RULE_CARDS_COMPACT = booleanPreferencesKey("rule_cards_compact")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val RULE_TEMPLATES = stringPreferencesKey("rule_templates")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
@@ -99,6 +103,7 @@ class SettingsStore(private val context: Context) {
             ruleCardsCompact = p[K.RULE_CARDS_COMPACT] ?: false,
             themeMode = p[K.THEME_MODE] ?: 0,
             dynamicColor = p[K.DYNAMIC_COLOR] ?: true,
+            ruleTemplates = RuleTemplate.decode(p[K.RULE_TEMPLATES]),
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
@@ -126,6 +131,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setRuleCardsCompact(v: Boolean) = put(K.RULE_CARDS_COMPACT, v)
     suspend fun setThemeMode(v: Int) = put(K.THEME_MODE, v)
     suspend fun setDynamicColor(v: Boolean) = put(K.DYNAMIC_COLOR, v)
+    suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

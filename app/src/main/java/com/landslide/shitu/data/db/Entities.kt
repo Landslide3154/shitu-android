@@ -34,7 +34,7 @@ data class RuleEntity(
 
         /** `{app}` = 用来源 App 的名字，例如 封面_{app}.png → 封面_起点读书.png */
         const val DEFAULT_SUFFIX = "{app}"
-        const val DEFAULT_DST = "/sdcard/DCIM/杂图"
+        const val DEFAULT_DST = "/sdcard/DCIM"
 
         /** 目录选择器打开时的起始目录（用户从存储根目录往下点） */
         const val PICKER_ROOT = "/sdcard"

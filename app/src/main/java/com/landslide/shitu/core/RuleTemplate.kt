@@ -2,64 +2,116 @@ package com.landslide.shitu.core
 
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 /**
- * 新建规则的模板：把最常见的几种用法先填好，用户少点几步。
+ * 自建模板：把一条规则的设置存下来，下次新建规则时一键套用。
  *
- * 选了模板之后仍然会进编辑页 —— 什么都没保存，改完点「保存并开始搬运」才生效。
+ * 存在 DataStore 的一小段文本里（见 [encode] / [decode]），不进 Room —— 免得为了一张表去改数据库版本。
+ * 选了模板之后仍然会进编辑页，改完点「保存并开始搬运」才真的建出规则。
  */
 data class RuleTemplate(
-    val key: String,
-    val title: String,
-    val detail: String,
+    val id: String,
     val name: String,
     val srcPath: String,
     val dstPath: String = RuleEntity.DEFAULT_DST,
     val includeSubdirs: Boolean = true,
+    val maxDepth: Int? = null,
     val mode: Mode = Mode.MOVE,
-    val suffix: String = RuleEntity.DEFAULT_SUFFIX,
     val intervalMinutes: Int = 5,
+    val extensions: String = RuleEntity.DEFAULT_EXTENSIONS,
+    val suffix: String = RuleEntity.DEFAULT_SUFFIX,
 ) {
+    /** 「新建规则」弹窗里的副标题：一眼看清这条模板会干什么 */
+    fun detail(): String = buildString {
+        append(srcPath)
+        append(" → ")
+        append(dstPath)
+        append(" · ")
+        append(if (mode == Mode.COPY) "复制" else "移动")
+        append(" · 间隔 ")
+        append(intervalMinutes)
+        append(" 分钟")
+        if (!includeSubdirs) append(" · 只看这一层")
+    }
+
     fun toEntity(now: Long): RuleEntity = RuleEntity(
         name = name,
         srcPath = srcPath,
         includeSubdirs = includeSubdirs,
+        maxDepth = maxDepth,
         dstPath = dstPath,
         mode = mode,
         intervalMinutes = intervalMinutes,
+        extensions = extensions,
         suffix = suffix,
         createdAt = now,
         updatedAt = now,
     )
 
     companion object {
-        /** 「某个 App 的图片目录」模板里预填的示例路径（README 里就是这个例子）。 */
-        const val EXAMPLE_APP_DIR = "/sdcard/Android/data/com.qidian.QDReader/files"
-
-        val ALL = listOf(
-            RuleTemplate(
-                key = "app-data",
-                title = "某个 App 的图片目录",
-                detail = "预填了示例路径，点「选择」换成你要清的那个 App；找不到就用 /sdcard/DCIM 那种公共目录",
-                name = "App 图片",
-                srcPath = EXAMPLE_APP_DIR,
-            ),
-            RuleTemplate(
-                key = "dcim-by-app",
-                title = "相册图片按来源分类",
-                detail = "把 /sdcard/DCIM 这一层里的图片加上来源 App 名收进 /sdcard/DCIM/杂图（子目录不动）",
-                name = "相册整理",
-                srcPath = "/sdcard/DCIM",
-                includeSubdirs = false,
-            ),
-            RuleTemplate(
-                key = "download",
-                title = "下载目录里的图片",
-                detail = "先按「复制」模式试一阵，确认没问题再改成「移动」",
-                name = "下载图片",
-                srcPath = "/sdcard/Download",
-                mode = Mode.COPY,
-            ),
+        /** 从一条规则（编辑页里正在改的那份）生成模板，名字由用户填 */
+        fun fromRule(rule: RuleEntity, name: String): RuleTemplate = RuleTemplate(
+            id = newId(),
+            name = name,
+            srcPath = rule.srcPath,
+            dstPath = rule.dstPath,
+            includeSubdirs = rule.includeSubdirs,
+            maxDepth = rule.maxDepth,
+            mode = rule.mode,
+            intervalMinutes = rule.intervalMinutes,
+            extensions = rule.extensions,
+            suffix = rule.suffix,
         )
+
+        fun newId(): String = System.currentTimeMillis().toString(36) + "-" + (0..999999).random().toString(36)
+
+        // —— 存 DataStore 的极简文本格式：每条模板一段，段内每行 "key=值"（值做百分号转义），段间空行分隔 ——
+
+        fun encode(list: List<RuleTemplate>): String = list.joinToString("\n\n") { t ->
+            listOf(
+                "id" to t.id,
+                "name" to t.name,
+                "src" to t.srcPath,
+                "dst" to t.dstPath,
+                "sub" to t.includeSubdirs.toString(),
+                "depth" to (t.maxDepth?.toString() ?: ""),
+                "mode" to t.mode.name,
+                "interval" to t.intervalMinutes.toString(),
+                "ext" to t.extensions,
+                "suffix" to t.suffix,
+            ).joinToString("\n") { (k, v) -> "$k=${enc(v)}" }
+        }
+
+        fun decode(text: String?): List<RuleTemplate> {
+            if (text.isNullOrBlank()) return emptyList()
+            return text.split("\n\n").mapNotNull { block ->
+                val map = HashMap<String, String>()
+                for (line in block.lines()) {
+                    val i = line.indexOf('=')
+                    if (i <= 0) continue
+                    map[line.substring(0, i)] = dec(line.substring(i + 1))
+                }
+                val name = map["name"] ?: return@mapNotNull null
+                val src = map["src"] ?: return@mapNotNull null
+                RuleTemplate(
+                    id = map["id"] ?: newId(),
+                    name = name,
+                    srcPath = src,
+                    dstPath = map["dst"] ?: RuleEntity.DEFAULT_DST,
+                    includeSubdirs = map["sub"]?.toBooleanStrictOrNull() ?: true,
+                    maxDepth = map["depth"]?.toIntOrNull(),
+                    mode = map["mode"]?.let { m -> Mode.entries.firstOrNull { it.name == m } } ?: Mode.MOVE,
+                    intervalMinutes = map["interval"]?.toIntOrNull() ?: 5,
+                    extensions = map["ext"] ?: RuleEntity.DEFAULT_EXTENSIONS,
+                    suffix = map["suffix"] ?: RuleEntity.DEFAULT_SUFFIX,
+                )
+            }
+        }
+
+        private fun enc(v: String): String = URLEncoder.encode(v, "UTF-8")
+
+        private fun dec(v: String): String = runCatching { URLDecoder.decode(v, "UTF-8") }.getOrDefault(v)
     }
 }

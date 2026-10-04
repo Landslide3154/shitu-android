@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -27,6 +30,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -72,6 +76,9 @@ fun RuleListScreen(
     onRequestPermission: () -> Unit,
     onAdd: () -> Unit,
     onAddFromTemplate: (RuleTemplate) -> Unit,
+    /** 我自己的模板（在编辑页点「存为模板」存下来的） */
+    templates: List<RuleTemplate>,
+    onDeleteTemplate: (RuleTemplate) -> Unit,
     onEdit: (RuleEntity) -> Unit,
     onCopy: (RuleEntity) -> Unit,
     onRunNow: (RuleEntity) -> Unit,
@@ -97,15 +104,31 @@ fun RuleListScreen(
             onDismissRequest = { showNew = false },
             title = { Text("新建规则") },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     NewRuleOption("空白规则", "源目录从 /sdcard 开始自己往下选") {
                         showNew = false
                         onAdd()
                     }
-                    RuleTemplate.ALL.forEach { t ->
-                        NewRuleOption(t.title, t.detail) {
-                            showNew = false
-                            onAddFromTemplate(t)
+                    if (templates.isEmpty()) {
+                        Text(
+                            "还没有自己的模板。想让某条规则变成模板：点开那条规则的「编辑」，" +
+                                "在编辑页下面点「存为模板」。",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        Text("我的模板", style = MaterialTheme.typography.labelLarge)
+                        templates.forEach { t ->
+                            NewRuleOption(
+                                title = t.name,
+                                detail = t.detail(),
+                                onDelete = {
+                                    showNew = false
+                                    onDeleteTemplate(t)
+                                },
+                            ) {
+                                showNew = false
+                                onAddFromTemplate(t)
+                            }
                         }
                     }
                     Text(
@@ -212,7 +235,7 @@ fun RuleListScreen(
                     Text(
                         "点右下角「新建规则」：源目录从存储根目录 /sdcard 开始往下点，" +
                             "选到你想清空的图片文件夹（例如 Android/data/com.qidian.QDReader/files/...）；" +
-                            "目标目录默认 /sdcard/DCIM/杂图。首次建议先用「复制」模式试一天。",
+                            "目标目录默认 /sdcard/DCIM。首次建议先用「复制」模式试一天。",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -245,17 +268,29 @@ fun RuleListScreen(
     }
 }
 
-/** 「新建规则」弹窗里的一行：标题 + 说明，点哪都算选中。 */
+/** 「新建规则」弹窗里的一行：标题 + 说明，点哪都算选中；右侧可选的 ✕ = 删掉这条模板。 */
 @Composable
-private fun NewRuleOption(title: String, detail: String, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.titleSmall)
-        Text(detail, style = MaterialTheme.typography.bodySmall)
+private fun NewRuleOption(
+    title: String,
+    detail: String,
+    onDelete: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            Modifier
+                .weight(1f)
+                .clickable(onClick = onClick)
+                .padding(vertical = 10.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(detail, style = MaterialTheme.typography.bodySmall)
+        }
+        if (onDelete != null) {
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Close, contentDescription = "删除模板", modifier = Modifier.size(18.dp))
+            }
+        }
     }
 }
 
