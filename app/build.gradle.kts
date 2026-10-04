@@ -1,9 +1,19 @@
+import java.util.Properties
+
 // AGP 9 起 Kotlin 支持内置，不再应用 org.jetbrains.kotlin.android（应用会直接报错）
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
+}
+
+// release 签名：keystore 与口令放在仓库外（默认 D:/keys/shitu-release.properties），不入库。
+val signingPropsFile = file(
+    (project.findProperty("shitu.signingProperties") as String?) ?: "D:/keys/shitu-release.properties",
+)
+val signingProps = Properties().apply {
+    if (signingPropsFile.exists()) signingPropsFile.inputStream().use { load(it) }
 }
 
 android {
@@ -23,13 +33,29 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        if (signingPropsFile.exists()) {
+            create("release") {
+                storeFile = file(signingProps.getProperty("storeFile"))
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // v1 不开混淆：Shizuku 会反射加载 UserService，稳妥优先；体积靠差量资源控制
             isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (signingPropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
