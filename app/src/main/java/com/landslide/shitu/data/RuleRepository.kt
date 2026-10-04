@@ -99,6 +99,9 @@ class RuleRepository(private val db: AppDatabase) {
 
     suspend fun logCount(): Int = logDao.count()
 
+    /** 日志页「全部清除」：只删日志记录，规则与图片文件都不动。 */
+    suspend fun clearLogs() = logDao.clearAll()
+
     suspend fun allLogs(limit: Int = 50_000): List<LogEntity> = logDao.recent(limit)
 
     /** 容量控制（规格 §7）：日志 30 天 / 5 万条先到者为准；SKIPPED 条目 7 天后清理。 */

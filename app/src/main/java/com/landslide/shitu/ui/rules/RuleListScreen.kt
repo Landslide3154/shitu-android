@@ -1,19 +1,33 @@
 package com.landslide.shitu.ui.rules
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
@@ -57,14 +72,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.db.Labels
@@ -83,8 +102,13 @@ import com.landslide.shitu.ui.status.shizukuTone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
+
+/** 左滑露出的红底「删除」块宽度 */
+private val REVEAL_WIDTH = 96.dp
 
 /**
  * 规则列表（规格 §10 页面 1）。
@@ -116,6 +140,10 @@ fun RuleListScreen(
     onToggleRuleEnabled: (RuleEntity, Boolean) -> Unit,
     onEnableSelected: (List<Long>) -> Unit,
     onDisableSelected: (List<Long>) -> Unit,
+    /** 对勾选中的规则批量操作 */
+    onCopySelected: (List<Long>) -> Unit,
+    onUndoSelected: (List<Long>) -> Unit,
+    onDeleteSelected: (List<Long>) -> Unit,
     /** 简略模式：每张卡片只显示规则名 + 开关 */
     compact: Boolean,
     onCompactChange: (Boolean) -> Unit,
@@ -124,6 +152,8 @@ fun RuleListScreen(
     var showNew by remember { mutableStateOf(false) }
     // 删除前问一次：这个按钮以前紧挨着「撤回」，容易点错
     var pendingDelete by remember { mutableStateOf<RuleEntity?>(null) }
+    var batchMenu by remember { mutableStateOf(false) }
+    var askBatchDelete by remember { mutableStateOf(false) }
     LaunchedEffect(rules) {
         selected = selected intersect rules.map { it.id }.toSet()
     }
@@ -241,6 +271,32 @@ fun RuleListScreen(
         )
     }
 
+    if (askBatchDelete) {
+        AlertDialog(
+            onDismissRequest = { askBatchDelete = false },
+            title = { Text("删除选中的 ${selected.size} 条规则？") },
+            text = {
+                Text(
+                    "只删掉这几条规则和它们的运行记录。已经搬过去的图片会留在原处，" +
+                        "不会被搬回来，也不会被删掉。删完还可以在底部提示里点「撤销删除」。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        askBatchDelete = false
+                        onDeleteSelected(selected.toList())
+                    },
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { askBatchDelete = false }) { Text("取消") }
+            },
+        )
+    }
+
     Scaffold(
         // 外层 Scaffold 已经处理过状态栏内边距，这里再叠一次会多出一条空白
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -251,7 +307,11 @@ fun RuleListScreen(
         },
         bottomBar = {
             // 批量操作条放进 bottomBar：Scaffold 会把悬浮按钮自动抬高，避免遮住「停止」
-            if (rules.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = rules.isNotEmpty(),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
                 Surface(tonalElevation = 3.dp) {
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -286,6 +346,51 @@ fun RuleListScreen(
                             enabled = selected.isNotEmpty(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         ) { Text("停止") }
+                        // 「停止」右边的三个点：对勾选中的规则批量复制 / 撤回 / 删除
+                        Box {
+                            IconButton(
+                                onClick = { batchMenu = true },
+                                enabled = selected.isNotEmpty(),
+                            ) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = "对选中的规则批量操作",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = batchMenu,
+                                onDismissRequest = { batchMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("复制所选 ${selected.size} 条") },
+                                    onClick = {
+                                        batchMenu = false
+                                        onCopySelected(selected.toList())
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("撤回所选搬过的图") },
+                                    onClick = {
+                                        batchMenu = false
+                                        onUndoSelected(selected.toList())
+                                    },
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "删除所选",
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        batchMenu = false
+                                        askBatchDelete = true
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -389,6 +494,7 @@ fun RuleListScreen(
                             onResume = { onResume(rule) },
                             onDelete = { pendingDelete = rule },
                             onToggleEnabled = { on -> onToggleRuleEnabled(rule, on) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -465,45 +571,130 @@ private fun RuleCard(
     onResume: () -> Unit,
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val tone = ruleTone(rule)
     var menu by remember { mutableStateOf(false) }
 
-    // 简略模式：一行——勾选框 + 状态点 + 规则名 + 状态胶囊 + 开关（点名字进编辑）
+    // 左滑露出红底「删除」：滑过一半就吸附打开，否则弹回原位
+    val revealPx = with(LocalDensity.current) { REVEAL_WIDTH.toPx() }
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    fun closeReveal() = scope.launch { offsetX.animateTo(0f, spring()) }
+    val dragModifier = Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onDragEnd = {
+                scope.launch {
+                    offsetX.animateTo(
+                        targetValue = if (offsetX.value < -revealPx / 2) -revealPx else 0f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    )
+                }
+            },
+        ) { change, drag ->
+            change.consume()
+            scope.launch { offsetX.snapTo((offsetX.value + drag).coerceIn(-revealPx, 0f)) }
+        }
+    }
+    // 长按卡片 = 弹菜单（复制 / 撤回 / 恢复 / 删除）；点一下 = 进编辑
+    val longPressModifier = Modifier.combinedClickable(
+        onClick = onEdit,
+        onLongClick = {
+            closeReveal()
+            menu = true
+        },
+    )
+    val ruleMenu: @Composable ColumnScope.() -> Unit = {
+        DropdownMenuItem(
+            text = { Text("复制一条") },
+            onClick = {
+                menu = false
+                onCopy()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("撤回已搬的图") },
+            onClick = {
+                menu = false
+                onUndo()
+            },
+        )
+        if (canResume(rule)) {
+            DropdownMenuItem(
+                text = { Text("恢复运行") },
+                onClick = {
+                    menu = false
+                    onResume()
+                },
+            )
+        }
+        HorizontalDivider()
+        DropdownMenuItem(
+            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+            onClick = {
+                menu = false
+                onDelete()
+            },
+        )
+    }
+
+    // 简略模式：一行——勾选框 + 状态点 + 规则名 + 状态胶囊 + 开关（点一下进编辑）
     if (compact) {
-        Card(
-            onClick = onEdit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 3.dp),
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        Box(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp)) {
+            RevealDeleteAction {
+                closeReveal()
+                onDelete()
+            }
+            Card(
+                Modifier
+                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                    .then(dragModifier),
             ) {
-                Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-                StatusDot(tone)
-                Text(
-                    rule.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(start = 8.dp),
-                )
-                StatusPill(ruleStatusText(rule), tone)
-                Spacer(Modifier.width(10.dp))
-                Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(longPressModifier)
+                        .padding(start = 4.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+                    StatusDot(tone)
+                    Text(
+                        rule.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    )
+                    StatusPill(ruleStatusText(rule), tone)
+                    Spacer(Modifier.width(10.dp))
+                    Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                    // 菜单锚在这个 1dp 的小盒子上，弹出来就贴着卡片右上角
+                    Box(Modifier.size(1.dp)) {
+                        DropdownMenu(
+                            expanded = menu,
+                            onDismissRequest = { menu = false },
+                            content = ruleMenu,
+                        )
+                    }
+                }
             }
         }
         return
     }
 
-    // 详细模式：整张卡片可点 = 进编辑（里面的按钮/开关/勾选框照常各自响应）
-    Card(
-        onClick = onEdit,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Column(Modifier.padding(12.dp)) {
+    // 详细模式：整张卡片可点 = 进编辑，长按 = 弹菜单（里面的按钮/开关/勾选框照常各自响应）
+    Box(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+        RevealDeleteAction {
+            closeReveal()
+            onDelete()
+        }
+        Card(
+            Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .then(dragModifier),
+        ) {
+            Column(Modifier.then(longPressModifier).padding(12.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -521,6 +712,14 @@ private fun RuleCard(
                 Spacer(Modifier.width(10.dp))
                 // 每条规则自己的开关（也能用底部「全选 + 开启/停止」批量操作）
                 Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                // 菜单锚在这个 1dp 的小盒子上，弹出来就贴着卡片右上角
+                Box(Modifier.size(1.dp)) {
+                    DropdownMenu(
+                        expanded = menu,
+                        onDismissRequest = { menu = false },
+                        content = ruleMenu,
+                    )
+                }
             }
             Spacer(Modifier.height(6.dp))
             Text(
@@ -589,48 +788,37 @@ private fun RuleCard(
                 Spacer(Modifier.weight(1f))
                 // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-                Box {
-                    IconButton(onClick = { menu = true }) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            contentDescription = "更多操作",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("复制一条") },
-                            onClick = {
-                                menu = false
-                                onCopy()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("撤回已搬的图") },
-                            onClick = {
-                                menu = false
-                                onUndo()
-                            },
-                        )
-                        if (canResume(rule)) {
-                            DropdownMenuItem(
-                                text = { Text("恢复运行") },
-                                onClick = {
-                                    menu = false
-                                    onResume()
-                                },
-                            )
-                        }
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                menu = false
-                                onDelete()
-                            },
-                        )
-                    }
-                }
+            }
+            }
+        }
+    }
+}
+
+/** 卡片背后那层：左滑露出来的红底「删除」，点它才真的进删除确认 */
+@Composable
+private fun BoxScope.RevealDeleteAction(onClick: () -> Unit) {
+    Row(Modifier.matchParentSize(), horizontalArrangement = Arrangement.End) {
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .width(REVEAL_WIDTH)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.error)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onError,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    "删除",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onError,
+                )
             }
         }
     }

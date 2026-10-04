@@ -89,6 +89,9 @@ interface LogDao {
     @Query("SELECT COUNT(*) FROM logs")
     suspend fun count(): Int
 
+    @Query("DELETE FROM logs")
+    suspend fun clearAll()
+
     @Query("DELETE FROM logs WHERE ts < :before")
     suspend fun pruneBefore(before: Long)
 

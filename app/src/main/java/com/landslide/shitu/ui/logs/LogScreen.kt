@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -53,10 +54,35 @@ fun LogScreen(
     logs: List<LogEntity>,
     rules: List<RuleEntity>,
     onExport: () -> Unit,
+    onClearAll: () -> Unit,
 ) {
     var keyword by remember { mutableStateOf("") }
     var resultFilter by remember { mutableStateOf<LogResult?>(null) }
     var ruleFilter by remember { mutableStateOf<Long?>(null) }
+    var askClear by remember { mutableStateOf(false) }
+
+    if (askClear) {
+        AlertDialog(
+            onDismissRequest = { askClear = false },
+            title = { Text("清空全部日志？") },
+            text = {
+                Text(
+                    "会把 ${logs.size} 条日志记录都删掉。只删记录——规则、已经搬过去的图片文件都不受影响。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        askClear = false
+                        onClearAll()
+                    },
+                ) { Text("清空", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { askClear = false }) { Text("取消") }
+            },
+        )
+    }
 
     val shown = logs.filter { l ->
         (resultFilter == null || l.result == resultFilter) &&
@@ -80,7 +106,13 @@ fun LogScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = onExport) { Text("导出 CSV") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { askClear = true },
+                    enabled = logs.isNotEmpty(),
+                ) { Text("全部清除") }
+                TextButton(onClick = onExport) { Text("导出 CSV") }
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -170,16 +202,19 @@ fun LogScreen(
                 Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(shown, key = { it.id }) { l -> LogRow(l) }
+                items(shown, key = { it.id }) { l ->
+                    // 新日志插进来 / 清空时其余条目滑一下，不要瞬移
+                    LogRow(l, Modifier.animateItem())
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LogRow(l: LogEntity) {
+private fun LogRow(l: LogEntity, modifier: Modifier = Modifier) {
     val tone = logTone(l.result)
-    Card(Modifier.fillMaxWidth()) {
+    Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 StatusPill(Labels.result(l.result), tone)

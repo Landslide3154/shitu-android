@@ -48,7 +48,8 @@ fun SettingsScreen(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SectionCard(title = "运行参数") {
+        // 十一个数字框太占地方，默认收起，点标题栏才展开
+        SectionCard(title = "运行参数", collapsible = true, initiallyExpanded = false) {
             Text(
                 "一次搬多少、搬多快、失败几次停。默认值适合大多数手机，不确定就别改。",
                 style = MaterialTheme.typography.bodySmall,

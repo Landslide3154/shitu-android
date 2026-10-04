@@ -1,5 +1,7 @@
 package com.landslide.shitu.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -25,6 +30,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,22 +58,25 @@ fun StatusPill(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
 ) {
+    // 状态切换时颜色渐变过去，不要「啪」地跳
+    val fg by animateColorAsState(tone.color(), label = "pillFg")
+    val bg by animateColorAsState(tone.container(), label = "pillBg")
     Row(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(tone.container())
+            .background(bg)
             .padding(horizontal = 8.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = tone.color(), modifier = Modifier.size(13.dp))
+            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
         } else {
             StatusDot(tone)
         }
         Text(
             text,
             style = MaterialTheme.typography.labelSmall,
-            color = tone.color(),
+            color = fg,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(start = 5.dp),
         )
@@ -74,7 +86,8 @@ fun StatusPill(
 /** 只有一个小圆点，放卡片标题左边。 */
 @Composable
 fun StatusDot(tone: Tone, size: Dp = 8.dp, modifier: Modifier = Modifier) {
-    Box(modifier.size(size).clip(CircleShape).background(tone.color()))
+    val c by animateColorAsState(tone.color(), label = "dotColor")
+    Box(modifier.size(size).clip(CircleShape).background(c))
 }
 
 /**
@@ -93,25 +106,27 @@ fun BannerCard(
     onClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val fg by animateColorAsState(tone.color(), label = "bannerFg")
+    val bg by animateColorAsState(tone.container(), label = "bannerBg")
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
             .let { if (onClick != null) it.clickable(onClick = onClick) else it },
-        color = tone.container(),
+        color = bg,
         shape = shape,
     ) {
         Row(
             Modifier.padding(start = 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = tone.color(), modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
             Column(Modifier.weight(1f).padding(start = 10.dp, end = 6.dp)) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = tone.color(),
+                    color = fg,
                 )
                 if (body != null) {
                     Text(
@@ -127,29 +142,35 @@ fun BannerCard(
                     onClick = onAction,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 ) {
-                    Text(actionLabel, color = tone.color(), fontWeight = FontWeight.SemiBold)
+                    Text(actionLabel, color = fg, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
 
-/** 设置页/需要分组的地方用：一张卡片一个主题。 */
+/**
+ * 设置页/需要分组的地方用：一张卡片一个主题，底色和规则卡片一致。
+ * [collapsible] = true 时点标题栏展开/收起（[initiallyExpanded] 给默认值）。
+ */
 @Composable
 fun SectionCard(
     title: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    collapsible: Boolean = false,
+    initiallyExpanded: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
-        modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+    Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .let { if (collapsible) it.clickable { expanded = !expanded } else it },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (icon != null) {
                     Icon(
                         icon,
@@ -159,10 +180,21 @@ fun SectionCard(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (collapsible) {
+                    Icon(
+                        if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = if (expanded) "收起" else "展开",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            content()
+            AnimatedVisibility(visible = !collapsible || expanded) {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    content()
+                }
+            }
         }
     }
 }

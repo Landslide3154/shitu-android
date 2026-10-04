@@ -8,7 +8,17 @@ import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,10 +38,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,6 +83,9 @@ fun ShituRoot(app: ShituApp) {
 
     var tab by remember { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<RuleEntity?>(null) }
+    // 编辑页在做退出动画时 editing 已经变成 null，用它撑住那几帧画面
+    var lastEdit by remember { mutableStateOf<RuleEntity?>(null) }
+    LaunchedEffect(editing) { editing?.let { lastEdit = it } }
     var draft by remember { mutableStateOf<RuleEntity?>(null) }
     var editingDirty by remember { mutableStateOf(false) }
     var askSave by remember { mutableStateOf(false) }
@@ -137,6 +152,14 @@ fun ShituRoot(app: ShituApp) {
             state = app.bridge.state()
         }
     }
+    // 后台自己搬完东西之后，列表和日志要能自己刷新，不能一直显示旧的
+    LaunchedEffect(tab, editing) {
+        while (true) {
+            rules = app.repo.allRules()
+            logs = app.repo.recentLogs(500)
+            delay(5_000)
+        }
+    }
 
     fun selfCheck() {
         scope.launch {
@@ -167,7 +190,15 @@ fun ShituRoot(app: ShituApp) {
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = {
+            SnackbarHost(snackbar) { data ->
+                // 点提示条本身也能关掉（「撤销删除」那个按钮自己响应自己的点击）
+                Snackbar(
+                    snackbarData = data,
+                    modifier = Modifier.clickable { data.dismiss() },
+                )
+            }
+        },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -191,33 +222,18 @@ fun ShituRoot(app: ShituApp) {
             }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            val current = editing
-            when {
-                current != null -> RuleEditScreen(
-                    initial = current,
-                    bridge = app.bridge,
-                    conflicts = RuleConflictChecker.check(
-                        rules.filter { it.id != current.id } + current,
-                    ),
-                    onDraftChange = { draft = it },
-                    onDirtyChange = { editingDirty = it },
-                    onSaveAsTemplate = { r, tplName ->
-                        scope.launch {
-                            val t = RuleTemplate.fromRule(r, tplName)
-                            app.settings.setRuleTemplates(settings.ruleTemplates + t)
-                            snackbar.showSnackbar("已存为模板「${t.name}」——新建规则时可选")
-                        }
-                    },
-                    onSave = { r ->
-                        draft = r
-                        saveDraft()
-                    },
-                    // 取消 = 放弃本次修改，直接回规则列表
-                    onCancel = { closeEditor(null) },
-                )
-
-                tab == 0 -> RuleListScreen(
+        // Box 在外、Column 在内：这样下面的编辑页转场是 Column 的兄弟，不会被 ColumnScope 抢走
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize()) {
+                // 三个标签页之间淡入淡出
+                AnimatedContent(
+                    targetState = tab,
+                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                    label = "tab",
+                    modifier = Modifier.fillMaxSize(),
+                ) { which ->
+                    when (which) {
+                        0 -> RuleListScreen(
                     rules = rules,
                     state = state,
                     movedTotal = rules.sumOf { it.totalMoved },
@@ -260,6 +276,71 @@ fun ShituRoot(app: ShituApp) {
                             val n = app.setRulesEnabled(ids, enabled = false)
                             refresh()
                             snackbar.showSnackbar("已停止 $n 条规则")
+                        }
+                    },
+                    onCopySelected = { ids ->
+                        scope.launch {
+                            val now = System.currentTimeMillis()
+                            var n = 0
+                            rules.filter { it.id in ids }.forEach { r ->
+                                app.repo.insertRule(
+                                    r.copy(
+                                        id = 0,
+                                        name = "${r.name} 副本",
+                                        enabled = false,
+                                        state = RuleState.IDLE,
+                                        pauseReason = null,
+                                        lastRunAt = null,
+                                        lastMoved = 0,
+                                        lastFailed = 0,
+                                        totalMoved = 0,
+                                        totalFailed = 0,
+                                        consecutiveFailures = 0,
+                                        createdAt = now,
+                                        updatedAt = now,
+                                    ),
+                                )
+                                n++
+                            }
+                            refresh()
+                            snackbar.showSnackbar("已复制 $n 条（都是暂停状态，改好再开）")
+                        }
+                    },
+                    onUndoSelected = { ids ->
+                        scope.launch {
+                            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(1)
+                            var done = 0
+                            var skipped = 0
+                            rules.filter { it.id in ids }.forEach { r ->
+                                val s = app.undoRule(r.id)
+                                done += s.done
+                                skipped += s.skipped
+                            }
+                            refresh()
+                            snackbar.showSnackbar("撤回完成：成功 $done · 跳过 $skipped")
+                        }
+                    },
+                    onDeleteSelected = { ids ->
+                        scope.launch {
+                            val targets = rules.filter { it.id in ids }
+                            // 删之前逐条留底：底部提示里点「撤销删除」能整批放回去
+                            val snapshots = targets.associate { it.id to app.repo.snapshotForRule(it.id) }
+                            targets.forEach { app.repo.deleteRule(it.id) }
+                            refresh()
+                            val names = if (targets.size == 1) "「${targets.first().name}」" else "${targets.size} 条规则"
+                            val res = snackbar.showSnackbar(
+                                message = "已删除 $names",
+                                actionLabel = "撤销删除",
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Long,
+                            )
+                            if (res == SnackbarResult.ActionPerformed) {
+                                targets.forEach { r ->
+                                    snapshots[r.id]?.let { app.repo.restoreDeleted(r, it) }
+                                }
+                                refresh()
+                                snackbar.showSnackbar("已恢复 $names，什么都没少")
+                            }
                         }
                     },
                     compact = settings.ruleCardsCompact,
@@ -369,7 +450,7 @@ fun ShituRoot(app: ShituApp) {
                     },
                 )
 
-                tab == 1 -> LogScreen(
+                1 -> LogScreen(
                     logs = logs,
                     rules = rules,
                     onExport = {
@@ -381,6 +462,13 @@ fun ShituRoot(app: ShituApp) {
                             snackbar.showSnackbar("日志已导出到 $path")
                         }
                     },
+                    onClearAll = {
+                        scope.launch {
+                            app.repo.clearLogs()
+                            refresh()
+                            snackbar.showSnackbar("日志已清空")
+                        }
+                    },
                 )
 
                 else -> SettingsScreen(
@@ -388,9 +476,46 @@ fun ShituRoot(app: ShituApp) {
                     store = app.settings,
                     onSelfCheck = { selfCheck() },
                 )
+                    }
+                }
+            }
+
+            // 编辑页：从右边滑进来，盖在标签页上面（里面的按钮/开关照常各自响应）
+                val editShown = editing ?: lastEdit
+                AnimatedVisibility(
+                    visible = editing != null,
+                    enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(180)),
+                    exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(120)),
+                ) {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        if (editShown != null) {
+                            RuleEditScreen(
+                                initial = editShown,
+                                bridge = app.bridge,
+                                conflicts = RuleConflictChecker.check(
+                                    rules.filter { it.id != editShown.id } + editShown,
+                                ),
+                                onDraftChange = { draft = it },
+                                onDirtyChange = { editingDirty = it },
+                                onSaveAsTemplate = { r, tplName ->
+                                    scope.launch {
+                                        val t = RuleTemplate.fromRule(r, tplName)
+                                        app.settings.setRuleTemplates(settings.ruleTemplates + t)
+                                        snackbar.showSnackbar("已存为模板「${t.name}」——新建规则时可选")
+                                    }
+                                },
+                                onSave = { r ->
+                                    draft = r
+                                    saveDraft()
+                                },
+                                // 取消 = 放弃本次修改，直接回规则列表
+                                onCancel = { closeEditor(null) },
+                            )
+                        }
+                    }
+                }
             }
         }
-    }
 
     if (askSave) {
         AlertDialog(
