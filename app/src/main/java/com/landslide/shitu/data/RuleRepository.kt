@@ -46,6 +46,18 @@ class RuleRepository(private val db: AppDatabase) {
         logDao.pruneForRule(id)
     }
 
+    /** 删规则前把它的条目与日志抄一份出来，配合 [restoreDeleted] 做「撤销删除」。 */
+    suspend fun snapshotForRule(id: Long): Pair<List<ItemEntity>, List<LogEntity>> =
+        itemDao.allForRule(id) to logDao.filtered(limit = 100_000, ruleId = id, result = null)
+
+    /** 把 [snapshotForRule] 抄下来的东西原样放回去（连同原来的 id，好让撤回还能认出搬过哪些文件）。 */
+    suspend fun restoreDeleted(rule: RuleEntity, snapshot: Pair<List<ItemEntity>, List<LogEntity>>) {
+        val (items, logs) = snapshot
+        ruleDao.insert(rule)
+        items.forEach { itemDao.upsert(it) }
+        logs.forEach { logDao.insert(it) }
+    }
+
     // ---------- 条目 ----------
 
     suspend fun recordItem(item: ItemEntity): Long = itemDao.upsert(item)

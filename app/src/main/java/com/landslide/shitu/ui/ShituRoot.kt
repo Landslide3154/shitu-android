@@ -28,8 +28,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -348,9 +350,21 @@ fun ShituRoot(app: ShituApp) {
                     },
                     onDelete = { r ->
                         scope.launch {
+                            // 删之前留一份底：万一误点，下面那条带「撤销删除」的提示能把规则连记录一起放回去
+                            val snapshot = app.repo.snapshotForRule(r.id)
                             app.repo.deleteRule(r.id)
                             refresh()
-                            snackbar.showSnackbar("已删除「${r.name}」")
+                            val res = snackbar.showSnackbar(
+                                message = "已删除「${r.name}」",
+                                actionLabel = "撤销删除",
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Long,
+                            )
+                            if (res == SnackbarResult.ActionPerformed) {
+                                app.repo.restoreDeleted(r, snapshot)
+                                refresh()
+                                snackbar.showSnackbar("已恢复「${r.name}」，什么都没少")
+                            }
                         }
                     },
                 )

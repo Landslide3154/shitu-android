@@ -62,6 +62,9 @@ interface ItemDao {
     @Query("DELETE FROM items WHERE status = 'SKIPPED' AND processedAt < :before")
     suspend fun pruneSkipped(before: Long): Int
 
+    @Query("SELECT * FROM items WHERE ruleId = :ruleId")
+    suspend fun allForRule(ruleId: Long): List<ItemEntity>
+
     @Query("DELETE FROM items WHERE id = :id")
     suspend fun delete(id: Long)
 
