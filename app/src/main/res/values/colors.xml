@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FF1F6FEB</color>
+    <!-- 图标底板：纯色，与 tools/make_icon.py 里的 BRAND 保持一致 -->
+    <color name="ic_launcher_background">#FF1B4FC4</color>
     <!-- 深色模式启动窗口的背景（见 values-night/themes.xml） -->
     <color name="window_background_dark">#FF101418</color>
 </resources>
