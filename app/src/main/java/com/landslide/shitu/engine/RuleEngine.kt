@@ -126,6 +126,21 @@ class RuleEngine(
                 rule.suffix,
                 sourceAppLabel(src.path, rule.name),
             )
+            // 开了「按内容命名」就先算一次内容指纹（算不出来就退回原名，绝不因此不搬）
+            val contentBase = if (rule.contentRename) {
+                val got = runCatching { bridge.contentName(src.path) }
+                val name = got.getOrDefault("")
+                if (name.isBlank()) {
+                    // 失败也留个痕：用户能在日志页看到"这次为什么还是原名"
+                    recorder?.onLog(
+                        LogResult.INFO, rule.id, src.path, null, 0,
+                        "按内容命名失败，这次用原名（${got.exceptionOrNull()?.message ?: "算不出内容名"}）",
+                    )
+                }
+                name.ifBlank { null }
+            } else {
+                null
+            }
             val item = executor.transfer(
                 src = src,
                 srcPath = src.path,
@@ -134,6 +149,7 @@ class RuleEngine(
                 mode = rule.mode,
                 ruleId = rule.id,
                 now = fileStart,
+                contentBase = contentBase,
             )
             recorder?.onItem(item)
             val cost = now() - fileStart

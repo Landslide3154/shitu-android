@@ -40,17 +40,34 @@ class TransferExecutor(
         mode: Mode,
         ruleId: Long,
         now: Long,
+        /**
+         * 「按内容命名」时给的名字主体（15 位、不含扩展名）。不为空时目标主体就用它，
+         * 扩展名照旧取自源文件；为空则沿用原来的文件名。
+         */
+        contentBase: String? = null,
     ): ItemEntity {
         val ts = timestamp(now)
         val tag = suffixTag?.takeIf { it.isNotBlank() }
+        val rawName = contentBase
+            ?.takeIf { it.isNotBlank() }
+            ?.let { it + namePolicy.extensionOf(src.name) }
+            ?: src.name
 
-        // ---- 1) 目标已有"同 size + 同 mtime"的文件：视为同一文件 ----
-        val naturalName = namePolicy.candidates(src.name, tag, ts).first()
+        // ---- 1) 目标已有"同一个文件"：视为同一文件，不重复搬 ----
+        // 按内容命名时，名字本身就是内容指纹：目标里已经有这个名字（大小一致）就认定是同一份。
+        // 这里以 exists 为准、stat 只用来比大小：名字相同的文件内容必然相同（SHA-256），
+        // 而 stat 偶发失败时若只信它会把这个名字当成不存在，于是同一张图被存成两份。
+        val naturalName = namePolicy.candidates(rawName, tag, ts).first()
         val naturalPath = join(dstDir, naturalName)
-        val naturalStat = runCatching { bridge.stat(naturalPath) }.getOrNull()
-        if (naturalStat != null && naturalStat.size == src.size &&
-            naturalStat.mtimeMillis == src.mtimeMillis
-        ) {
+        val naturalExists = runCatching { bridge.exists(naturalPath) }.getOrDefault(false)
+        val naturalStat = if (naturalExists) runCatching { bridge.stat(naturalPath) }.getOrNull() else null
+        val sameFile = if (!contentBase.isNullOrBlank()) {
+            // 按内容命名：同名 + （拿不到大小时也当作命中，宁可不去重存也不重复存一份）
+            naturalExists && (naturalStat == null || naturalStat.size == src.size)
+        } else {
+            naturalStat != null && naturalStat.size == src.size && naturalStat.mtimeMillis == src.mtimeMillis
+        }
+        if (sameFile) {
             return if (mode == Mode.MOVE) {
                 val ok = runCatching { bridge.delete(srcPath) }.getOrDefault(false)
                 item(
@@ -70,7 +87,7 @@ class TransferExecutor(
         // ---- 2) 选一个确实不存在的目标名（逐个实测，防止列举不全导致覆盖） ----
         var targetName: String? = null
         var probes = 0
-        for (c in namePolicy.candidates(src.name, tag, ts)) {
+        for (c in namePolicy.candidates(rawName, tag, ts)) {
             if (probes++ > MAX_NAME_PROBES) break
             val exists = runCatching { bridge.exists(join(dstDir, c)) }.getOrDefault(true)
             if (!exists) {

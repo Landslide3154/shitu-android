@@ -236,6 +236,31 @@ fun RuleEditScreen(
                 placeholder = { Text("{app}") },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(6.dp))
+
+            // 按内容命名：和上面的后缀叠加使用（后缀管"来源"，这里管"主体"）
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = rule.contentRename,
+                    onCheckedChange = { rule = rule.copy(contentRename = it) },
+                )
+                Text("改成按内容生成的文件名（15 位字母数字）")
+            }
+            Text(
+                if (rule.contentRename) {
+                    "同一个文件永远得到同一个名字，重复的图不会再多存一份。\n例：K7pQ2mVx9Rb4TzW" +
+                        (if (rule.suffix.isBlank()) "" else "_起点读书") +
+                        ".jpg（后面的后缀照上面填的来）"
+                } else {
+                    "关着：目标文件名沿用原来的名字，只在后面加你填的后缀"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {

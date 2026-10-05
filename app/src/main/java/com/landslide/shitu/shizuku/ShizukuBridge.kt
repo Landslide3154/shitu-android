@@ -193,6 +193,19 @@ class ShizukuBridge(private val context: Context) : FileBridge {
 
     override suspend fun delete(path: String): Boolean = call { it.delete(path) }
 
+    /**
+     * 按内容算名字。这个方法比其它调用"新"：App 升级后 Shizuku 侧往往还挂着**上一版的 UserService**，
+     * 老版本进程没有这个方法 → 调用必定失败。失败就杀掉旧连接重连一次，避免静默退回原名。
+     */
+    override suspend fun contentName(path: String): String {
+        val first = runCatching { call { it.contentName(path) } }
+        if (first.isSuccess) return first.getOrDefault("")
+        lastError = "内容名调用失败（多半是升级后还连着旧服务），正在重连：${first.exceptionOrNull()?.message}"
+        unbind(kill = true)
+        if (!bindOnce()) return ""
+        return runCatching { call { it.contentName(path) } }.getOrDefault("")
+    }
+
     override suspend fun describeEnvironment(): String = call { it.describeEnvironment() }
 
     /** 用于自检第 1 项：Shizuku 安装/运行/授权 三态文字。 */

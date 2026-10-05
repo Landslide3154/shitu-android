@@ -25,6 +25,9 @@ interface FileBridge {
 
     suspend fun delete(path: String): Boolean
 
+    /** 按文件内容算出的 15 位文件名主体；读不了/算失败时返回空串。 */
+    suspend fun contentName(path: String): String
+
     /** 自检用：uid / SELinux / SDK / 安全补丁 / 可用空间。 */
     suspend fun describeEnvironment(): String
 }

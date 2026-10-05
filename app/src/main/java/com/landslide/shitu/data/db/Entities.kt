@@ -1,5 +1,6 @@
 package com.landslide.shitu.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -17,6 +18,11 @@ data class RuleEntity(
     val extensions: String = DEFAULT_EXTENSIONS,
     /** 文件名后缀模板：空 = 不加后缀；`{app}` = 用来源 App 名；其他内容原样使用 */
     val suffix: String = DEFAULT_SUFFIX,
+    /**
+     * 目标文件名改成"按内容生成"的 15 位名字（同一个文件永远同名，重复的图不会再存第二份）。
+     * Kotlin 默认 true 只作用于**新建**的规则；老数据由数据库迁移写成 0（关闭），不会突然被改名。
+     */
+    @ColumnInfo(defaultValue = "0") val contentRename: Boolean = true,
     val enabled: Boolean = true,
     val state: RuleState = RuleState.IDLE,
     val pauseReason: String? = null,

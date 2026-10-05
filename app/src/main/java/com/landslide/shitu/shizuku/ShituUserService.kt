@@ -3,11 +3,13 @@ package com.landslide.shitu.shizuku
 import android.os.Build
 import android.os.Process
 import com.landslide.shitu.IShituService
+import com.landslide.shitu.core.ContentName
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 /**
  * 跑在 shell 身份（uid=2000 / u:r:shell:s0）下的执行者。
@@ -102,6 +104,30 @@ class ShituUserService : IShituService.Stub() {
     }
 
     override fun delete(path: String): Boolean = runCatching { File(path).delete() }.getOrDefault(false)
+
+    /**
+     * 按内容算 15 位文件名主体。
+     *
+     * 放在这里算（而不是把文件读回 App 进程）有两个原因：
+     * 1) 只有 shell 身份才读得到公共目录里那些我们没申请相册权限的文件；
+     * 2) 读+算都在同一侧完成，不经过 1MB 的 Binder 事务上限。
+     */
+    override fun contentName(path: String): String {
+        val f = File(path)
+        if (!f.exists() || f.isDirectory) return ""
+        return runCatching {
+            val md = MessageDigest.getInstance("SHA-256")
+            FileInputStream(f).use { input ->
+                val buf = ByteArray(256 * 1024)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n <= 0) break
+                    md.update(buf, 0, n)
+                }
+            }
+            ContentName.fromDigest(md.digest())
+        }.getOrDefault("")
+    }
 
     /**
      * 注意：这里是 shell 身份的进程，**不能**用 Environment / StatFs 这类会去问系统"当前用户/调用包名"的 API

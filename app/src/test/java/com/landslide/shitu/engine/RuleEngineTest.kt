@@ -154,4 +154,57 @@ class RuleEngineTest {
         assertEquals(1, logs.size)
         assertEquals(com.landslide.shitu.data.db.LogResult.MOVED, logs.first())
     }
+
+    @Test
+    fun `开了按内容命名_目标名变成内容名加后缀`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 1234, mtime = 1_000)
+        val engine = RuleEngine(
+            bridge, NamePolicy(), settings,
+            sourceAppLabel = { _, _ -> "起点读书" },
+            now = { 2_000_000 },
+        )
+        val result = engine.runOnce(rule().copy(contentRename = true), LoopGuard(60_000, 99))
+        assertEquals(1, result.moved)
+
+        val base = com.landslide.shitu.core.ContentName
+            .fromDigest("size=1234;mtime=1000".toByteArray(Charsets.UTF_8))
+        assertTrue(
+            "目标应该是 ${base}_起点读书.png，实际：" + bridge.files.keys,
+            bridge.exists("/dst/${base}_起点读书.png"),
+        )
+        assertFalse(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `按内容命名时同一张图再出现不会存第二份`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 1234, mtime = 1_000)
+        val engine = RuleEngine(
+            bridge, NamePolicy(), settings,
+            sourceAppLabel = { _, _ -> "起点读书" },
+            now = { 2_000_000 },
+        )
+        val r = rule(mode = Mode.COPY).copy(contentRename = true)
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+
+        // 源文件还在（复制模式），再跑一轮：同名同大小 → 认定同一份 → 跳过，不再多存一份
+        val second = engine.runOnce(r, LoopGuard(60_000, 99))
+        assertEquals(0, second.moved)
+        assertEquals(1, second.skipped)
+        assertEquals(1, bridge.files.keys.count { it.startsWith("/dst/") })
+    }
+
+    @Test
+    fun `关着按内容命名时还是用原来的文件名`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 1234, mtime = 1_000)
+        val engine = RuleEngine(
+            bridge, NamePolicy(), settings,
+            sourceAppLabel = { _, _ -> "起点读书" },
+            now = { 2_000_000 },
+        )
+        engine.runOnce(rule().copy(contentRename = false), LoopGuard(60_000, 99))
+        assertTrue(bridge.exists("/dst/a_起点读书.png"))
+    }
 }

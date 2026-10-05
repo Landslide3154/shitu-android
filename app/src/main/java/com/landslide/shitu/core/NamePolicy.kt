@@ -8,6 +8,12 @@ class NamePolicy(private val maxBytes: Int = 180) {
 
     private val illegal = Regex("[\\\\/:*?\"<>|\\x00-\\x1F]")
 
+    /** 取扩展名（含点）；点开头（.nomedia 之类）或没有点的都算无扩展名。 */
+    fun extensionOf(name: String): String {
+        val dot = name.lastIndexOf('.')
+        return if (dot <= 0 || dot == name.length - 1) "" else name.substring(dot)
+    }
+
     /** 清洗非法字符、控制字符、首尾空白与结尾的点。 */
     fun sanitize(name: String): String =
         name.replace(illegal, "_").trim().trimEnd('.')

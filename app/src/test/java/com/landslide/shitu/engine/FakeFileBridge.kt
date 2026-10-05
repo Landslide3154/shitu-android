@@ -1,5 +1,6 @@
 package com.landslide.shitu.engine
 
+import com.landslide.shitu.core.ContentName
 import com.landslide.shitu.shizuku.BridgeException
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.RemoteFile
@@ -123,6 +124,16 @@ open class FakeFileBridge : FileBridge {
     override suspend fun delete(path: String): Boolean {
         if (failDelete) return false
         return files.remove(path) != null
+    }
+
+    /**
+     * 假的内容名：用「大小 + 修改时间」当"内容指纹"（真机上是整个文件的 SHA-256）。
+     * 这样单测里"同内容 → 同名"的行为能被验证，也方便断言具体名字。
+     */
+    override suspend fun contentName(path: String): String {
+        val f = files[path] ?: return ""
+        val seed = "size=${f.size};mtime=${f.mtimeMillis}"
+        return ContentName.fromDigest(seed.toByteArray(Charsets.UTF_8))
     }
 
     override suspend fun describeEnvironment(): String = envLine

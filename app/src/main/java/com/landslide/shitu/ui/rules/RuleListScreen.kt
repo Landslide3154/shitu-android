@@ -739,7 +739,8 @@ private fun RuleCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 "模式 ${Labels.mode(rule.mode)} · 间隔 ${rule.intervalMinutes} 分钟" +
-                    " · 后缀 ${if (rule.suffix.isBlank()) "无" else rule.suffix}",
+                    " · 后缀 ${if (rule.suffix.isBlank()) "无" else rule.suffix}" +
+                    if (rule.contentRename) " · 按内容命名" else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

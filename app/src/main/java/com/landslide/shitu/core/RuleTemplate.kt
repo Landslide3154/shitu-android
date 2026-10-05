@@ -22,6 +22,7 @@ data class RuleTemplate(
     val intervalMinutes: Int = 5,
     val extensions: String = RuleEntity.DEFAULT_EXTENSIONS,
     val suffix: String = RuleEntity.DEFAULT_SUFFIX,
+    val contentRename: Boolean = true,
 ) {
     /** 「新建规则」弹窗里的副标题：一眼看清这条模板会干什么 */
     fun detail(): String = buildString {
@@ -34,6 +35,7 @@ data class RuleTemplate(
         append(intervalMinutes)
         append(" 分钟")
         if (!includeSubdirs) append(" · 只看这一层")
+        if (contentRename) append(" · 按内容命名")
     }
 
     fun toEntity(now: Long): RuleEntity = RuleEntity(
@@ -46,6 +48,7 @@ data class RuleTemplate(
         intervalMinutes = intervalMinutes,
         extensions = extensions,
         suffix = suffix,
+        contentRename = contentRename,
         createdAt = now,
         updatedAt = now,
     )
@@ -63,6 +66,7 @@ data class RuleTemplate(
             intervalMinutes = rule.intervalMinutes,
             extensions = rule.extensions,
             suffix = rule.suffix,
+            contentRename = rule.contentRename,
         )
 
         fun newId(): String = System.currentTimeMillis().toString(36) + "-" + (0..999999).random().toString(36)
@@ -81,6 +85,7 @@ data class RuleTemplate(
                 "interval" to t.intervalMinutes.toString(),
                 "ext" to t.extensions,
                 "suffix" to t.suffix,
+                "content" to t.contentRename.toString(),
             ).joinToString("\n") { (k, v) -> "$k=${enc(v)}" }
         }
 
@@ -106,6 +111,8 @@ data class RuleTemplate(
                     intervalMinutes = map["interval"]?.toIntOrNull() ?: 5,
                     extensions = map["ext"] ?: RuleEntity.DEFAULT_EXTENSIONS,
                     suffix = map["suffix"] ?: RuleEntity.DEFAULT_SUFFIX,
+                    // 老模板里没有这一项：按"新规则"的默认值 true 处理
+                    contentRename = map["content"]?.toBooleanStrictOrNull() ?: true,
                 )
             }
         }

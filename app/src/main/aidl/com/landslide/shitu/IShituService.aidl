@@ -12,5 +12,7 @@ interface IShituService {
     boolean move(String srcPath, String dstPath);
     boolean copy(String srcPath, String dstPath);
     boolean delete(String path);
+    // 按内容算出的 15 位文件名主体（在同一个身份里读文件算哈希，避开 1MB 事务上限）；失败返回空串
+    String contentName(String path);
     String describeEnvironment();
 }
