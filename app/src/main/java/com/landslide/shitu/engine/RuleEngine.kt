@@ -9,6 +9,7 @@ import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.db.ItemEntity
 import com.landslide.shitu.data.db.ItemStatus
 import com.landslide.shitu.data.db.LogResult
+import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.data.db.RuleState
 import com.landslide.shitu.shizuku.FileBridge
@@ -29,6 +30,11 @@ class RuleEngine(
      * 为 null（单测默认 / 设置里关掉）时退回"固定稳定期"口径。
      */
     private val stability: FileStability? = null,
+    /**
+     * 「已经复制过的内容」账本：复制模式的规则靠它跳过重复内容。
+     * 为 null 时退回只看目标目录的老口径。
+     */
+    private val ledger: ContentLedger? = null,
 ) {
     /** 扫描出口 */
     companion object {
@@ -88,6 +94,7 @@ class RuleEngine(
 
     suspend fun runOnce(rule: RuleEntity, guard: LoopGuard, recorder: Recorder? = null): RunResult {
         val t0 = now()
+        val led = ledger
         val filter = ScanFilter(rule.extensions.split(',').toSet(), settings.stableSec)
         val limiter = RateLimiter(settings.maxPerRun, settings.maxPerMinute, settings.maxRunSec * 1000L)
         val executor = TransferExecutor(bridge, namePolicy)
@@ -126,21 +133,49 @@ class RuleEngine(
                 rule.suffix,
                 sourceAppLabel(src.path, rule.name),
             )
-            // 开了「按内容命名」就先算一次内容指纹（算不出来就退回原名，绝不因此不搬）
-            val contentBase = if (rule.contentRename) {
+            // 复制模式要按内容查重、开了「按内容命名」也要用，故这两种情况都算一次内容指纹；
+            // 算不出来（极少数）就退回原名 / 不做查重，绝不因此不搬。
+            val needFingerprint = rule.contentRename || (rule.mode == Mode.COPY && led != null)
+            val fingerprint = if (needFingerprint) {
                 val got = runCatching { bridge.contentName(src.path) }
                 val name = got.getOrDefault("")
                 if (name.isBlank()) {
-                    // 失败也留个痕：用户能在日志页看到"这次为什么还是原名"
+                    val why = got.exceptionOrNull()?.message ?: "算不出内容编号"
                     recorder?.onLog(
                         LogResult.INFO, rule.id, src.path, null, 0,
-                        "按内容命名失败，这次用原名（${got.exceptionOrNull()?.message ?: "算不出内容名"}）",
+                        if (rule.contentRename) "按内容命名失败，这次用原名（$why）"
+                        else "算不出内容编号，这次不做去重（$why）",
                     )
                 }
                 name.ifBlank { null }
             } else {
                 null
             }
+
+            // 复制模式：这份内容以前复制过 → 跳过。
+            // 与"它现在还在不在目标目录、被你移到了哪里、有没有改名"全都无关。
+            if (rule.mode == Mode.COPY && led != null && fingerprint != null &&
+                runCatching { led.seen(fingerprint) }.getOrDefault(false)
+            ) {
+                val note = "这份内容以前已经复制过，不再重复复制"
+                val skippedItem = ItemEntity(
+                    ruleId = rule.id,
+                    srcPath = src.path,
+                    srcSize = src.size,
+                    srcMtime = src.mtimeMillis,
+                    dstPath = null,
+                    status = ItemStatus.SKIPPED,
+                    attemptCount = 1,
+                    lastError = note,
+                    processedAt = fileStart,
+                )
+                recorder?.onItem(skippedItem)
+                val cost = now() - fileStart
+                recorder?.onLog(LogResult.SKIPPED, rule.id, src.path, null, cost, note)
+                skipped++
+                continue
+            }
+
             val item = executor.transfer(
                 src = src,
                 srcPath = src.path,
@@ -149,7 +184,7 @@ class RuleEngine(
                 mode = rule.mode,
                 ruleId = rule.id,
                 now = fileStart,
-                contentBase = contentBase,
+                contentBase = if (rule.contentRename) fingerprint else null,
             )
             recorder?.onItem(item)
             val cost = now() - fileStart
@@ -160,6 +195,10 @@ class RuleEngine(
                         if (item.status == ItemStatus.MOVED) LogResult.MOVED else LogResult.COPIED,
                         rule.id, src.path, item.dstPath, cost, item.lastError,
                     )
+                    // 复制成功就记账：以后再遇到同一份内容（任何规则、任何源目录）都不再复制
+                    if (item.status == ItemStatus.COPIED && led != null && fingerprint != null) {
+                        runCatching { led.remember(fingerprint, rule.id, item.dstPath, fileStart) }
+                    }
                     if (guard.record(src.name, fileStart)) loop = true
                 }
                 ItemStatus.SKIPPED -> {

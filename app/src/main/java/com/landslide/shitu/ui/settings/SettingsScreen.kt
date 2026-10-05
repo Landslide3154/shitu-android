@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,8 +44,12 @@ fun SettingsScreen(
     settings: Settings,
     store: SettingsStore,
     onSelfCheck: () -> Unit,
+    /** 「已经复制过的内容」账本里有多少条 */
+    copiedCount: Int = 0,
+    onClearCopied: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    var askClearCopied by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
@@ -208,6 +215,43 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(8.dp))
             Button(onClick = onSelfCheck) { Text("立即自检") }
+        }
+
+        // 复制模式的"这张图复制过没有"账本：清空后同样的图会再被复制一次进来
+        SectionCard(title = "复制记录") {
+            Text(
+                "复制模式的规则靠这份记录判断「这张图是不是已经复制过」，不看你后来把文件移到了哪里。" +
+                    "现在记着 $copiedCount 条。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { askClearCopied = true },
+                enabled = copiedCount > 0,
+            ) { Text("清空复制记录（$copiedCount 条）") }
+        }
+
+        if (askClearCopied) {
+            AlertDialog(
+                onDismissRequest = { askClearCopied = false },
+                title = { Text("清空复制记录？") },
+                text = {
+                    Text(
+                        "清空之后，以前复制过的图会被当成「没复制过」——以后遇到同样的图会再复制一份进来。" +
+                            "已经复制过去的文件本身不受影响。",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        askClearCopied = false
+                        onClearCopied()
+                    }) { Text("清空") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { askClearCopied = false }) { Text("取消") }
+                },
+            )
         }
 
         SectionCard(title = "关于") {

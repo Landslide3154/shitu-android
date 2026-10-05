@@ -1,5 +1,6 @@
 package com.landslide.shitu.engine
 
+import com.landslide.shitu.core.ContentName
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.data.Settings
@@ -206,5 +207,128 @@ class RuleEngineTest {
         )
         engine.runOnce(rule().copy(contentRename = false), LoopGuard(60_000, 99))
         assertTrue(bridge.exists("/dst/a_起点读书.png"))
+    }
+
+    // ---------- 「已经复制过的内容」账本 ----------
+
+    private class FakeLedger : ContentLedger {
+        val fingerprints = HashSet<String>()
+
+        override suspend fun seen(fingerprint: String): Boolean = fingerprint in fingerprints
+
+        override suspend fun remember(fingerprint: String, ruleId: Long, dstPath: String?, now: Long) {
+            fingerprints += fingerprint
+        }
+
+        override suspend fun count(): Int = fingerprints.size
+
+        override suspend fun clear(): Int {
+            val n = fingerprints.size
+            fingerprints.clear()
+            return n
+        }
+    }
+
+    private fun fingerprintOf(size: Long, mtime: Long) =
+        ContentName.fromDigest("size=$size;mtime=$mtime".toByteArray(Charsets.UTF_8))
+
+    /** 模拟"用户把中转站里的副本手工移走了" */
+    private fun clearDir(bridge: FakeFileBridge, dir: String) {
+        bridge.files.keys.filter { it.startsWith("$dir/") }.forEach { bridge.files.remove(it) }
+    }
+
+    @Test
+    fun `复制过的内容被你移走之后也不会再复制一份`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+        val r = rule(mode = Mode.COPY)
+
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+        assertEquals(1, ledger.count())
+
+        // 用户把复制出来的那份移走/改到别的目录了 —— 目标目录里已经找不到它
+        clearDir(bridge, "/dst")
+
+        val second = engine.runOnce(r, LoopGuard(60_000, 99))
+        assertEquals(0, second.moved)
+        assertEquals(1, second.skipped)
+        assertFalse("不该再复制一份进来", bridge.exists("/dst/a_t.png"))
+        // 源文件照旧留着（复制模式不删源）
+        assertTrue(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `换一条复制规则、换一个源目录，同一份内容也不再复制`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/srcA/a.png", size = 100, mtime = 1_000)
+        bridge.put("/srcB/b.png", size = 100, mtime = 1_000) // 同一个文件被放到另一个源目录
+        val ledger = FakeLedger()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        val ruleA = rule(mode = Mode.COPY).copy(id = 1, name = "A", srcPath = "/srcA", dstPath = "/dstA")
+        val ruleB = rule(mode = Mode.COPY).copy(id = 2, name = "B", srcPath = "/srcB", dstPath = "/dstB")
+
+        assertEquals(1, engine.runOnce(ruleA, LoopGuard(60_000, 99)).moved)
+
+        val second = engine.runOnce(ruleB, LoopGuard(60_000, 99))
+        assertEquals(0, second.moved)
+        assertEquals(1, second.skipped)
+        assertFalse(bridge.exists("/dstB/b_B.png"))
+    }
+
+    @Test
+    fun `移动模式完全不受复制记录影响`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger()
+        // 账本里已经有这份内容的指纹
+        ledger.fingerprints += fingerprintOf(100, 1_000)
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        val result = engine.runOnce(rule(), LoopGuard(60_000, 99))
+        assertEquals(1, result.moved)
+        assertFalse(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `复制记录只管复制模式_移动过的内容不进账本`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        engine.runOnce(rule(), LoopGuard(60_000, 99))
+        assertEquals(0, ledger.count())
+    }
+
+    @Test
+    fun `清空账本之后同一份内容会重新复制一次`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+        val r = rule(mode = Mode.COPY)
+
+        engine.runOnce(r, LoopGuard(60_000, 99))
+        clearDir(bridge, "/dst")
+        assertEquals(0, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+
+        assertEquals(1, ledger.clear())
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+    }
+
+    @Test
+    fun `没有账本时复制模式维持老行为`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 })
+        val r = rule(mode = Mode.COPY)
+
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+        clearDir(bridge, "/dst")
+        // 老口径只看目标目录：副本被移走后就会再复制一份
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
     }
 }

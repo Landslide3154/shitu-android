@@ -91,6 +91,7 @@ fun ShituRoot(app: ShituApp) {
     var pendingTab by remember { mutableStateOf<Int?>(null) }
     var rules by remember { mutableStateOf<List<RuleEntity>>(emptyList()) }
     var logs by remember { mutableStateOf<List<LogEntity>>(emptyList()) }
+    var copiedCount by remember { mutableStateOf(0) }
     var state by remember { mutableStateOf(app.bridge.state()) }
     var health by remember { mutableStateOf<List<HealthChecker.Item>?>(null) }
     var checking by remember { mutableStateOf(false) }
@@ -100,6 +101,7 @@ fun ShituRoot(app: ShituApp) {
     suspend fun refresh() {
         rules = app.repo.allRules()
         logs = app.repo.recentLogs(500)
+        copiedCount = app.ledger.count()
         state = app.bridge.state()
     }
 
@@ -156,6 +158,7 @@ fun ShituRoot(app: ShituApp) {
         while (true) {
             rules = app.repo.allRules()
             logs = app.repo.recentLogs(500)
+            copiedCount = app.ledger.count()
             delay(5_000)
         }
     }
@@ -474,6 +477,14 @@ fun ShituRoot(app: ShituApp) {
                     settings = settings,
                     store = app.settings,
                     onSelfCheck = { selfCheck() },
+                    copiedCount = copiedCount,
+                    onClearCopied = {
+                        scope.launch {
+                            val n = app.ledger.clear()
+                            refresh()
+                            snackbar.showSnackbar("已清空复制记录（$n 条）")
+                        }
+                    },
                 )
                     }
                 }

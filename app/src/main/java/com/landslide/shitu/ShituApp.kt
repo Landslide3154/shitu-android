@@ -15,6 +15,7 @@ import com.landslide.shitu.core.FileStability
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.data.LogExporter
+import com.landslide.shitu.data.RoomContentLedger
 import com.landslide.shitu.data.RuleRepository
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
@@ -46,6 +47,9 @@ class ShituApp : Application() {
     lateinit var db: AppDatabase
         private set
     lateinit var repo: RuleRepository
+        private set
+    /** 「已经复制过的内容」账本（全局，跨规则） */
+    lateinit var ledger: RoomContentLedger
         private set
     lateinit var settings: SettingsStore
         private set
@@ -118,6 +122,7 @@ class ShituApp : Application() {
         super.onCreate()
         db = AppDatabase.build(this)
         repo = RuleRepository(db)
+        ledger = RoomContentLedger(db)
         settings = SettingsStore(this)
         bridge = ShizukuBridge(this)
         notifier = Notifier(this)
@@ -317,6 +322,7 @@ class ShituApp : Application() {
             settings = cfg,
             sourceAppLabel = ::sourceAppLabel,
             stability = if (cfg.settleDetect) stability else null,
+            ledger = ledger,
         )
         val guard = guardFor(rule, cfg)
         val result = try {

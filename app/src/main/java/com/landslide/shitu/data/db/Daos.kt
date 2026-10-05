@@ -101,3 +101,19 @@ interface LogDao {
     @Query("DELETE FROM logs WHERE ruleId = :ruleId")
     suspend fun pruneForRule(ruleId: Long)
 }
+
+/** 「已经复制过的内容」账本：全局，不随规则/日志清理。 */
+@Dao
+interface CopiedDao {
+    @Query("SELECT COUNT(*) FROM copied WHERE fingerprint = :fingerprint")
+    suspend fun count(fingerprint: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(entity: CopiedEntity)
+
+    @Query("SELECT COUNT(*) FROM copied")
+    suspend fun total(): Int
+
+    @Query("DELETE FROM copied")
+    suspend fun clearAll(): Int
+}
