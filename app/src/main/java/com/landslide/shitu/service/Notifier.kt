@@ -17,6 +17,18 @@ class Notifier(private val context: Context) {
         const val CH_WATCH = "watch"
         const val CH_EVENT = "event"
         const val ID_WATCH = 1
+
+        /** 通知的强调色，与图标底板同一个蓝（tools/make_icon.py 的 BRAND） */
+        private const val BRAND = 0xFF1B4FC4.toInt()
+    }
+
+    /** 通知栏里显示的那张彩色大图（只解码一次） */
+    private val largeIcon: android.graphics.Bitmap? by lazy {
+        runCatching {
+            android.graphics.BitmapFactory.decodeResource(
+                context.resources, R.drawable.ic_notifier_large,
+            )
+        }.getOrNull()
     }
 
     fun ensureChannels() {
@@ -44,6 +56,8 @@ class Notifier(private val context: Context) {
         val scan = action(WatchService.ACTION_RUN_NOW, 2)
         return NotificationCompat.Builder(context, CH_WATCH)
             .setSmallIcon(R.drawable.ic_notify)
+            .setLargeIcon(largeIcon)
+            .setColor(BRAND)
             .setContentTitle("拾图正在监控")
             .setContentText(text)
             .setOngoing(true)
@@ -72,6 +86,8 @@ class Notifier(private val context: Context) {
         )
         val n = NotificationCompat.Builder(context, CH_EVENT)
             .setSmallIcon(R.drawable.ic_notify)
+            .setLargeIcon(largeIcon)
+            .setColor(BRAND)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

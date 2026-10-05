@@ -431,10 +431,71 @@ def write_android_assets(variant):
     print("已写入 Android 资源：%s（前景层/单色层 5 个密度 + 512/1024 完整图）" % variant)
 
 
+def poly_to_path(points, precision=2):
+    """把多边形点列转成 Android vector 的 pathData（闭合）。"""
+    fmt = "%%.%df,%%.%df" % (precision, precision)
+    parts = ["M" + (fmt % points[0])]
+    for p in points[1:]:
+        parts.append("L" + (fmt % p))
+    parts.append("Z")
+    return " ".join(parts)
+
+
+def write_notify_vector():
+    """状态栏/通知栏的小图标：24dp 简化剪影（2×2 圆角格 + 右下格倾斜）。
+
+    通知小图标在状态栏里只有十几 dp，格内那座山会糊成一团，所以只保留"形"。
+    """
+    box, gap, r = 8.0, 2.0, 2.4
+    x0, y0 = 3.0, 3.0
+    paths = []
+    for (rr, cc) in ((0, 0), (0, 1), (1, 0)):
+        cx = x0 + cc * (box + gap)
+        cy = y0 + rr * (box + gap)
+        paths.append(poly_to_path(rounded_rect(cx, cy, cx + box, cy + box, r, steps=18)))
+    # 右下那格：倾斜 + 轻微位移，和主图标一个意思
+    cx = x0 + (box + gap)
+    cy = y0 + (box + gap)
+    cell = rounded_rect(cx, cy, cx + box, cy + box, r, steps=18)
+    cell = rotate_pts(cell, cx + box / 2.0, cy + box / 2.0, -14.0)
+    cell = [(px - 0.55, py - 0.4) for px, py in cell]
+    paths.append(poly_to_path(cell))
+
+    body = "\n".join(
+        '    <path\n        android:fillColor="#FFFFFFFF"\n        android:pathData="%s" />' % p
+        for p in paths
+    )
+    xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<!--\n"
+        "  通知栏/状态栏的小图标：桌面图标的 24dp 简化版（四格相册，右下那格倾斜 = 正在移动）。\n"
+        "  由 tools/make_icon.py 生成，与桌面图标同一套几何参数；这个尺寸下格内的山和太阳会糊掉，\n"
+        "  所以只保留格子本身。\n"
+        "-->\n"
+        '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+        '    android:width="24dp"\n'
+        '    android:height="24dp"\n'
+        '    android:viewportWidth="24"\n'
+        '    android:viewportHeight="24">\n'
+        "%s\n"
+        "</vector>\n" % body
+    )
+    out = os.path.join(ROOT, "app", "src", "main", "res", "drawable", "ic_notify.xml")
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write(xml)
+
+    # 通知栏里显示的那张彩色大图
+    nodpi = os.path.join(ROOT, "app", "src", "main", "res", "drawable-nodpi")
+    os.makedirs(nodpi, exist_ok=True)
+    plate(256, motif_grid_moving).save(os.path.join(nodpi, "ic_notifier_large.png"))
+    print("已写入 drawable/ic_notify.xml 与 drawable-nodpi/ic_notifier_large.png")
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] == "--android":
         write_android_assets(args[1] if len(args) > 1 else "grid_moving")
+        write_notify_vector()
         return
     names = args or list(VARIANTS)
     os.makedirs(OUT, exist_ok=True)
