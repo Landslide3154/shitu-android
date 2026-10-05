@@ -22,15 +22,6 @@ class Notifier(private val context: Context) {
         private const val BRAND = 0xFF1B4FC4.toInt()
     }
 
-    /** 通知栏里显示的那张彩色大图（只解码一次） */
-    private val largeIcon: android.graphics.Bitmap? by lazy {
-        runCatching {
-            android.graphics.BitmapFactory.decodeResource(
-                context.resources, R.drawable.ic_notifier_large,
-            )
-        }.getOrNull()
-    }
-
     fun ensureChannels() {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         nm.createNotificationChannel(
@@ -56,7 +47,6 @@ class Notifier(private val context: Context) {
         val scan = action(WatchService.ACTION_RUN_NOW, 2)
         return NotificationCompat.Builder(context, CH_WATCH)
             .setSmallIcon(R.drawable.ic_notify)
-            .setLargeIcon(largeIcon)
             .setColor(BRAND)
             .setContentTitle("拾图正在监控")
             .setContentText(text)
@@ -86,7 +76,6 @@ class Notifier(private val context: Context) {
         )
         val n = NotificationCompat.Builder(context, CH_EVENT)
             .setSmallIcon(R.drawable.ic_notify)
-            .setLargeIcon(largeIcon)
             .setColor(BRAND)
             .setContentTitle(title)
             .setContentText(text)

@@ -484,11 +484,7 @@ def write_notify_vector():
     with open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write(xml)
 
-    # 通知栏里显示的那张彩色大图
-    nodpi = os.path.join(ROOT, "app", "src", "main", "res", "drawable-nodpi")
-    os.makedirs(nodpi, exist_ok=True)
-    plate(256, motif_grid_moving).save(os.path.join(nodpi, "ic_notifier_large.png"))
-    print("已写入 drawable/ic_notify.xml 与 drawable-nodpi/ic_notifier_large.png")
+    print("已写入 drawable/ic_notify.xml")
 
 
 def main():
