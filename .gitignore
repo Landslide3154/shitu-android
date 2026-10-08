@@ -26,3 +26,8 @@ keystore.properties
 
 # 本地一次性脚本（写 GitHub Secrets 用），不入库
 .ci-setup/
+
+# 环境变量与凭据（绝不入库）
+.env
+.env.*
+!.env.example
