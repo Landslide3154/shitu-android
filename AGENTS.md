@@ -6,7 +6,7 @@
 
 ## 版本号约定（必须遵守）
 
-- 每次改动提交后：`versionName` **+0.0.1**、`versionCode` **+1**（当前 `0.12.2` / `21`），只改 `app/build.gradle.kts` 一处
+- 每次改动提交后：`versionName` **+0.0.1**、`versionCode` **+1**，只改 `app/build.gradle.kts` 一处（当前值以该文件为准，不在此写死）
 - 同步在 `docs/CHANGELOG.md` 顶部加一节，**面向使用者**写（说人话，不写函数名/文件名）
 - commit message 用 Conventional Commits（中英混合均可）
 
@@ -20,9 +20,9 @@
 
 ## 真机验证（改完必须做，用户明确要求）
 
-- 目标机 Redmi K90 Pro Max（HyperOS 3 / Android 16 / Shizuku 13.6.0）
+- 目标真机、系统与 Shizuku 版本见记忆空间「拾图 shitu」——本文件不写会漂的值
 - 本机 adb：`D:\soft\scrcpy\adb.exe`
-- 该机 **uiautomator dump 不可用**，只能 `adb exec-out screencap -p > x.png` 目测坐标（截图 876x1904 → 原始 1200x2608）
+- 该机 **uiautomator dump 不可用**，只能 `adb exec-out screencap -p > x.png` 目测坐标（截图分辨率见记忆空间「拾图 shitu」——本文件不写会漂的值）
 - `adb shell input tap` **打不到 Compose DropdownMenu 的弹出项**（弹出窗口不可聚焦，点击落到 Activity 窗口）→ 用 `input keyevent KEYCODE_DPAD_DOWN` ×N + `KEYCODE_ENTER` 选中；AlertDialog 是独立可聚焦窗口，`input tap` 正常
 - 验证记录写在 `docs/2026-10-04-shitu-验证记录.md`
 
@@ -56,5 +56,5 @@ CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，去�
 ## 协作口径
 
 - 界面文字面向普通使用者，说人话；能少点一步就少点一步；控件放右上角，方便右手单手点
-- 全仓推送到 GitHub：改完立即 `git push`，遵循全局 `~/.dsh/AGENTS.md` 的推送原则
+- 推送：见全局 `~/.dsh/AGENTS.md` §2.1（不在此重述）
 - 用户的项目状态快照与更多实测踩坑见 DSH 记忆空间「拾图 shitu」，本文件只放规则
