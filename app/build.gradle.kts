@@ -27,8 +27,8 @@ android {
         applicationId = "com.landslide.shitu"
         minSdk = 30
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.12.2"
+        versionCode = 22
+        versionName = "0.12.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }

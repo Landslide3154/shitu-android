@@ -26,6 +26,7 @@ SS = 4  # 超采样倍数
 
 BRAND = (0x1B, 0x4F, 0xC4, 255)  # 与 App 主题主色一致（Theme.kt 的 Blue）
 WHITE = (255, 255, 255, 255)
+PLATE_SHADOW = (10, 16, 48)      # 底板外投影的颜色（深藏蓝，和 PicSieve 一致）
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -190,6 +191,27 @@ def rotate_pts(pts, cx, cy, deg):
              (x - cx) * sa + (y - cy) * ca + cy) for x, y in pts]
 
 
+def band_polygon(back, front, g, steps=40):
+    """后面那张卡减去"前面卡外扩 g"之后剩下的 L 形带（前面的卡在左下方）。
+
+    用几何直接算出轮廓，比在像素上挖洞干净：凸角是 back 的圆角，
+    内凹角是外扩后 front 的圆角（所以缝隙宽度处处都是 g）。
+    """
+    bx0, by0, bx1, by1, br = back
+    fx0, fy0, fx1, fy1, fr = front
+    ex0, ey0, ex1, ey1, er = fx0 - g, fy0 - g, fx1 + g, fy1 + g, fr + g
+    if not (ex0 <= bx0 and ey1 >= by1 and ey0 > by0 and ex1 < bx1):
+        raise ValueError("叠放位置超出假设：前卡外扩后应盖住后卡的左下角")
+    pts = []
+    pts += superellipse_arc(bx0 + br, by0 + br, br, math.pi, 1.5 * math.pi, steps=steps)
+    pts += superellipse_arc(bx1 - br, by0 + br, br, 1.5 * math.pi, 2.0 * math.pi, steps=steps)
+    pts += superellipse_arc(bx1 - br, by1 - br, br, 0.0, 0.5 * math.pi, steps=steps)
+    pts.append((ex1, by1))
+    pts += superellipse_arc(ex1 - er, ey0 + er, er, 0.0, -0.5 * math.pi, steps=steps)
+    pts.append((bx0, ey0))
+    return pts
+
+
 # ---------- 三个方向 ----------
 
 def photo_holes(d, s, x0, y0, x1, y1, sun=True, ridge=True, scale=1.0):
@@ -335,7 +357,29 @@ def motif_grid_moving(size):
     return m
 
 
+STACK_FRONT = (170, 340, 730, 900, 132)   # 前一张（左下，完整）
+STACK_BACK = (400, 110, 960, 670, 132)    # 后一张（右上，露出一道厚边）
+STACK_GAP = 46                            # 两张之间的空隙
+
+
+def motif_stack(size):
+    """「一叠图」：两张一样的图错开叠放，后面那张露出一道厚边。
+
+    只有两个形状、一条等宽的缝，没有任何小细节 —— 缩到 40px 也不糊。
+    叠压关系靠"缝"表达：缝的宽度处处等于 STACK_GAP（用几何算出来的，
+    不是把像素挖掉），内凹角是外扩后前卡的圆角。
+    """
+    m, d = new_mask(size)
+    s = size / 1024.0
+    band = band_polygon(STACK_BACK, STACK_FRONT, STACK_GAP)
+    d.polygon([(x * s, y * s) for x, y in band], fill=255)
+    x0, y0, x1, y1, r = STACK_FRONT
+    d.polygon(rounded_rect(x0 * s, y0 * s, x1 * s, y1 * s, r * s), fill=255)
+    return m
+
+
 VARIANTS = {
+    "stack": motif_stack,
     "grid_moving": motif_grid_moving,
     "cascade": motif_cascade,
     "grid": motif_grid,
@@ -345,49 +389,72 @@ VARIANTS = {
 
 # ---------- 合成 ----------
 
-def plate(size, motif_fn, supersample=SS):
-    """完整底板图标：超椭圆底板 + 投影 + 白色剪影（高 0.72S）。"""
+def plate(size, motif_fn, supersample=SS, frac=0.72, plate_shadow=True, pad_ratio=0.075):
+    """完整底板图标：超椭圆底板（带外投影）+ 剪影（带内投影，高 frac × 边长）。
+
+    两层阴影，和 PicSieve / Lumen 那两个图标一致：
+      底板外投影：偏移 (0.0024, 0.024)S、模糊 0.022S、不透明度 0.42
+      剪影内投影：偏移 0.024S、模糊 0.022S、不透明度 0.42
+    外投影会被画布裁掉，所以画布四周留 pad_ratio 的边（输出尺寸不变，底板相应变小）。
+    """
     big = size * supersample
+    pad = int(big * pad_ratio) if plate_shadow else 0
+    side = big + 2 * pad
+
     m = motif_fn(big)
-    # 剪影缩放到 0.72 × 边长并居中
-    target = int(big * 0.72)
+    # 剪影缩放到 frac × 边长并居中
+    target = int(big * frac)
     m = m.crop(m.getbbox() or (0, 0, big, big))
     w, h = m.size
     scale = target / max(w, h)
     m = m.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
     sw, sh = m.size
-    fg = Image.new("L", (big, big), 0)
-    fg.paste(m, ((big - sw) // 2, (big - sh) // 2))
+    fg = Image.new("L", (side, side), 0)
+    fg.paste(m, (pad + (big - sw) // 2, pad + (big - sh) // 2))
 
-    canvas = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    plate_pts = rounded_rect(0, 0, big, big, 0.35 * big)
-    d = ImageDraw.Draw(canvas)
-    d.polygon(plate_pts, fill=BRAND)
-
-    # 投影：偏移 0.024S、模糊 0.022S
-    off = int(0.024 * big)
     blur = 0.022 * big
-    shadow = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    shadow.putalpha(fg.point(lambda v: int(v * 0.32)))
+    plate_pts = rounded_rect(pad, pad, pad + big, pad + big, 0.35 * big)
+    canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+
+    if plate_shadow:
+        sil = Image.new("L", (side, side), 0)
+        ImageDraw.Draw(sil).polygon(plate_pts, fill=255)
+        ps = Image.new("RGBA", (side, side), PLATE_SHADOW + (255,))
+        ps.putalpha(sil.point(lambda v: int(v * 0.42)))
+        ps = ps.filter(ImageFilter.GaussianBlur(blur))
+        holder = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        holder.paste(ps, (int(0.0024 * big), int(0.024 * big)), ps)
+        canvas = Image.alpha_composite(canvas, holder)
+
+    ImageDraw.Draw(canvas).polygon(plate_pts, fill=BRAND)
+
+    # 剪影的投影：偏移 0.024S、模糊 0.022S
+    off = int(0.024 * big)
+    shadow = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    shadow.putalpha(fg.point(lambda v: int(v * 0.42)))
     shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
-    base = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    base = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     base.paste(shadow, (off, off), shadow)
     canvas = Image.alpha_composite(canvas, base)
 
-    white = Image.new("RGBA", (big, big), WHITE)
+    white = Image.new("RGBA", (side, side), WHITE)
     canvas = Image.alpha_composite(canvas, Image.composite(
-        white, Image.new("RGBA", (big, big), (0, 0, 0, 0)), fg))
+        white, Image.new("RGBA", (side, side), (0, 0, 0, 0)), fg))
 
     return canvas.resize((size, size), Image.LANCZOS)
 
 
-def adaptive_layer(size, motif_fn, shadow=True, supersample=SS):
-    """自适应图标的图层：108dp 画布，剪影落在中央安全区（约 0.72 × 72dp）。"""
+def adaptive_layer(size, motif_fn, shadow=True, supersample=SS, frac=0.68):
+    """自适应图标的图层：108dp 画布，剪影落在中央安全区。
+
+    frac 是剪影相对「桌面可见区（72dp）」的比例：0.68 时正方形剪影的对角半径
+    约 34.6dp < 36dp，圆形遮罩也裁不到角；和完整底板预览用的是同一个比例。
+    """
     big = size * supersample
     m = motif_fn(big)
     m = m.crop(m.getbbox() or (0, 0, big, big))
     w, h = m.size
-    target = 0.72 * (big * 72.0 / 108.0)
+    target = frac * (big * 72.0 / 108.0)
     scale = target / max(w, h)
     m = m.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
     layer = Image.new("L", (big, big), 0)
@@ -441,26 +508,28 @@ def poly_to_path(points, precision=2):
     return " ".join(parts)
 
 
-def write_notify_vector():
-    """状态栏/通知栏的小图标：24dp 简化剪影（2×2 圆角格 + 右下格倾斜）。
+def write_notify_vector(variant="stack"):
+    """状态栏/通知栏的小图标：24dp 的简化剪影，和桌面图标同一套几何。
 
-    通知小图标在状态栏里只有十几 dp，格内那座山会糊成一团，所以只保留"形"。
+    「一叠图」在 24dp 下正好只有两个形状（后卡露出的 L 形边 + 前卡），
+    不做任何简化也不会糊，所以这里直接把桌面图标的几何等比缩到 24dp。
     """
-    box, gap, r = 8.0, 2.0, 2.4
-    x0, y0 = 3.0, 3.0
-    paths = []
-    for (rr, cc) in ((0, 0), (0, 1), (1, 0)):
-        cx = x0 + cc * (box + gap)
-        cy = y0 + rr * (box + gap)
-        paths.append(poly_to_path(rounded_rect(cx, cy, cx + box, cy + box, r, steps=18)))
-    # 右下那格：倾斜 + 轻微位移，和主图标一个意思
-    cx = x0 + (box + gap)
-    cy = y0 + (box + gap)
-    cell = rounded_rect(cx, cy, cx + box, cy + box, r, steps=18)
-    cell = rotate_pts(cell, cx + box / 2.0, cy + box / 2.0, -14.0)
-    cell = [(px - 0.55, py - 0.4) for px, py in cell]
-    paths.append(poly_to_path(cell))
+    if variant != "stack":
+        raise ValueError("通知小图标目前只实现了一叠图（stack）")
+    src = 1024.0
+    k = 20.0 / (STACK_BACK[2] - STACK_FRONT[0])   # 剪影最宽处缩到 20dp
+    ox, oy = STACK_FRONT[0], STACK_BACK[1]        # 剪影左上角
+    off = (24.0 - (STACK_BACK[2] - STACK_FRONT[0]) * k) / 2.0
 
+    def tf(pts):
+        return [((x - ox) * k + off, (y - oy) * k + off) for x, y in pts]
+
+    band = band_polygon(STACK_BACK, STACK_FRONT, STACK_GAP)
+    bx0, by0, bx1, by1, br = STACK_FRONT
+    paths = [
+        poly_to_path(tf(band)),
+        poly_to_path(tf(rounded_rect(bx0, by0, bx1, by1, br))),
+    ]
     body = "\n".join(
         '    <path\n        android:fillColor="#FFFFFFFF"\n        android:pathData="%s" />' % p
         for p in paths
@@ -468,9 +537,9 @@ def write_notify_vector():
     xml = (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         "<!--\n"
-        "  通知栏/状态栏的小图标：桌面图标的 24dp 简化版（四格相册，右下那格倾斜 = 正在移动）。\n"
-        "  由 tools/make_icon.py 生成，与桌面图标同一套几何参数；这个尺寸下格内的山和太阳会糊掉，\n"
-        "  所以只保留格子本身。\n"
+        "  通知栏/状态栏的小图标：桌面图标（一叠图）的 24dp 版。\n"
+        "  由 tools/make_icon.py 生成，几何与桌面图标完全一致：后卡露出的 L 形边 + 完整的前卡，\n"
+        "  中间那道缝就是两张图的分界。\n"
         "-->\n"
         '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
         '    android:width="24dp"\n'
@@ -490,7 +559,7 @@ def write_notify_vector():
 def main():
     args = sys.argv[1:]
     if args and args[0] == "--android":
-        write_android_assets(args[1] if len(args) > 1 else "grid_moving")
+        write_android_assets(args[1] if len(args) > 1 else "stack")
         write_notify_vector()
         return
     names = args or list(VARIANTS)
