@@ -39,9 +39,10 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 
 1. `.\gradlew.bat assembleRelease` → 产物 `app/build/outputs/apk/release/app-release.apk`
 2. 真机装一遍、点一遍主流程
-3. `git tag vX.Y.Z` 并推送 tag
-4. 用 `~/.git-credentials` 里的 token 走 REST API 建 Release；**附件必须直接 POST** `https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=<文件名>`（拿 `upload_url` 做正则替换会拼出非法 URI，实测踩过）
-5. 附件用**本机构建**的 `app-release.apk`
+3. **到这一步停下**：本地 `git commit` 照常，但 `git push` / `git tag` / 建 Release **必须等用户明确要求**（全局 §2「不要主动推送」，用户 2026-10-13 明确）。汇报「已提交、已装机、未推送」，等他发话。
+4. 用户说推送后：`git push origin main` → `git tag vX.Y.Z` 并推送 tag
+5. 用 `git credential fill` 取 token（本机凭据在 Git Credential Manager，没有 `~/.git-credentials`）走 REST API 建 Release；**附件必须直接 POST** `https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=<文件名>`（拿 `upload_url` 做正则替换会拼出非法 URI，实测踩过）
+6. 附件名带版本号（`shitu-X.Y.Z.apk`）、用**本机构建**的 `app-release.apk`
 
 CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，去掉 push tag 自动触发，仅应急用：4 个 Secrets `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`；需 `chmod +x gradlew`（Windows 提交的仓库 exec 位会丢）；不能再用 `android-actions/setup-android`（其内部 sdkmanager 会报错），改为自己调 `cmdline-tools/latest/bin/sdkmanager`。
 
@@ -51,7 +52,7 @@ CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，去�
 
 - **真机 uiautomator dump 不可用** → 只能 `screencap` 截图目测坐标。
 - `adb shell input tap` **打不到 Compose DropdownMenu 的弹出项**（弹出窗口不可聚焦，点击落到 Activity 窗口）→ 用 `input keyevent KEYCODE_DPAD_DOWN` ×N + `KEYCODE_ENTER` 选中；AlertDialog 是独立可聚焦窗口，`input tap` 正常。
-- **MIUI 有系统图标缓存** → 改图标后要重启手机才刷新；重启后 Shizuku 需重新启动（用电脑跑一次启动脚本）。
+- **MIUI 有系统图标缓存** → 改图标一般随 `versionCode` 自增 + `install -r` 就刷新（2026-10-13 实测：装完立刻看到新图标，不用重启）；万一还显示旧图标再让用户重启手机（重启后 Shizuku 需重新启动，用电脑跑一次启动脚本）。
 - **HyperOS 默认拦开机自启** → 需在应用设置里手动开「自启动」。
 - PowerShell 给 git 传含全角括号/加号的中文 `-m` 会被拆 → 改用 `-F` 消息文件（utf8NoBOM）。
 
