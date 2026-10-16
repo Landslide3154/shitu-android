@@ -27,6 +27,9 @@ keystore.properties
 # 本地一次性脚本（写 GitHub Secrets 用），不入库
 .ci-setup/
 
+# 本机专属说明（路径、真机型号、环境版本、本机踩坑），不入库
+AGENTS.local.md
+
 # 环境变量与凭据（绝不入库）
 .env
 .env.*
