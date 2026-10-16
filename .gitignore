@@ -38,3 +38,6 @@ AGENTS.local.md
 # Python 缓存
 __pycache__/
 *.pyc
+
+# 项目级技能链接（只在本机生效，技能实体在 ~/.agents/skills）
+.dsh/skills/
