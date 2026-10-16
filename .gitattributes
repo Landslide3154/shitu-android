@@ -1,0 +1,3 @@
+# AGENTS.md 固定用 LF 行尾：本机 core.autocrlf=true 会把检出副本转成 CRLF，
+# 每行多 1 字节，让体检脚本（按字节算预算）虚高。2026-10-17 统一。
+AGENTS.md text eol=lf
