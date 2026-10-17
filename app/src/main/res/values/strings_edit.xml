@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 规则编辑页（默认英文）。中文在 values-zh/strings_edit.xml，key 一一对应。 -->
+
+    <!-- 标题与提醒 -->
+    <string name="edit_title_new">New rule</string>
+    <string name="edit_title_edit">Edit rule</string>
+    <string name="edit_conflicts_title">Setup warnings</string>
+
+    <!-- 规则与源目录 -->
+    <string name="edit_section_rule_src">Rule &amp; source folder</string>
+    <string name="edit_label_name">Rule name</string>
+    <string name="edit_placeholder_name">Give it a name, e.g. “Qidian covers”</string>
+    <string name="edit_label_src">Source folder (images are moved from here)</string>
+    <string name="edit_placeholder_dir">Tap “Choose” on the right and start from /sdcard</string>
+    <string name="edit_pick">Choose</string>
+    <string name="edit_src_empty_hint">Not set yet. Tap “Choose”, start at /sdcard and open folders until you reach the one with your images</string>
+    <string name="edit_src_root_hint">This is the whole storage root — nearly every image on the phone will be moved</string>
+    <string name="edit_src_all_app_data_hint">This is the data root of every app, so images from all apps will be moved; tap “Choose” and drill down to the app you want</string>
+    <string name="edit_src_hint">Starting from /sdcard, drill down to the exact image folder — that is the safest</string>
+    <string name="edit_include_subdirs">Include subfolders</string>
+    <string name="edit_subdirs_on_hint">Moves images from every level under the source folder</string>
+    <string name="edit_subdirs_dst_inside">; note the target folder is inside the source, so files just moved there will be picked up as source again</string>
+    <string name="edit_subdirs_off_hint">Only moves images directly in the source folder, subfolders are ignored (safer when the target is inside the source)</string>
+    <string name="edit_label_max_depth">Max depth (blank = no limit)</string>
+
+    <!-- 目标与模式 -->
+    <string name="edit_section_dst_mode">Target &amp; mode</string>
+    <string name="edit_label_dst">Target folder (moved to here)</string>
+    <string name="edit_dst_hint">Put it under DCIM or Pictures so the gallery shows files right away</string>
+    <string name="edit_mode_move">Move</string>
+    <string name="edit_mode_copy">Copy</string>
+    <string name="edit_mode_move_hint">Move: source files are moved into the target folder (recommended)</string>
+    <string name="edit_mode_copy_hint">Copy: source files stay, a copy goes to the target folder (try this on day one)</string>
+
+    <!-- 频率与文件名 -->
+    <string name="edit_section_freq_name">Frequency &amp; file names</string>
+    <string name="edit_interval">Check every %1$d min</string>
+    <string name="edit_label_extensions">Allowed extensions (comma-separated)</string>
+    <string name="edit_label_suffix">File name suffix</string>
+    <string name="edit_suffix_hint">“{app}” = use the source app name automatically (cover_{app}.png → cover_Qidian.png); your own text = a fixed suffix (e.g. _Shitu); blank = keep the original file name</string>
+    <string name="edit_suffix_placeholder">{app}</string>
+    <string name="edit_content_rename">Name files by content instead (15 letters/digits)</string>
+    <string name="edit_content_rename_on_hint">The same file always gets the same name, so duplicates are never stored twice.\nExample: K7pQ2mVx9Rb4TzW%1$s.jpg (the suffix follows what you set above)</string>
+    <string name="edit_content_rename_suffix_example">_Qidian</string>
+    <string name="edit_content_rename_off_hint">Off: the target keeps the original name and only gets the suffix you set</string>
+
+    <!-- 按钮与保存校验 -->
+    <string name="edit_save_as_template">Save as template</string>
+    <string name="edit_cancel">Cancel</string>
+    <string name="edit_save_and_start">Save and start moving</string>
+    <string name="edit_default_template">My template</string>
+    <string name="edit_field_src">Source folder</string>
+    <string name="edit_field_dst">Target folder</string>
+    <string name="edit_list_separator">,\u0020</string>
+    <string name="edit_missing_title">A few things are still missing</string>
+    <string name="edit_missing_body">Fill in: %1$s.\n\nFor folders, tap “Choose” and open them one by one from /sdcard; the name is up to you, just make it easy to recognize.</string>
+    <string name="edit_got_it">Got it</string>
+
+    <!-- 存为模板 -->
+    <string name="edit_template_dialog_body">Save this setup so you can apply it in one tap next time you create a rule (saving a template does not save this rule).</string>
+    <string name="edit_template_name_label">Template name</string>
+    <string name="edit_template_confirm">Save</string>
+
+    <!-- 两个确认对话框 -->
+    <string name="edit_nested_title">Target is inside the source</string>
+    <string name="edit_nested_body">Your source is %1$s and the target %2$s is inside it. Files already moved will not be moved again (the app skips the target folder automatically), but it is clearer and easier to undo if you put the target outside the source. Save it this way anyway?</string>
+    <string name="edit_nested_confirm">Save anyway</string>
+    <string name="edit_nested_dismiss">Go back</string>
+    <string name="edit_root_title">Move the entire storage?</string>
+    <string name="edit_root_body">You picked /sdcard (the whole phone storage) as the source. After saving, nearly every image on the phone will be moved by this rule (in Move mode the originals leave their place). If you only want to tidy up one app, go back and open Android/data/&lt;package&gt;/… and pick a folder inside.</string>
+    <string name="edit_root_confirm">Yes, do it</string>
+    <string name="edit_root_dismiss">Pick again</string>
+</resources>

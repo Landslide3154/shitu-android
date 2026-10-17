@@ -56,8 +56,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.landslide.shitu.R
 import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.Settings
@@ -93,6 +95,7 @@ fun ShituRoot(app: ShituApp) {
     var logs by remember { mutableStateOf<List<LogEntity>>(emptyList()) }
     var copiedCount by remember { mutableStateOf(0) }
     var state by remember { mutableStateOf(app.bridge.state()) }
+    var channel by remember { mutableStateOf(app.channel()) }
     var health by remember { mutableStateOf<List<HealthChecker.Item>?>(null) }
     var checking by remember { mutableStateOf(false) }
     var askBattery by remember { mutableStateOf(false) }
@@ -103,6 +106,7 @@ fun ShituRoot(app: ShituApp) {
         logs = app.repo.recentLogs(500)
         copiedCount = app.ledger.count()
         state = app.bridge.state()
+        channel = app.channel()
     }
 
     fun closeEditor(nextTab: Int?) {
@@ -120,7 +124,7 @@ fun ShituRoot(app: ShituApp) {
             if (r.id == 0L) app.repo.insertRule(r) else app.repo.updateRule(r)
             closeEditor(next)
             refresh()
-            snackbar.showSnackbar("已保存「${r.name}」")
+            snackbar.showSnackbar(context.getString(R.string.app_rule_saved, r.name))
         }
     }
 
@@ -151,6 +155,7 @@ fun ShituRoot(app: ShituApp) {
         while (true) {
             delay(3_000)
             state = app.bridge.state()
+            channel = app.channel()
         }
     }
     // 后台自己搬完东西之后，列表和日志要能自己刷新，不能一直显示旧的
@@ -166,28 +171,36 @@ fun ShituRoot(app: ShituApp) {
     fun selfCheck() {
         scope.launch {
             checking = true
-            when (app.bridge.state()) {
-                ShizukuState.NOT_INSTALLED ->
-                    snackbar.showSnackbar("没找到 Shizuku，请先安装并启动它")
-                ShizukuState.NOT_RUNNING ->
-                    snackbar.showSnackbar("Shizuku 未运行，请先在 Shizuku 里启动服务")
-                ShizukuState.NO_PERMISSION -> {
-                    app.bridge.requestPermission()
-                    snackbar.showSnackbar("已弹出授权请求，请在 Shizuku 里允许「拾图」")
+            // 已经有本地通道时，Shizuku 没就绪不算问题，不要再弹「没装 Shizuku」
+            if (!app.hasChannel()) {
+                when (app.bridge.state()) {
+                    ShizukuState.NOT_INSTALLED ->
+                        snackbar.showSnackbar(context.getString(R.string.app_shizuku_missing))
+                    ShizukuState.NOT_RUNNING ->
+                        snackbar.showSnackbar(context.getString(R.string.app_shizuku_not_running))
+                    ShizukuState.NO_PERMISSION -> {
+                        app.bridge.requestPermission()
+                        snackbar.showSnackbar(context.getString(R.string.app_shizuku_permission_requested))
+                    }
+                    else -> Unit
                 }
-                else -> Unit
             }
-            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(2)
+            app.ensureChannel()
             val first = rules.firstOrNull()
+            val defaultSrc = if (app.channel() == ShituApp.Channel.LOCAL) {
+                "/sdcard/Pictures"
+            } else {
+                "/sdcard/Android/data"
+            }
             val report = HealthChecker(
-                bridge = app.bridge,
-                probeSrcDir = first?.srcPath ?: "/sdcard/Android/data",
+                bridge = app.fileBridge,
+                probeSrcDir = first?.srcPath ?: defaultSrc,
                 probeDstDir = first?.dstPath ?: RuleEntity.DEFAULT_DST,
-                environmentLine = { app.bridge.environmentLine() },
+                environmentLine = { app.channelLine() + " / " + app.bridge.environmentLine() },
             ).run()
             health = report
             checking = false
-            app.settings.setLastSelfCheck(renderReport(report))
+            app.settings.setLastSelfCheck(renderReport(context, report))
         }
     }
 
@@ -207,19 +220,19 @@ fun ShituRoot(app: ShituApp) {
                     selected = tab == 0,
                     onClick = { leaveEditor(0) },
                     icon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                    label = { Text("规则") },
+                    label = { Text(stringResource(R.string.app_nav_rules)) },
                 )
                 NavigationBarItem(
                     selected = tab == 1,
                     onClick = { leaveEditor(1) },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
-                    label = { Text("日志") },
+                    label = { Text(stringResource(R.string.app_nav_logs)) },
                 )
                 NavigationBarItem(
                     selected = tab == 2,
                     onClick = { leaveEditor(2) },
                     icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                    label = { Text("设置") },
+                    label = { Text(stringResource(R.string.app_nav_settings)) },
                 )
             }
         },
@@ -238,6 +251,7 @@ fun ShituRoot(app: ShituApp) {
                         0 -> RuleListScreen(
                     rules = rules,
                     state = state,
+                    localReady = channel == ShituApp.Channel.LOCAL,
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
                     onRequestPermission = { app.bridge.requestPermission() },
@@ -262,7 +276,10 @@ fun ShituRoot(app: ShituApp) {
                             app.setRulesEnabled(listOf(rule.id), enabled)
                             refresh()
                             snackbar.showSnackbar(
-                                if (enabled) "已开启「${rule.name}」" else "已停止「${rule.name}」",
+                                context.getString(
+                                    if (enabled) R.string.app_rule_enabled else R.string.app_rule_disabled,
+                                    rule.name,
+                                ),
                             )
                         }
                     },
@@ -270,14 +287,14 @@ fun ShituRoot(app: ShituApp) {
                         scope.launch {
                             val n = app.setRulesEnabled(ids, enabled = true)
                             refresh()
-                            snackbar.showSnackbar("已开启 $n 条规则")
+                            snackbar.showSnackbar(context.getString(R.string.app_rules_enabled_count, n))
                         }
                     },
                     onDisableSelected = { ids ->
                         scope.launch {
                             val n = app.setRulesEnabled(ids, enabled = false)
                             refresh()
-                            snackbar.showSnackbar("已停止 $n 条规则")
+                            snackbar.showSnackbar(context.getString(R.string.app_rules_disabled_count, n))
                         }
                     },
                     onCopySelected = { ids ->
@@ -288,7 +305,7 @@ fun ShituRoot(app: ShituApp) {
                                 app.repo.insertRule(
                                     r.copy(
                                         id = 0,
-                                        name = "${r.name} 副本",
+                                        name = context.getString(R.string.app_rule_copy_suffix, r.name),
                                         enabled = false,
                                         state = RuleState.IDLE,
                                         pauseReason = null,
@@ -305,12 +322,15 @@ fun ShituRoot(app: ShituApp) {
                                 n++
                             }
                             refresh()
-                            snackbar.showSnackbar("已复制 $n 条（都是暂停状态，改好再开）")
+                            snackbar.showSnackbar(context.getString(R.string.app_rules_copied, n))
                         }
                     },
                     onUndoSelected = { ids ->
                         scope.launch {
-                            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(1)
+                            if (!app.ensureChannel()) {
+                                snackbar.showSnackbar(app.channelLine())
+                                return@launch
+                            }
                             var done = 0
                             var skipped = 0
                             rules.filter { it.id in ids }.forEach { r ->
@@ -319,7 +339,7 @@ fun ShituRoot(app: ShituApp) {
                                 skipped += s.skipped
                             }
                             refresh()
-                            snackbar.showSnackbar("撤回完成：成功 $done · 跳过 $skipped")
+                            snackbar.showSnackbar(context.getString(R.string.app_undo_finished, done, skipped))
                         }
                     },
                     onDeleteSelected = { ids ->
@@ -329,10 +349,14 @@ fun ShituRoot(app: ShituApp) {
                             val snapshots = targets.associate { it.id to app.repo.snapshotForRule(it.id) }
                             targets.forEach { app.repo.deleteRule(it.id) }
                             refresh()
-                            val names = if (targets.size == 1) "「${targets.first().name}」" else "${targets.size} 条规则"
+                            val names = if (targets.size == 1) {
+                                context.getString(R.string.app_rule_name_quoted, targets.first().name)
+                            } else {
+                                context.getString(R.string.app_rules_count, targets.size)
+                            }
                             val res = snackbar.showSnackbar(
-                                message = "已删除 $names",
-                                actionLabel = "撤销删除",
+                                message = context.getString(R.string.app_rules_deleted, names),
+                                actionLabel = context.getString(R.string.app_undo_delete),
                                 withDismissAction = true,
                                 duration = SnackbarDuration.Long,
                             )
@@ -341,7 +365,7 @@ fun ShituRoot(app: ShituApp) {
                                     snapshots[r.id]?.let { app.repo.restoreDeleted(r, it) }
                                 }
                                 refresh()
-                                snackbar.showSnackbar("已恢复 $names，什么都没少")
+                                snackbar.showSnackbar(context.getString(R.string.app_rules_restored, names))
                             }
                         }
                     },
@@ -349,10 +373,11 @@ fun ShituRoot(app: ShituApp) {
                     onCompactChange = { compact -> scope.launch { app.settings.setRuleCardsCompact(compact) } },
                     onAdd = {
                         val now = System.currentTimeMillis()
+                        // 新规则一开始三项都是空的：名称要用户自己起，目录要用户自己选（从 /sdcard 开始）
                         val fresh = RuleEntity(
-                            name = "新规则",
-                            srcPath = RuleEntity.PICKER_ROOT,
-                            dstPath = RuleEntity.DEFAULT_DST,
+                            name = "",
+                            srcPath = "",
+                            dstPath = "",
                             createdAt = now,
                             updatedAt = now,
                         )
@@ -370,17 +395,18 @@ fun ShituRoot(app: ShituApp) {
                     onDeleteTemplate = { t ->
                         scope.launch {
                             app.settings.setRuleTemplates(settings.ruleTemplates.filterNot { it.id == t.id })
-                            snackbar.showSnackbar("已删除模板「${t.name}」")
+                            snackbar.showSnackbar(context.getString(R.string.app_template_deleted, t.name))
                         }
                     },
                     onCopy = { r ->
                         scope.launch {
                             val now = System.currentTimeMillis()
+                            val copyName = context.getString(R.string.app_rule_copy_suffix, r.name)
                             // 副本默认「暂停」：避免复制出来就立刻重复搬一遍；改好再打开
                             app.repo.insertRule(
                                 r.copy(
                                     id = 0,
-                                    name = "${r.name} 副本",
+                                    name = copyName,
                                     enabled = false,
                                     state = RuleState.IDLE,
                                     pauseReason = null,
@@ -395,7 +421,7 @@ fun ShituRoot(app: ShituApp) {
                                 ),
                             )
                             refresh()
-                            snackbar.showSnackbar("已复制「${r.name} 副本」（默认暂停，改好再开）")
+                            snackbar.showSnackbar(context.getString(R.string.app_rule_copied_one, copyName))
                         }
                     },
                     onEdit = {
@@ -405,23 +431,39 @@ fun ShituRoot(app: ShituApp) {
                     },
                     onRunNow = { r ->
                         scope.launch {
-                            snackbar.showSnackbar("正在跑「${r.name}」…")
-                            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(1)
+                            snackbar.showSnackbar(context.getString(R.string.app_rule_running, r.name))
+                            if (!app.ensureChannel()) {
+                                snackbar.showSnackbar(app.channelLine())
+                                return@launch
+                            }
                             val result = app.runOne(r, settings)
                             refresh()
                             snackbar.showSnackbar(
-                                result.error ?: "「${r.name}」：搬 ${result.moved} · 失败 ${result.failed} · 跳过 ${result.skipped}",
+                                result.error ?: context.getString(
+                                    R.string.app_rule_run_result,
+                                    r.name,
+                                    result.moved,
+                                    result.failed,
+                                    result.skipped,
+                                ),
                             )
                         }
                     },
                     onUndo = { r ->
                         scope.launch {
-                            if (app.bridge.state() != ShizukuState.READY) app.bridge.bindWithRetry(1)
+                            if (!app.ensureChannel()) {
+                                snackbar.showSnackbar(app.channelLine())
+                                return@launch
+                            }
                             val s = app.undoRule(r.id)
                             refresh()
+                            val note = s.notes.firstOrNull()
                             snackbar.showSnackbar(
-                                "撤回完成：成功 ${s.done} · 跳过 ${s.skipped}" +
-                                    (s.notes.firstOrNull()?.let { "（例：$it）" } ?: ""),
+                                if (note == null) {
+                                    context.getString(R.string.app_undo_finished, s.done, s.skipped)
+                                } else {
+                                    context.getString(R.string.app_undo_finished_note, s.done, s.skipped, note)
+                                },
                             )
                         }
                     },
@@ -438,15 +480,15 @@ fun ShituRoot(app: ShituApp) {
                             app.repo.deleteRule(r.id)
                             refresh()
                             val res = snackbar.showSnackbar(
-                                message = "已删除「${r.name}」",
-                                actionLabel = "撤销删除",
+                                message = context.getString(R.string.app_rule_deleted, r.name),
+                                actionLabel = context.getString(R.string.app_undo_delete),
                                 withDismissAction = true,
                                 duration = SnackbarDuration.Long,
                             )
                             if (res == SnackbarResult.ActionPerformed) {
                                 app.repo.restoreDeleted(r, snapshot)
                                 refresh()
-                                snackbar.showSnackbar("已恢复「${r.name}」，什么都没少")
+                                snackbar.showSnackbar(context.getString(R.string.app_rule_restored, r.name))
                             }
                         }
                     },
@@ -457,18 +499,18 @@ fun ShituRoot(app: ShituApp) {
                     rules = rules,
                     onExport = {
                         scope.launch {
-                            snackbar.showSnackbar("正在导出…")
+                            snackbar.showSnackbar(context.getString(R.string.app_exporting))
                             val path = runCatching { app.exportLogs() }
-                                .getOrElse { "导出失败：${it.message}" }
+                                .getOrElse { context.getString(R.string.app_export_failed, it.message) }
                             refresh()
-                            snackbar.showSnackbar("日志已导出到 $path")
+                            snackbar.showSnackbar(context.getString(R.string.app_logs_exported, path))
                         }
                     },
                     onClearAll = {
                         scope.launch {
                             app.repo.clearLogs()
                             refresh()
-                            snackbar.showSnackbar("日志已清空")
+                            snackbar.showSnackbar(context.getString(R.string.app_logs_cleared))
                         }
                     },
                 )
@@ -481,8 +523,10 @@ fun ShituRoot(app: ShituApp) {
                     onClearCopied = {
                         scope.launch {
                             val n = app.ledger.clear()
+                            // 复制模式的完成条目也要清：否则「同大小同 mtime 就跳过」还会命中，清空看起来没生效
+                            val items = runCatching { app.repo.clearCopyDoneItems() }.getOrDefault(0)
                             refresh()
-                            snackbar.showSnackbar("已清空复制记录（$n 条）")
+                            snackbar.showSnackbar(context.getString(R.string.app_copy_records_cleared, n, items))
                         }
                     },
                 )
@@ -501,7 +545,7 @@ fun ShituRoot(app: ShituApp) {
                         if (editShown != null) {
                             RuleEditScreen(
                                 initial = editShown,
-                                bridge = app.bridge,
+                                bridge = app.fileBridge,
                                 otherRules = rules.filter { it.id != editShown.id },
                                 onDraftChange = { draft = it },
                                 onDirtyChange = { editingDirty = it },
@@ -509,7 +553,7 @@ fun ShituRoot(app: ShituApp) {
                                     scope.launch {
                                         val t = RuleTemplate.fromRule(r, tplName)
                                         app.settings.setRuleTemplates(settings.ruleTemplates + t)
-                                        snackbar.showSnackbar("已存为模板「${t.name}」——新建规则时可选")
+                                        snackbar.showSnackbar(context.getString(R.string.app_template_saved, t.name))
                                     }
                                 },
                                 onSave = { r ->
@@ -528,29 +572,31 @@ fun ShituRoot(app: ShituApp) {
     if (askSave) {
         AlertDialog(
             onDismissRequest = { askSave = false },
-            title = { Text("还没保存") },
+            title = { Text(stringResource(R.string.app_unsaved_title)) },
             text = {
                 Text(
-                    "「${draft?.name ?: "这条规则"}」改过了。要保存吗？" +
-                        if (pendingTab != null) "保存/放弃后会切到对应页面。" else "",
+                    stringResource(
+                        if (pendingTab != null) R.string.app_unsaved_text_switch else R.string.app_unsaved_text,
+                        draft?.name ?: stringResource(R.string.app_unsaved_default_name),
+                    ),
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     askSave = false
                     saveDraft()
-                }) { Text("保存") }
+                }) { Text(stringResource(R.string.app_save)) }
             },
             dismissButton = {
                 Row {
                     TextButton(onClick = {
                         askSave = false
                         pendingTab = null
-                    }) { Text("继续编辑") }
+                    }) { Text(stringResource(R.string.app_keep_editing)) }
                     TextButton(onClick = {
                         askSave = false
                         closeEditor(pendingTab)
-                    }) { Text("放弃修改") }
+                    }) { Text(stringResource(R.string.app_discard)) }
                 }
             },
         )
@@ -560,21 +606,30 @@ fun ShituRoot(app: ShituApp) {
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在自检…") },
+            title = { Text(stringResource(R.string.app_checking_title)) },
             text = {
                 Column {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text("正在用临时文件验证当前系统上能不能搬（不会碰你的图片）。", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.app_checking_text),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             },
         )
     }
 
     health?.let { report ->
-        val text = renderReport(report)
+        val text = renderReport(context, report)
         AlertDialog(
             onDismissRequest = { health = null },
-            title = { Text(if (report.all { it.passed }) "自检通过（能搬）" else "自检发现问题") },
+            title = {
+                Text(
+                    stringResource(
+                        if (report.all { it.passed }) R.string.app_check_passed else R.string.app_check_failed,
+                    ),
+                )
+            },
             text = {
                 LazyColumn(Modifier.heightIn(max = 360.dp)) {
                     items(report) { item ->
@@ -592,40 +647,47 @@ fun ShituRoot(app: ShituApp) {
                 TextButton(onClick = {
                     copyToClipboard(context, text)
                     health = null
-                    scope.launch { snackbar.showSnackbar("自检结果已复制") }
-                }) { Text("复制结果") }
+                    scope.launch { snackbar.showSnackbar(context.getString(R.string.app_result_copied)) }
+                }) { Text(stringResource(R.string.app_copy_result)) }
             },
-            dismissButton = { TextButton(onClick = { health = null }) { Text("关闭") } },
+            dismissButton = {
+                TextButton(onClick = { health = null }) { Text(stringResource(R.string.app_close)) }
+            },
         )
     }
 
     if (askBattery) {
         AlertDialog(
             onDismissRequest = { askBattery = false },
-            title = { Text("让它一直在后台搬") },
+            title = { Text(stringResource(R.string.app_battery_title)) },
             text = {
-                Text(
-                    "请把「拾图」加入电池优化白名单，否则 HyperOS 可能在息屏后把它冻结。" +
-                        "另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。",
-                )
+                Text(stringResource(R.string.app_battery_text))
             },
             confirmButton = {
                 TextButton(onClick = {
                     askBattery = false
                     requestIgnoreBattery(context)
-                }) { Text("去设置") }
+                }) { Text(stringResource(R.string.app_go_to_settings)) }
             },
-            dismissButton = { TextButton(onClick = { askBattery = false }) { Text("以后再说") } },
+            dismissButton = {
+                TextButton(onClick = { askBattery = false }) { Text(stringResource(R.string.app_later)) }
+            },
         )
     }
 }
 
-private fun renderReport(report: List<HealthChecker.Item>): String =
-    report.joinToString("\n") { (if (it.passed) "[通过] " else "[失败] ") + it.name + "：" + it.detail }
+private fun renderReport(context: Context, report: List<HealthChecker.Item>): String =
+    report.joinToString("\n") {
+        context.getString(
+            if (it.passed) R.string.app_report_pass else R.string.app_report_fail,
+            it.name,
+            it.detail,
+        )
+    }
 
 private fun copyToClipboard(context: Context, text: String) {
     val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-    cm.setPrimaryClip(ClipData.newPlainText("拾图自检", text))
+    cm.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.app_clip_label), text))
 }
 
 private fun isIgnoringBattery(context: Context): Boolean {

@@ -21,7 +21,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.landslide.shitu.R
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.RemoteFile
 
@@ -39,6 +41,7 @@ fun DirPickerDialog(
     var entries by remember { mutableStateOf<List<RemoteFile>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
+    val readFailed = stringResource(R.string.app_dir_read_failed)
 
     LaunchedEffect(path) {
         loading = true
@@ -48,39 +51,44 @@ fun DirPickerDialog(
                 // 只列目录，且不列 . 开头的系统隐藏目录（否则从 /sdcard 进去满屏都是 .DataStorage 之类）
                 .filter { it.isDirectory && !it.name.startsWith(".") }
                 .sortedBy { it.name.lowercase() }
-        }.onFailure { error = it.message ?: "读取失败" }.getOrDefault(emptyList())
+        }.onFailure { error = it.message ?: readFailed }.getOrDefault(emptyList())
         loading = false
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择目录") },
+        title = { Text(stringResource(R.string.app_dir_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = manual,
                     onValueChange = { manual = it },
-                    label = { Text("路径（也可直接输入）") },
+                    label = { Text(stringResource(R.string.app_dir_path_label)) },
                     singleLine = true,
                     trailingIcon = {
-                        TextButton(onClick = { path = manual.trim() }) { Text("前往") }
+                        TextButton(onClick = { path = manual.trim() }) {
+                            Text(stringResource(R.string.app_dir_go))
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "当前：$path",
+                    text = stringResource(R.string.app_dir_current, path),
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 error?.let {
-                    Text("读取失败：$it", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.app_dir_read_failed_detail, it),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 LazyColumn(Modifier.heightIn(max = 300.dp)) {
                     item {
                         ListItem(
-                            headlineContent = { Text("⬆ 上一级") },
+                            headlineContent = { Text(stringResource(R.string.app_dir_up)) },
                             modifier = Modifier.clickable { path = parentOf(path) },
                         )
                     }
@@ -96,8 +104,12 @@ fun DirPickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(path) }) { Text("选择此目录") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = {
+            TextButton(onClick = { onPick(path) }) { Text(stringResource(R.string.app_dir_pick)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_cancel)) }
+        },
     )
 }
 

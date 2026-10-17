@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 设置页（默认英文资源；中文见 values-zh/strings_settings.xml） -->
+    <string name="set_section_run_params">Run parameters</string>
+    <string name="set_run_params_desc">How much is moved per run, how fast, and when to stop after failures. The defaults suit most phones; leave them unchanged if unsure.</string>
+    <string name="set_scan_budget_sec">Scan time budget per run (sec)</string>
+    <string name="set_max_per_run">Max items moved per run</string>
+    <string name="set_max_per_minute">Max items moved per minute</string>
+    <string name="set_max_run_sec">Max run duration (sec)</string>
+    <string name="set_stable_sec">File settle time (fallback wait, sec)</string>
+    <string name="set_loop_window_min">Duplicate suppression window (min)</string>
+    <string name="set_loop_threshold">Duplicate suppression threshold (times)</string>
+    <string name="set_fail_threshold">Consecutive failure threshold (times)</string>
+    <string name="set_low_battery_pct">Low battery pause threshold (%)</string>
+    <string name="set_log_keep_days">Log retention (days)</string>
+    <string name="set_log_keep_count">Log retention (entries)</string>
+    <string name="set_field_range">%1$s (%2$d–%3$d)</string>
+
+    <string name="set_section_storage_access">Storage access</string>
+    <string name="set_storage_granted_desc">“All files access” is granted. You can move photos in ordinary folders (Pictures, DCIM, Download, Documents and more) without Shizuku. App-private photos under Android/data still need Shizuku.</string>
+    <string name="set_storage_not_granted_desc">Not enabled: only Shizuku can move files for now. Once enabled, you can move between ordinary folders (for example Pictures → DCIM) even without Shizuku. App-private photos under Android/data still need Shizuku.</string>
+    <string name="set_storage_granted">Granted</string>
+    <string name="set_storage_open">Open “All files access”</string>
+
+    <string name="set_section_detection_speed">Detection speed</string>
+    <string name="set_fast_while_active">Speed up detection while the phone is in use</string>
+    <string name="set_fast_interval_sec">Fast detection interval (sec)</string>
+    <string name="set_fast_while_active_desc">When on, while the screen is on it checks the source folder for changes at the interval above (it only looks at folder timestamps, which saves power). A change triggers an immediate move, so downloads show up in the gallery within seconds. After the screen turns off, each rule goes back to its own interval.</string>
+    <string name="set_screen_off_pause">Pause scanning when the screen is off</string>
+    <string name="set_screen_off_pause_on_desc">On: scanning stops when the screen turns off or the phone locks (saves power); it resumes automatically after you unlock, with no manual action.</string>
+    <string name="set_screen_off_pause_off_desc">Off (default): scanning continues at each rule interval after the screen turns off (recommended; pending moves can finish while charging overnight).</string>
+    <string name="set_settle_detect">Move as soon as writing finishes (skip full settle time)</string>
+    <string name="set_settle_gap_sec">Write-finished check window (sec)</string>
+    <string name="set_settle_detect_desc">If the size and modification time of a file stay the same across two checks more than the interval above apart, it counts as finished and is moved immediately — no need to wait out the file settle time. Files still downloading keep changing, so they are not misjudged. Turn this off to fall back to waiting for the file settle time.</string>
+
+    <string name="set_section_switches">Switches</string>
+    <string name="set_low_battery_pause">Pause on low battery / power saving mode</string>
+    <string name="set_fast_drain">Back-to-back runs (start the next run as soon as one ends)</string>
+    <string name="set_notify_enabled">Event notifications (paused / failed / not ready)</string>
+
+    <string name="set_section_appearance">Appearance</string>
+    <string name="set_theme">Theme</string>
+    <string name="set_theme_system">Follow system</string>
+    <string name="set_theme_light">Light</string>
+    <string name="set_theme_dark">Dark</string>
+    <string name="set_dynamic_color">Dynamic color (Material You)</string>
+    <string name="set_dynamic_color_desc">Android 12 and above: colors follow the wallpaper, so the whole app matches the system. Turn it off to use a fixed blue.</string>
+
+    <string name="set_section_self_check">Self-check</string>
+    <string name="set_last_self_check">Last self-check: %1$s</string>
+    <string name="set_no_self_check">No self-check yet. It only tests reading, writing and deleting with temporary files and does not touch your photos.</string>
+    <string name="set_run_self_check">Run self-check</string>
+
+    <string name="set_section_copy_history">Copy records</string>
+    <string name="set_copy_history_desc">Rules in copy mode use these records to tell whether a photo has already been copied; they do not track where you moved files later. Currently %1$d entries.</string>
+    <string name="set_clear_copy_history_button">Clear copy records (%1$d entries)</string>
+    <string name="set_clear_copy_history_title">Clear copy records?</string>
+    <string name="set_clear_copy_history_body">After clearing, photos copied before are treated as not copied and will be copied again the next time they are seen. Completed copy-mode history is cleared as well; rules and files already moved are not affected.</string>
+    <string name="set_clear_confirm">Clear</string>
+    <string name="set_cancel">Cancel</string>
+
+    <string name="set_section_about">About</string>
+    <string name="set_about_version">Shitu %1$s · GPL-3.0</string>
+    <string name="set_check_update">Check for updates</string>
+    <string name="set_checking_update">Checking…</string>
+    <string name="set_update_failed_title">Update check failed</string>
+    <string name="set_update_failed_body">Could not reach GitHub. Check your network (GitHub can be unstable on some networks) and try again later.</string>
+    <string name="set_update_available_title">New version %1$s</string>
+    <string name="set_update_notes_fallback">Open the Releases page to see what changed.</string>
+    <string name="set_update_latest_title">Already up to date</string>
+    <string name="set_update_latest_body">Current %1$s, latest %2$s.</string>
+    <string name="set_go_download">Download</string>
+    <string name="set_got_it">Got it</string>
+    <string name="set_later">Later</string>
+    <string name="set_privacy_note">With Shizuku, moves use the adb identity provided by Shizuku (which can reach Android/data); without Shizuku, the app uses the system-granted “All files access” permission to move files in ordinary folders. Checking for updates accesses GitHub online; everything else stays offline. If moving stops working after a system update, run a self-check first.</string>
+</resources>

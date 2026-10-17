@@ -126,7 +126,7 @@ class WatchService : Service() {
         while (scope.isActive) {
             val s = app.currentSettings()
             if (screenUsable && s.fastWhileActive) {
-                if (app.bridge.state() != ShizukuState.READY) {
+                if (!app.hasChannel()) {
                     // 未就绪：走常规节奏，顺便把"未就绪"提示刷新到通知上
                     runCatching { tick(force = false) }
                 } else {
@@ -146,15 +146,13 @@ class WatchService : Service() {
         if (busy) return
         busy = true
         try {
-            var state = app.bridge.state()
-            if (state != ShizukuState.READY) {
-                notify("未就绪：${state.display()}")
-                if (app.bridge.bindWithRetry(1)) state = app.bridge.state()
+            // 通道可以是 Shizuku，也可以是「所有文件访问」的本地通道；两条都不通才提示未就绪
+            if (!app.ensureChannel()) {
+                notify("没有搬图通道：${app.bridge.state().display()}，也没给文件权限")
+                return
             }
-            if (state == ShizukuState.READY) {
-                val summary = app.runDueRules(force)
-                notify(summary.message ?: "已搬 ${app.watchMoved} 张")
-            }
+            val summary = app.runDueRules(force)
+            notify(summary.message ?: "已搬 ${app.watchMoved} 张")
         } finally {
             busy = false
         }

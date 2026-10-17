@@ -44,11 +44,11 @@ class ShituUserService : IShituService.Stub() {
             val children = runCatching { dir.listFiles() }.getOrNull()?.sortedBy { it.name } ?: continue
             for (c in children) {
                 if (out.size >= limit) break
-                if (skipping) {
-                    if (c.absolutePath == afterPath) skipping = false
-                    continue
-                }
-                out.add(toRemote(c))
+                // 游标分页：after 之前的条目只「不发射」，但目录照样要入栈。
+                // 否则游标恰好停在某个目录上时，它的整棵子树会在重建遍历时被跳过，分页悄悄漏列。
+                val skipThis = skipping
+                if (skipping && c.absolutePath == afterPath) skipping = false
+                if (!skipThis) out.add(toRemote(c))
                 if (recursive && c.isDirectory && !isSymlink(c) &&
                     (maxDepth <= 0 || depth + 1 < maxDepth)
                 ) {

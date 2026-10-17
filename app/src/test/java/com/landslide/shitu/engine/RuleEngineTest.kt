@@ -214,7 +214,22 @@ class RuleEngineTest {
     private class FakeLedger : ContentLedger {
         val fingerprints = HashSet<String>()
 
+        /** 模拟 items 表里"同规则 + 同路径 + 同大小 + 同 mtime 已经成功"的记录 */
+        val handled = HashSet<String>()
+
+        /** handledBefore 被问了几次：用来验证命中时确实没再去算内容指纹 */
+        var handledQueries = 0
+
+        fun markHandled(ruleId: Long, srcPath: String, size: Long, mtime: Long) {
+            handled += key(ruleId, srcPath, size, mtime)
+        }
+
         override suspend fun seen(fingerprint: String): Boolean = fingerprint in fingerprints
+
+        override suspend fun handledBefore(ruleId: Long, srcPath: String, size: Long, mtime: Long): Boolean {
+            handledQueries++
+            return key(ruleId, srcPath, size, mtime) in handled
+        }
 
         override suspend fun remember(fingerprint: String, ruleId: Long, dstPath: String?, now: Long) {
             fingerprints += fingerprint
@@ -226,6 +241,40 @@ class RuleEngineTest {
             val n = fingerprints.size
             fingerprints.clear()
             return n
+        }
+
+        private fun key(ruleId: Long, srcPath: String, size: Long, mtime: Long) =
+            "$ruleId|$srcPath|$size|$mtime"
+    }
+
+    /** 把回调原样记下来，方便断言"跳过时一条都不写"。 */
+    private class RecordingRecorder : RuleEngine.Recorder {
+        val items = ArrayList<com.landslide.shitu.data.db.ItemEntity>()
+        val logs = ArrayList<com.landslide.shitu.data.db.LogResult>()
+
+        override suspend fun onItem(item: com.landslide.shitu.data.db.ItemEntity) {
+            items += item
+        }
+
+        override suspend fun onLog(
+            result: com.landslide.shitu.data.db.LogResult,
+            ruleId: Long?,
+            srcPath: String?,
+            dstPath: String?,
+            durationMs: Long,
+            message: String?,
+        ) {
+            logs += result
+        }
+    }
+
+    /** 数 contentName 调了几次：用来证明 handledBefore 命中时没有再算 SHA-256。 */
+    private class CountingBridge : FakeFileBridge() {
+        var contentNameCalls = 0
+
+        override suspend fun contentName(path: String): String {
+            contentNameCalls++
+            return super.contentName(path)
         }
     }
 
@@ -330,5 +379,123 @@ class RuleEngineTest {
         clearDir(bridge, "/dst")
         // 老口径只看目标目录：副本被移走后就会再复制一份
         assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+    }
+
+    // ---------- 跳过不再进日志 / 条目（新语义） ----------
+
+    @Test
+    fun `内容账本命中时只计数_不再写跳过日志与条目`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger().apply { fingerprints += fingerprintOf(100, 1_000) }
+        val recorder = RecordingRecorder()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        val result = engine.runOnce(
+            rule(mode = Mode.COPY).copy(contentRename = false), LoopGuard(60_000, 99), recorder,
+        )
+
+        assertEquals(1, result.skipped)
+        assertEquals(0, result.moved)
+        // 旧行为：这里会写一条 SKIPPED 日志和一条 SKIPPED item；现在一条都不该有
+        assertTrue("跳过不该再写日志表", recorder.logs.isEmpty())
+        assertTrue("跳过不该再写 items 表", recorder.items.isEmpty())
+        assertTrue(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `handledBefore 命中时直接跳过_连内容指纹都不算`() = runBlocking {
+        val bridge = CountingBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger().apply { markHandled(1, "/src/a.png", 100, 1_000) }
+        val recorder = RecordingRecorder()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        // 这条规则默认 contentRename=true，老逻辑会先算一遍内容指纹
+        val result = engine.runOnce(rule(mode = Mode.COPY), LoopGuard(60_000, 99), recorder)
+
+        assertEquals(1, result.skipped)
+        assertEquals(0, result.moved)
+        assertEquals("同一文件以前搬过，不该再算 SHA-256", 0, bridge.contentNameCalls)
+        assertEquals(1, ledger.handledQueries)
+        assertTrue("跳过不该再写日志表", recorder.logs.isEmpty())
+        assertTrue("跳过不该再写 items 表", recorder.items.isEmpty())
+        assertTrue(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `handledBefore 只认同大小同 mtime_文件改过就重新处理`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger().apply { markHandled(1, "/src/a.png", 100, 1_000) }
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+        val r = rule(mode = Mode.COPY)
+
+        // 一模一样 → 静默跳过
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).skipped)
+
+        // mtime 变了 → 当作新文件，重新复制
+        bridge.put("/src/a.png", size = 100, mtime = 2_000)
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+
+        // 大小变了 → 同样重新复制
+        bridge.put("/src/a.png", size = 300, mtime = 2_000)
+        assertEquals(1, engine.runOnce(r, LoopGuard(60_000, 99)).moved)
+    }
+
+    @Test
+    fun `目标已有同内容文件时也只计数_不写日志与条目`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        bridge.put("/dst/a_t.png", size = 100, mtime = 1_000)
+        val recorder = RecordingRecorder()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 })
+
+        val result = engine.runOnce(
+            rule(mode = Mode.COPY).copy(contentRename = false), LoopGuard(60_000, 99), recorder,
+        )
+
+        assertEquals(1, result.skipped)
+        assertEquals(0, result.moved)
+        // 旧行为：TransferExecutor 返回 SKIPPED 时也会写一条日志 + 一条 item
+        assertTrue("跳过不该再写日志表", recorder.logs.isEmpty())
+        assertTrue("跳过不该再写 items 表", recorder.items.isEmpty())
+        assertTrue(bridge.exists("/src/a.png"))
+    }
+
+    @Test
+    fun `复制成功仍照常写日志与条目`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        val ledger = FakeLedger()
+        val recorder = RecordingRecorder()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 }, ledger = ledger)
+
+        val result = engine.runOnce(
+            rule(mode = Mode.COPY).copy(contentRename = false), LoopGuard(60_000, 99), recorder,
+        )
+
+        assertEquals(1, result.moved)
+        assertEquals(com.landslide.shitu.data.db.ItemStatus.COPIED, recorder.items.single().status)
+        assertEquals(listOf(com.landslide.shitu.data.db.LogResult.COPIED), recorder.logs)
+        assertEquals(1, ledger.count())
+    }
+
+    @Test
+    fun `失败仍照常写日志与条目`() = runBlocking {
+        val bridge = FakeFileBridge()
+        bridge.put("/src/a.png", size = 100, mtime = 1_000)
+        bridge.failCopy = true
+        val recorder = RecordingRecorder()
+        val engine = RuleEngine(bridge, NamePolicy(), settings, now = { 2_000_000 })
+
+        val result = engine.runOnce(
+            rule(mode = Mode.COPY).copy(contentRename = false), LoopGuard(60_000, 99), recorder,
+        )
+
+        assertEquals(1, result.failed)
+        assertEquals(com.landslide.shitu.data.db.ItemStatus.FAILED, recorder.items.single().status)
+        assertEquals(listOf(com.landslide.shitu.data.db.LogResult.FAILED), recorder.logs)
+        assertTrue(bridge.exists("/src/a.png"))
     }
 }

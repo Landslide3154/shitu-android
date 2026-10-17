@@ -75,11 +75,11 @@ open class FakeFileBridge : FileBridge {
             val (dir, depth) = stack.removeLast()
             for (c in entriesOf(dir)) {
                 if (out.size >= limit) break
-                if (skipping) {
-                    if (c.path == after) skipping = false
-                    continue
-                }
-                out.add(c)
+                // 与本实现保持一致的游标语义：after 之前只「不发射」，目录仍要入栈，
+                // 否则游标停在子目录上时会漏掉整棵子树（真实实现在 0.12.4 修过）。
+                val skipThis = skipping
+                if (skipping && c.path == after) skipping = false
+                if (!skipThis) out.add(c)
                 if (recursive && c.isDirectory && (maxDepth <= 0 || depth + 1 < maxDepth)) {
                     stack.addLast(c.path to depth + 1)
                 }

@@ -102,6 +102,13 @@ class RuleRepository(private val db: AppDatabase) {
     /** 日志页「全部清除」：只删日志记录，规则与图片文件都不动。 */
     suspend fun clearLogs() = logDao.clearAll()
 
+    /**
+     * 清空「复制记录」账本时，把复制模式的完成条目也清掉。
+     * 这些条目会让「同路径 + 同大小 + 同 mtime 就跳过」的快速判定继续命中，
+     * 于是账本都清空了、图片却还是不会重新复制——用户看到的就是"清空没生效"。
+     */
+    suspend fun clearCopyDoneItems(): Int = itemDao.deleteDoneForCopyRules()
+
     suspend fun allLogs(limit: Int = 50_000): List<LogEntity> = logDao.recent(limit)
 
     /** 容量控制（规格 §7）：日志 30 天 / 5 万条先到者为准；SKIPPED 条目 7 天后清理。 */

@@ -5,7 +5,8 @@
 
 ## 1. 这个项目是什么
 
-安卓 App：借 **Shizuku** 把 `Android/data/<包名>/...` 里藏着的图片**自动、持续地**搬到用户自己的目录。
+安卓 App：把 `Android/data/<包名>/...` 里藏着的图片，以及普通目录之间的图片，**自动、持续地**搬到用户自己的目录。
+有 Shizuku 时借它的 shell 身份进 `Android/data`；没有时用系统「所有文件访问」搬普通目录。
 Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AIDL 在 `app/src/main/aidl`）。
 仓库 `Landslide3154/shitu-android`；包名 `com.landslide.shitu`。
 
@@ -31,6 +32,9 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 
 - **UserService 跑在 shell 身份（uid=2000）**：不能用 `Environment`/`StatFs` 这类要问系统「当前用户 / 调用包名」的 API，只能用纯 `java.io`。
 - **Shizuku 授权只认服务端名单**：`adb pm grant` 对它无效，别指望用命令绕过授权，也别写「引导用户去授权页」以外的兜底逻辑。
+- **两条通道不是等价替代**：有 Shizuku 走 `ShizukuBridge`（shell 身份，能进 `Android/data`）；没有才用 `local/` 的「所有文件访问」通道。
+  `MANAGE_EXTERNAL_STORAGE` 同样进不了 `Android/data`/`Android/obb`（系统限制），所以 `Android/data` 相关能力必须保留 Shizuku，别把本地通道写成它的替代。
+- **联网只有「检查更新」一处**：`core/UpdateChecker` 请求 GitHub Releases，其余功能一律离线；新增任何联网行为前先改 README/手册的隐私口径。
 
 ## 5. 版本与发布
 

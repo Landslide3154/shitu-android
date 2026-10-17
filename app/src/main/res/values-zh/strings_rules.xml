@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  规则列表页与状态映射的中文文案。
+  key 与 values/strings_rules.xml 一一对应；中文照抄原有界面文案。
+-->
+<resources>
+
+    <!-- Shizuku 状态卡：shizukuTitle / shizukuAdvice / shizukuActionLabel -->
+    <string name="rules_shizuku_title_ready">Shizuku 已就绪</string>
+    <string name="rules_shizuku_title_not_installed">没有安装 Shizuku</string>
+    <string name="rules_shizuku_title_not_running">Shizuku 没有在运行</string>
+    <string name="rules_shizuku_title_no_permission">还没授权给「拾图」</string>
+    <string name="rules_shizuku_title_bind_failed">Shizuku 连接失败</string>
+    <string name="rules_shizuku_advice_ready">点一下可以跑自检</string>
+    <string name="rules_shizuku_advice_not_installed">先装 Shizuku（应用商店搜，或官网 shizuku.rikka.app），装好回来点「重试」</string>
+    <string name="rules_shizuku_advice_not_running">打开 Shizuku，按它的提示启动服务（无线调试或 adb），然后点「重试」</string>
+    <string name="rules_shizuku_advice_no_permission">点右边按钮，在弹出的框里选「允许」</string>
+    <string name="rules_shizuku_advice_bind_failed">点「重试」重新连接；一直失败就跑一次自检看细节</string>
+    <string name="rules_shizuku_action_install">去安装</string>
+    <string name="rules_shizuku_action_open">打开 Shizuku</string>
+    <string name="rules_shizuku_action_request_permission">请求授权</string>
+    <string name="rules_shizuku_action_retry">重试</string>
+
+    <!-- 规则卡片状态胶囊：ruleStatusText -->
+    <string name="rules_status_stopped">已停止</string>
+    <string name="rules_status_running">运行中</string>
+    <string name="rules_status_paused_error">失败暂停</string>
+    <string name="rules_status_paused_manual">已暂停</string>
+    <string name="rules_status_paused_loop">循环暂停</string>
+    <string name="rules_status_idle">待命</string>
+
+    <!-- 枚举标签：Enums.Labels.mode / state / result / itemStatus -->
+    <string name="rules_mode_move">移动</string>
+    <string name="rules_mode_copy">复制</string>
+    <string name="rules_state_idle">待命</string>
+    <string name="rules_state_running">运行中</string>
+    <string name="rules_state_paused_manual">已暂停（手动）</string>
+    <string name="rules_state_paused_error">已暂停（连续失败）</string>
+    <string name="rules_state_paused_loop">已暂停（疑似循环）</string>
+    <string name="rules_result_moved">已移动</string>
+    <string name="rules_result_copied">已复制</string>
+    <string name="rules_result_skipped">已跳过</string>
+    <string name="rules_result_failed">失败</string>
+    <string name="rules_result_undone">已撤回</string>
+    <string name="rules_result_info">信息</string>
+    <string name="rules_item_pending">待处理</string>
+    <string name="rules_item_moved">已移动</string>
+    <string name="rules_item_copied">已复制</string>
+    <string name="rules_item_failed">失败</string>
+    <string name="rules_item_skipped">已跳过</string>
+
+    <!-- 规则列表页：新建规则对话框 -->
+    <string name="rules_new_rule">新建规则</string>
+    <string name="rules_blank_rule">空白规则</string>
+    <string name="rules_blank_rule_detail">源目录从 /sdcard 开始自己往下选</string>
+    <string name="rules_no_templates_hint">还没有自己的模板。想让某条规则变成模板：点开那条规则的「编辑」，在编辑页下面点「存为模板」。</string>
+    <string name="rules_my_templates">我的模板</string>
+    <string name="rules_template_footer_hint">选完会进编辑页，还能随便改；点「保存并开始搬运」才真的建出来。</string>
+    <string name="rules_cancel">取消</string>
+    <string name="rules_delete">删除</string>
+    <string name="rules_delete_rule_title">删除「%1$s」？</string>
+    <string name="rules_delete_rule_body">只删掉这条规则和它的运行记录。已经搬过去的图片会留在原处，不会被搬回来，也不会被删掉。</string>
+    <string name="rules_batch_delete_title">删除选中的 %1$d 条规则？</string>
+    <string name="rules_batch_delete_body">只删掉这几条规则和它们的运行记录。已经搬过去的图片会留在原处，不会被搬回来，也不会被删掉。删完还可以在底部提示里点「撤销删除」。</string>
+
+    <!-- 规则列表页：底部批量操作栏 -->
+    <string name="rules_select_all">全选</string>
+    <string name="rules_batch_hint">勾选后可批量开关</string>
+    <string name="rules_selected_count">已选 %1$d 条</string>
+    <string name="rules_enable">开启</string>
+    <string name="rules_disable">停止</string>
+    <string name="rules_batch_actions_desc">对选中的规则批量操作</string>
+    <string name="rules_copy_selected">复制所选 %1$d 条</string>
+    <string name="rules_undo_selected">撤回所选搬过的图</string>
+    <string name="rules_delete_selected">删除所选</string>
+
+    <!-- 规则列表页：顶部状态卡与列表 -->
+    <string name="rules_local_mode_title">本地模式：不装 Shizuku 也能搬普通目录</string>
+    <string name="rules_local_mode_body">相册、下载、Pictures 这些普通目录照常搬；Android/data 里 App 私有的图仍需要 Shizuku。点整块可以自检。</string>
+    <string name="rules_total_moved_label">累计已搬</string>
+    <string name="rules_total_moved_unit">张</string>
+    <string name="rules_compact">简略</string>
+    <string name="rules_detailed">详细</string>
+    <string name="rules_empty_title">还没有规则</string>
+    <string name="rules_empty_body">源目录从 /sdcard 往下点，选到要清空的图片文件夹（例如 Android/data/com.qidian.QDReader/files）；目标目录默认 /sdcard/DCIM。第一次建议先用「复制」模式试一天。</string>
+    <string name="rules_empty_cta">新建第一条规则</string>
+
+    <!-- 规则列表页：卡片、菜单与左滑删除 -->
+    <string name="rules_delete_template">删除模板</string>
+    <string name="rules_copy_rule">复制一条</string>
+    <string name="rules_undo_moved">撤回已搬的图</string>
+    <string name="rules_resume">恢复运行</string>
+    <string name="rules_suffix_none">无</string>
+    <!-- 行首的 \u0020 是刻意保留的空格（资源会裁掉行首空白）；%4$s = 这一段可选后缀 -->
+    <string name="rules_content_rename_suffix">\u0020· 按内容命名</string>
+    <string name="rules_card_meta">模式 %1$s · 间隔 %2$d 分钟 · 后缀 %3$s%4$s</string>
+    <string name="rules_card_stats">上次 %1$s · 上次搬 %2$d · 累计 %3$d · 失败 %4$d</string>
+    <string name="rules_run_now">立即运行</string>
+    <string name="rules_edit">编辑</string>
+
+</resources>

@@ -79,12 +79,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.landslide.shitu.R
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.RuleEntity
@@ -99,6 +102,7 @@ import com.landslide.shitu.ui.status.shizukuActionLabel
 import com.landslide.shitu.ui.status.shizukuAdvice
 import com.landslide.shitu.ui.status.shizukuTitle
 import com.landslide.shitu.ui.status.shizukuTone
+import com.landslide.shitu.ui.theme.Tone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -121,6 +125,8 @@ private val REVEAL_WIDTH = 96.dp
 fun RuleListScreen(
     rules: List<RuleEntity>,
     state: ShizukuState,
+    /** 已获得「所有文件访问」：没有 Shizuku 时也能搬普通目录 */
+    localReady: Boolean,
     movedTotal: Long,
     onSelfCheck: () -> Unit,
     onRequestPermission: () -> Unit,
@@ -162,15 +168,15 @@ fun RuleListScreen(
     if (showNew) {
         AlertDialog(
             onDismissRequest = { showNew = false },
-            title = { Text("新建规则") },
+            title = { Text(stringResource(R.string.rules_new_rule)) },
             text = {
                 Column(
                     Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     NewRuleOption(
-                        title = "空白规则",
-                        detail = "源目录从 /sdcard 开始自己往下选",
+                        title = stringResource(R.string.rules_blank_rule),
+                        detail = stringResource(R.string.rules_blank_rule_detail),
                         icon = Icons.Filled.Add,
                     ) {
                         showNew = false
@@ -191,8 +197,7 @@ fun RuleListScreen(
                                 modifier = Modifier.size(16.dp).padding(top = 2.dp),
                             )
                             Text(
-                                "还没有自己的模板。想让某条规则变成模板：点开那条规则的「编辑」，" +
-                                    "在编辑页下面点「存为模板」。",
+                                stringResource(R.string.rules_no_templates_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(start = 8.dp),
@@ -210,7 +215,7 @@ fun RuleListScreen(
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
-                                "我的模板",
+                                stringResource(R.string.rules_my_templates),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 6.dp),
@@ -233,7 +238,7 @@ fun RuleListScreen(
                         }
                     }
                     Text(
-                        "选完会进编辑页，还能随便改；点「保存并开始搬运」才真的建出来。",
+                        stringResource(R.string.rules_template_footer_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp),
@@ -241,19 +246,16 @@ fun RuleListScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { showNew = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { showNew = false }) { Text(stringResource(R.string.rules_cancel)) } },
         )
     }
 
     pendingDelete?.let { target ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("删除「${target.name}」？") },
+            title = { Text(stringResource(R.string.rules_delete_rule_title, target.name)) },
             text = {
-                Text(
-                    "只删掉这条规则和它的运行记录。已经搬过去的图片会留在原处，" +
-                        "不会被搬回来，也不会被删掉。",
-                )
+                Text(stringResource(R.string.rules_delete_rule_body))
             },
             confirmButton = {
                 TextButton(
@@ -262,11 +264,11 @@ fun RuleListScreen(
                         onDelete(target)
                     },
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.rules_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.rules_cancel)) }
             },
         )
     }
@@ -274,12 +276,9 @@ fun RuleListScreen(
     if (askBatchDelete) {
         AlertDialog(
             onDismissRequest = { askBatchDelete = false },
-            title = { Text("删除选中的 ${selected.size} 条规则？") },
+            title = { Text(stringResource(R.string.rules_batch_delete_title, selected.size)) },
             text = {
-                Text(
-                    "只删掉这几条规则和它们的运行记录。已经搬过去的图片会留在原处，" +
-                        "不会被搬回来，也不会被删掉。删完还可以在底部提示里点「撤销删除」。",
-                )
+                Text(stringResource(R.string.rules_batch_delete_body))
             },
             confirmButton = {
                 TextButton(
@@ -288,11 +287,11 @@ fun RuleListScreen(
                         onDeleteSelected(selected.toList())
                     },
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.rules_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { askBatchDelete = false }) { Text("取消") }
+                TextButton(onClick = { askBatchDelete = false }) { Text(stringResource(R.string.rules_cancel)) }
             },
         )
     }
@@ -302,7 +301,7 @@ fun RuleListScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             FloatingActionButton(onClick = { showNew = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "新建规则")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.rules_new_rule))
             }
         },
         bottomBar = {
@@ -323,29 +322,40 @@ fun RuleListScreen(
                                 selected = if (on) rules.map { it.id }.toSet() else emptySet()
                             },
                         )
-                        Text("全选", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(10.dp))
                         Text(
-                            if (selected.isEmpty()) "勾选后可批量开关" else "已选 ${selected.size} 条",
+                            stringResource(R.string.rules_select_all),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        // 提示/已选数量占满中间剩余宽度：英文文案更长，不能把按钮挤出屏幕
+                        Text(
+                            if (selected.isEmpty()) {
+                                stringResource(R.string.rules_batch_hint)
+                            } else {
+                                stringResource(R.string.rules_selected_count, selected.size)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (selected.isEmpty()) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             } else {
                                 MaterialTheme.colorScheme.primary
                             },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
                         )
-                        Spacer(Modifier.weight(1f))
                         Button(
                             onClick = { onEnableSelected(selected.toList()) },
                             enabled = selected.isNotEmpty(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        ) { Text("开启") }
-                        Spacer(Modifier.width(8.dp))
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) { Text(stringResource(R.string.rules_enable), maxLines = 1) }
+                        Spacer(Modifier.width(6.dp))
                         OutlinedButton(
                             onClick = { onDisableSelected(selected.toList()) },
                             enabled = selected.isNotEmpty(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        ) { Text("停止") }
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) { Text(stringResource(R.string.rules_disable), maxLines = 1) }
                         // 「停止」右边的三个点：对勾选中的规则批量复制 / 撤回 / 删除
                         Box {
                             IconButton(
@@ -354,7 +364,7 @@ fun RuleListScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.MoreVert,
-                                    contentDescription = "对选中的规则批量操作",
+                                    contentDescription = stringResource(R.string.rules_batch_actions_desc),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -363,14 +373,14 @@ fun RuleListScreen(
                                 onDismissRequest = { batchMenu = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("复制所选 ${selected.size} 条") },
+                                    text = { Text(stringResource(R.string.rules_copy_selected, selected.size)) },
                                     onClick = {
                                         batchMenu = false
                                         onCopySelected(selected.toList())
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("撤回所选搬过的图") },
+                                    text = { Text(stringResource(R.string.rules_undo_selected)) },
                                     onClick = {
                                         batchMenu = false
                                         onUndoSelected(selected.toList())
@@ -380,7 +390,7 @@ fun RuleListScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            "删除所选",
+                                            stringResource(R.string.rules_delete_selected),
                                             color = MaterialTheme.colorScheme.error,
                                         )
                                     },
@@ -401,17 +411,34 @@ fun RuleListScreen(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Shizuku 通道：颜色分状态 + 一句「现在该干什么」+ 一个按钮；点整块 = 重新自检
+                // 通道状态：Shizuku 就绪 / 本地权限 / 两条都没有——三种说法，不能让人以为"用不了"
+                val channelReady = state == ShizukuState.READY || localReady
                 BannerCard(
-                    tone = shizukuTone(state),
-                    icon = if (state == ShizukuState.READY) {
+                    tone = when {
+                        state == ShizukuState.READY -> shizukuTone(state)
+                        localReady -> Tone.OK
+                        else -> shizukuTone(state)
+                    },
+                    icon = if (channelReady) {
                         Icons.Filled.CheckCircle
                     } else {
                         Icons.Filled.Warning
                     },
-                    title = shizukuTitle(state),
-                    body = shizukuAdvice(state),
-                    actionLabel = shizukuActionLabel(state),
+                    title = when {
+                        state == ShizukuState.READY -> stringResource(shizukuTitle(state))
+                        localReady -> stringResource(R.string.rules_local_mode_title)
+                        else -> stringResource(shizukuTitle(state))
+                    },
+                    body = when {
+                        state == ShizukuState.READY -> stringResource(shizukuAdvice(state))
+                        localReady -> stringResource(R.string.rules_local_mode_body)
+                        else -> stringResource(shizukuAdvice(state))
+                    },
+                    actionLabel = if (channelReady) {
+                        null
+                    } else {
+                        shizukuActionLabel(state)?.let { stringResource(it) }
+                    },
                     onAction = {
                         when (state) {
                             ShizukuState.NO_PERMISSION -> onRequestPermission()
@@ -422,7 +449,10 @@ fun RuleListScreen(
                     onClick = onSelfCheck,
                 )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("累计已搬", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(R.string.rules_total_moved_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Text(
                         "$movedTotal",
                         style = MaterialTheme.typography.titleMedium,
@@ -430,18 +460,21 @@ fun RuleListScreen(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 4.dp),
                     )
-                    Text("张", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(R.string.rules_total_moved_unit),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Spacer(Modifier.weight(1f))
                     FilterChip(
                         selected = compact,
                         onClick = { onCompactChange(true) },
-                        label = { Text("简略") },
+                        label = { Text(stringResource(R.string.rules_compact)) },
                     )
                     Spacer(Modifier.width(6.dp))
                     FilterChip(
                         selected = !compact,
                         onClick = { onCompactChange(false) },
-                        label = { Text("详细") },
+                        label = { Text(stringResource(R.string.rules_detailed)) },
                     )
                 }
             }
@@ -460,18 +493,19 @@ fun RuleListScreen(
                         modifier = Modifier.size(56.dp),
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("还没有规则", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.rules_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "源目录从 /sdcard 往下点，选到要清空的图片文件夹（例如 " +
-                            "Android/data/com.qidian.QDReader/files）；目标目录默认 /sdcard/DCIM。" +
-                            "第一次建议先用「复制」模式试一天。",
+                        stringResource(R.string.rules_empty_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(18.dp))
-                    Button(onClick = { showNew = true }) { Text("新建第一条规则") }
+                    Button(onClick = { showNew = true }) { Text(stringResource(R.string.rules_empty_cta)) }
                 }
             } else {
                 // 底部留出悬浮按钮的高度：否则最后一张卡片的按钮会被 FAB 盖住点不到
@@ -549,7 +583,7 @@ private fun NewRuleOption(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Filled.Close,
-                    contentDescription = "删除模板",
+                    contentDescription = stringResource(R.string.rules_delete_template),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
@@ -574,6 +608,7 @@ private fun RuleCard(
     modifier: Modifier = Modifier,
 ) {
     val tone = ruleTone(rule)
+    val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
 
     // 左滑露出红底「删除」：滑过一半就吸附打开，否则弹回原位
@@ -606,14 +641,14 @@ private fun RuleCard(
     )
     val ruleMenu: @Composable ColumnScope.() -> Unit = {
         DropdownMenuItem(
-            text = { Text("复制一条") },
+            text = { Text(stringResource(R.string.rules_copy_rule)) },
             onClick = {
                 menu = false
                 onCopy()
             },
         )
         DropdownMenuItem(
-            text = { Text("撤回已搬的图") },
+            text = { Text(stringResource(R.string.rules_undo_moved)) },
             onClick = {
                 menu = false
                 onUndo()
@@ -621,7 +656,7 @@ private fun RuleCard(
         )
         if (canResume(rule)) {
             DropdownMenuItem(
-                text = { Text("恢复运行") },
+                text = { Text(stringResource(R.string.rules_resume)) },
                 onClick = {
                     menu = false
                     onResume()
@@ -630,7 +665,7 @@ private fun RuleCard(
         }
         HorizontalDivider()
         DropdownMenuItem(
-            text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+            text = { Text(stringResource(R.string.rules_delete), color = MaterialTheme.colorScheme.error) },
             onClick = {
                 menu = false
                 onDelete()
@@ -666,7 +701,7 @@ private fun RuleCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
                     )
-                    StatusPill(ruleStatusText(rule), tone)
+                    StatusPill(stringResource(ruleStatusText(rule)), tone)
                     Spacer(Modifier.width(10.dp))
                     Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
                     // 菜单锚在这个 1dp 的小盒子上，弹出来就贴着卡片右上角
@@ -708,7 +743,7 @@ private fun RuleCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
-                StatusPill(ruleStatusText(rule), tone)
+                StatusPill(stringResource(ruleStatusText(rule)), tone)
                 Spacer(Modifier.width(10.dp))
                 // 每条规则自己的开关（也能用底部「全选 + 开启/停止」批量操作）
                 Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
@@ -737,10 +772,24 @@ private fun RuleCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(4.dp))
+            val suffix = if (rule.suffix.isBlank()) {
+                stringResource(R.string.rules_suffix_none)
+            } else {
+                rule.suffix
+            }
+            val renameSuffix = if (rule.contentRename) {
+                stringResource(R.string.rules_content_rename_suffix)
+            } else {
+                ""
+            }
             Text(
-                "模式 ${Labels.mode(rule.mode)} · 间隔 ${rule.intervalMinutes} 分钟" +
-                    " · 后缀 ${if (rule.suffix.isBlank()) "无" else rule.suffix}" +
-                    if (rule.contentRename) " · 按内容命名" else "",
+                stringResource(
+                    R.string.rules_card_meta,
+                    Labels.mode(context, rule.mode),
+                    rule.intervalMinutes,
+                    suffix,
+                    renameSuffix,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -765,8 +814,13 @@ private fun RuleCard(
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "上次 ${rule.lastRunAt?.let { timeFmt.format(Date(it)) } ?: "—"} · " +
-                    "上次搬 ${rule.lastMoved} · 累计 ${rule.totalMoved} · 失败 ${rule.totalFailed}",
+                stringResource(
+                    R.string.rules_card_stats,
+                    rule.lastRunAt?.let { timeFmt.format(Date(it)) } ?: "—",
+                    rule.lastMoved,
+                    rule.totalMoved,
+                    rule.totalFailed,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -782,10 +836,10 @@ private fun RuleCard(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("立即运行")
+                    Text(stringResource(R.string.rules_run_now))
                 }
                 Spacer(Modifier.width(6.dp))
-                TextButton(onClick = onEdit) { Text("编辑") }
+                TextButton(onClick = onEdit) { Text(stringResource(R.string.rules_edit)) }
                 Spacer(Modifier.weight(1f))
                 // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)
@@ -816,7 +870,7 @@ private fun BoxScope.RevealDeleteAction(onClick: () -> Unit) {
                     modifier = Modifier.size(20.dp),
                 )
                 Text(
-                    "删除",
+                    stringResource(R.string.rules_delete),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onError,
                 )

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 日志页（默认英文资源；中文见 values-zh/strings_logs.xml） -->
+    <string name="logs_title">Logs</string>
+    <string name="logs_count">Showing %1$d of %2$d logs</string>
+    <string name="logs_filter">Filters</string>
+    <string name="logs_filter_count">Filters (%1$d)</string>
+    <string name="logs_export">Export</string>
+    <string name="logs_clear">Clear</string>
+    <string name="logs_search_label">Search by file path</string>
+    <string name="logs_filtered">Filtered</string>
+    <string name="logs_filtered_result">: result “%1$s”</string>
+    <string name="logs_filtered_rule">: rule “%1$s”</string>
+    <string name="logs_rule_deleted">Deleted</string>
+    <string name="logs_clear_filters">Clear filters</string>
+    <string name="logs_empty_title">No matching logs</string>
+    <string name="logs_empty_no_logs">Nothing has been moved yet. Go to Rules and tap Run now to try it.</string>
+    <string name="logs_empty_no_match">Try a different filter.</string>
+    <string name="logs_by_result">By result</string>
+    <string name="logs_by_rule">By rule</string>
+    <string name="logs_all_results">All results</string>
+    <string name="logs_all_rules">All rules</string>
+    <string name="logs_unnamed_rule">Unnamed rule</string>
+    <string name="logs_reset">Reset</string>
+    <string name="logs_done">Done</string>
+    <string name="logs_csv_privacy">Exported CSV files contain full file paths. Be mindful of privacy before sharing.</string>
+    <string name="logs_clear_dialog_title">Clear all logs?</string>
+    <string name="logs_clear_dialog_body">This deletes all %1$d log entries. Only the log entries are removed — rules and files already moved are not affected.</string>
+    <string name="logs_clear_confirm">Clear</string>
+    <string name="logs_cancel">Cancel</string>
+    <string name="logs_src">Source\u0020\u0020%1$s</string>
+    <string name="logs_dst">Destination\u0020\u0020%1$s</string>
+</resources>

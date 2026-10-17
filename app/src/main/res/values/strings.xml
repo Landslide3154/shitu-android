@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">拾图</string>
+    <!-- 默认资源是英文：系统语言不是中文时显示这套。中文文案在 values-zh/ 里。 -->
+    <string name="app_name">Shitu</string>
 </resources>

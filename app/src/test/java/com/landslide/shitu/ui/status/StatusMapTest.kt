@@ -1,5 +1,6 @@
 package com.landslide.shitu.ui.status
 
+import com.landslide.shitu.R
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
@@ -7,7 +8,6 @@ import com.landslide.shitu.data.db.RuleState
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.theme.Tone
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -43,19 +43,61 @@ class StatusMapTest {
     @Test
     fun `就绪时不给按钮，其余状态都给一个动作`() {
         assertNull(shizukuActionLabel(ShizukuState.READY))
-        ShizukuState.entries.filter { it != ShizukuState.READY }.forEach { s ->
-            assertNotNull("状态 $s 应该有下一步动作", shizukuActionLabel(s))
-        }
+        assertEquals(
+            R.string.rules_shizuku_action_install,
+            shizukuActionLabel(ShizukuState.NOT_INSTALLED),
+        )
+        assertEquals(
+            R.string.rules_shizuku_action_open,
+            shizukuActionLabel(ShizukuState.NOT_RUNNING),
+        )
+        assertEquals(
+            R.string.rules_shizuku_action_request_permission,
+            shizukuActionLabel(ShizukuState.NO_PERMISSION),
+        )
+        assertEquals(
+            R.string.rules_shizuku_action_retry,
+            shizukuActionLabel(ShizukuState.BIND_FAILED),
+        )
     }
 
     @Test
     fun `每个 shizuku 状态都有标题和指引`() {
-        ShizukuState.entries.forEach { s ->
-            assertNotNull(shizukuTitle(s))
-            assertNotNull(shizukuAdvice(s))
-            assertEquals(true, shizukuTitle(s).isNotBlank())
-            assertEquals(true, shizukuAdvice(s).isNotBlank())
-        }
+        assertEquals(R.string.rules_shizuku_title_ready, shizukuTitle(ShizukuState.READY))
+        assertEquals(
+            R.string.rules_shizuku_title_not_installed,
+            shizukuTitle(ShizukuState.NOT_INSTALLED),
+        )
+        assertEquals(
+            R.string.rules_shizuku_title_not_running,
+            shizukuTitle(ShizukuState.NOT_RUNNING),
+        )
+        assertEquals(
+            R.string.rules_shizuku_title_no_permission,
+            shizukuTitle(ShizukuState.NO_PERMISSION),
+        )
+        assertEquals(
+            R.string.rules_shizuku_title_bind_failed,
+            shizukuTitle(ShizukuState.BIND_FAILED),
+        )
+
+        assertEquals(R.string.rules_shizuku_advice_ready, shizukuAdvice(ShizukuState.READY))
+        assertEquals(
+            R.string.rules_shizuku_advice_not_installed,
+            shizukuAdvice(ShizukuState.NOT_INSTALLED),
+        )
+        assertEquals(
+            R.string.rules_shizuku_advice_not_running,
+            shizukuAdvice(ShizukuState.NOT_RUNNING),
+        )
+        assertEquals(
+            R.string.rules_shizuku_advice_no_permission,
+            shizukuAdvice(ShizukuState.NO_PERMISSION),
+        )
+        assertEquals(
+            R.string.rules_shizuku_advice_bind_failed,
+            shizukuAdvice(ShizukuState.BIND_FAILED),
+        )
     }
 
     @Test
@@ -70,17 +112,29 @@ class StatusMapTest {
 
     @Test
     fun `停用的规则优先显示已停止，而不是它内部的暂停原因`() {
-        assertEquals("已停止", ruleStatusText(rule(enabled = false, state = RuleState.PAUSED_ERROR)))
+        assertEquals(
+            R.string.rules_status_stopped,
+            ruleStatusText(rule(enabled = false, state = RuleState.PAUSED_ERROR)),
+        )
         assertEquals(Tone.IDLE, ruleTone(rule(enabled = false, state = RuleState.PAUSED_ERROR)))
     }
 
     @Test
     fun `规则状态文案`() {
-        assertEquals("待命", ruleStatusText(rule()))
-        assertEquals("运行中", ruleStatusText(rule(state = RuleState.RUNNING)))
-        assertEquals("失败暂停", ruleStatusText(rule(state = RuleState.PAUSED_ERROR)))
-        assertEquals("已暂停", ruleStatusText(rule(state = RuleState.PAUSED_MANUAL)))
-        assertEquals("循环暂停", ruleStatusText(rule(state = RuleState.PAUSED_LOOP)))
+        assertEquals(R.string.rules_status_idle, ruleStatusText(rule()))
+        assertEquals(R.string.rules_status_running, ruleStatusText(rule(state = RuleState.RUNNING)))
+        assertEquals(
+            R.string.rules_status_paused_error,
+            ruleStatusText(rule(state = RuleState.PAUSED_ERROR)),
+        )
+        assertEquals(
+            R.string.rules_status_paused_manual,
+            ruleStatusText(rule(state = RuleState.PAUSED_MANUAL)),
+        )
+        assertEquals(
+            R.string.rules_status_paused_loop,
+            ruleStatusText(rule(state = RuleState.PAUSED_LOOP)),
+        )
     }
 
     @Test

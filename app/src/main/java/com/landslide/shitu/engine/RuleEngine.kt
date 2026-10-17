@@ -127,8 +127,22 @@ class RuleEngine(
         var loop = false
 
         for (src in candidates.sortedBy { it.mtimeMillis }) {
+            // 这个源文件以前已经成功搬走/复制过（同规则 + 同路径 + 同大小 + 同 mtime）→ 静默跳过。
+            // 放在算内容指纹之前：复制模式的源文件会一直留在原地、每轮都被重扫，
+            // 不先挡掉就要每次重算一遍 SHA-256。
+            // 也放在限额之前：跳过不是搬运，不该占掉单轮的搬运配额（否则大目录里新图永远轮不到）。
+            // 跳过只计数，不写日志、不写条目。
+            val handled = rule.mode == Mode.COPY && led != null && runCatching {
+                led.handledBefore(rule.id, src.path, src.size, src.mtimeMillis)
+            }.getOrDefault(false)
+            if (handled) {
+                skipped++
+                continue
+            }
+
             if (!limiter.tryAcquire(now())) break
             val fileStart = now()
+
             val tag = com.landslide.shitu.core.AppLabel.expandSuffix(
                 rule.suffix,
                 sourceAppLabel(src.path, rule.name),
@@ -154,24 +168,10 @@ class RuleEngine(
 
             // 复制模式：这份内容以前复制过 → 跳过。
             // 与"它现在还在不在目标目录、被你移到了哪里、有没有改名"全都无关。
+            // 跳过对用户没有信息量（源目录每轮重扫都会命中），只计数，不再往日志/条目表里塞记录。
             if (rule.mode == Mode.COPY && led != null && fingerprint != null &&
                 runCatching { led.seen(fingerprint) }.getOrDefault(false)
             ) {
-                val note = "这份内容以前已经复制过，不再重复复制"
-                val skippedItem = ItemEntity(
-                    ruleId = rule.id,
-                    srcPath = src.path,
-                    srcSize = src.size,
-                    srcMtime = src.mtimeMillis,
-                    dstPath = null,
-                    status = ItemStatus.SKIPPED,
-                    attemptCount = 1,
-                    lastError = note,
-                    processedAt = fileStart,
-                )
-                recorder?.onItem(skippedItem)
-                val cost = now() - fileStart
-                recorder?.onLog(LogResult.SKIPPED, rule.id, src.path, null, cost, note)
                 skipped++
                 continue
             }
@@ -186,10 +186,10 @@ class RuleEngine(
                 now = fileStart,
                 contentBase = if (rule.contentRename) fingerprint else null,
             )
-            recorder?.onItem(item)
             val cost = now() - fileStart
             when (item.status) {
                 ItemStatus.MOVED, ItemStatus.COPIED -> {
+                    recorder?.onItem(item)
                     moved++
                     recorder?.onLog(
                         if (item.status == ItemStatus.MOVED) LogResult.MOVED else LogResult.COPIED,
@@ -202,14 +202,15 @@ class RuleEngine(
                     if (guard.record(src.name, fileStart)) loop = true
                 }
                 ItemStatus.SKIPPED -> {
+                    // 目标里已经有同内容文件 = 什么都没变。跳过不是结果，不写日志、不写条目，只计数。
                     skipped++
-                    recorder?.onLog(LogResult.SKIPPED, rule.id, src.path, item.dstPath, cost, item.lastError)
                 }
                 ItemStatus.FAILED -> {
+                    recorder?.onItem(item)
                     failed++
                     recorder?.onLog(LogResult.FAILED, rule.id, src.path, item.dstPath, cost, item.lastError)
                 }
-                else -> Unit
+                else -> recorder?.onItem(item)
             }
             if (loop) break
         }

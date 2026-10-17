@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 界面文案（中文）：key 与 values/strings_app.xml 一一对应。 -->
+
+    <!-- 底部导航 -->
+    <string name="app_nav_rules">规则</string>
+    <string name="app_nav_logs">日志</string>
+    <string name="app_nav_settings">设置</string>
+
+    <!-- 规则操作提示 -->
+    <string name="app_rule_saved">已保存「%1$s」</string>
+    <string name="app_rule_enabled">已开启「%1$s」</string>
+    <string name="app_rule_disabled">已停止「%1$s」</string>
+    <string name="app_rules_enabled_count">已开启 %1$d 条规则</string>
+    <string name="app_rules_disabled_count">已停止 %1$d 条规则</string>
+    <string name="app_rule_copy_suffix">%1$s 副本</string>
+    <string name="app_rules_copied">已复制 %1$d 条（都是暂停状态，改好再开）</string>
+    <string name="app_rule_copied_one">已复制「%1$s」（默认暂停，改好再开）</string>
+    <string name="app_rule_deleted">已删除「%1$s」</string>
+    <string name="app_rule_restored">已恢复「%1$s」，什么都没少</string>
+    <string name="app_rules_deleted">已删除 %1$s</string>
+    <string name="app_rules_restored">已恢复 %1$s，什么都没少</string>
+    <string name="app_rule_name_quoted">「%1$s」</string>
+    <string name="app_rules_count">%1$d 条规则</string>
+    <string name="app_undo_delete">撤销删除</string>
+    <string name="app_template_deleted">已删除模板「%1$s」</string>
+    <string name="app_template_saved">已存为模板「%1$s」——新建规则时可选</string>
+    <string name="app_rule_running">正在跑「%1$s」…</string>
+    <string name="app_rule_run_result">「%1$s」：搬 %2$d · 失败 %3$d · 跳过 %4$d</string>
+    <string name="app_undo_finished">撤回完成：成功 %1$d · 跳过 %2$d</string>
+    <string name="app_undo_finished_note">撤回完成：成功 %1$d · 跳过 %2$d（例：%3$s）</string>
+
+    <!-- 日志 -->
+    <string name="app_exporting">正在导出…</string>
+    <string name="app_export_failed">导出失败：%1$s</string>
+    <string name="app_logs_exported">日志已导出到 %1$s</string>
+    <string name="app_logs_cleared">日志已清空</string>
+
+    <!-- 设置 -->
+    <string name="app_copy_records_cleared">已清空复制记录（%1$d 条，连同 %2$d 条历史）</string>
+
+    <!-- 未保存提示 -->
+    <string name="app_unsaved_title">还没保存</string>
+    <string name="app_unsaved_text">「%1$s」改过了。要保存吗？</string>
+    <string name="app_unsaved_text_switch">「%1$s」改过了。要保存吗？保存/放弃后会切到对应页面。</string>
+    <string name="app_unsaved_default_name">这条规则</string>
+    <string name="app_save">保存</string>
+    <string name="app_keep_editing">继续编辑</string>
+    <string name="app_discard">放弃修改</string>
+
+    <!-- 自检 -->
+    <string name="app_shizuku_missing">没找到 Shizuku。也可以去「设置 → 存储访问」打开「所有文件访问」，不装也能搬普通目录</string>
+    <string name="app_shizuku_not_running">Shizuku 未运行；或去「设置 → 存储访问」打开「所有文件访问」</string>
+    <string name="app_shizuku_permission_requested">已弹出授权请求，请在 Shizuku 里允许「拾图」</string>
+    <string name="app_checking_title">正在自检…</string>
+    <string name="app_checking_text">正在用临时文件验证当前系统上能不能搬（不会碰你的图片）。</string>
+    <string name="app_check_passed">自检通过（能搬）</string>
+    <string name="app_check_failed">自检发现问题</string>
+    <string name="app_report_pass">[通过] %1$s：%2$s</string>
+    <string name="app_report_fail">[失败] %1$s：%2$s</string>
+    <string name="app_clip_label">拾图自检</string>
+    <string name="app_result_copied">自检结果已复制</string>
+    <string name="app_copy_result">复制结果</string>
+    <string name="app_close">关闭</string>
+
+    <!-- 电池优化 -->
+    <string name="app_battery_title">让它一直在后台搬</string>
+    <string name="app_battery_text">请把「拾图」加入电池优化白名单，否则 HyperOS 可能在息屏后把它冻结。另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。</string>
+    <string name="app_go_to_settings">去设置</string>
+    <string name="app_later">以后再说</string>
+
+    <!-- 通用状态组件 -->
+    <string name="app_collapse">收起</string>
+    <string name="app_expand">展开</string>
+
+    <!-- 目录选择器 -->
+    <string name="app_dir_title">选择目录</string>
+    <string name="app_dir_path_label">路径（也可直接输入）</string>
+    <string name="app_dir_go">前往</string>
+    <string name="app_dir_current">当前：%1$s</string>
+    <string name="app_dir_read_failed">读取失败</string>
+    <string name="app_dir_read_failed_detail">读取失败：%1$s</string>
+    <string name="app_dir_up">⬆ 上一级</string>
+    <string name="app_dir_pick">选择此目录</string>
+    <string name="app_cancel">取消</string>
+</resources>

@@ -22,9 +22,8 @@ class FallbackWorker(
     override suspend fun doWork(): Result {
         val app = applicationContext as? ShituApp ?: return Result.success()
         return runCatching {
-            if (app.bridge.state() != com.landslide.shitu.shizuku.ShizukuState.READY) {
-                app.bridge.bindWithRetry(1)
-            }
+            // Shizuku 或本地「所有文件访问」任意一条能用就跑；都没有时 runDueRules 会返回提示
+            app.ensureChannel()
             app.runDueRules(force = false)
             Result.success()
         }.getOrElse { Result.retry() }

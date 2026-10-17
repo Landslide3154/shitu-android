@@ -1,5 +1,7 @@
 package com.landslide.shitu.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,14 +33,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.landslide.shitu.R
+import com.landslide.shitu.core.UpdateChecker
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
+import com.landslide.shitu.local.StorageAccess
 import com.landslide.shitu.ui.components.SectionCard
 import com.landslide.shitu.ui.components.SwitchRow
 import com.landslide.shitu.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private data class UpdateDialog(val title: String, val body: String, val url: String?)
 
 /** 设置页（规格 §8 全部参数 + §10 页面 4）。按主题分组，每组一张卡。 */
 @Composable
@@ -48,68 +63,120 @@ fun SettingsScreen(
     copiedCount: Int = 0,
     onClearCopied: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var askClearCopied by remember { mutableStateOf(false) }
+
+    // 「所有文件访问」是在系统设置里打开的，回到 App 时要重新读一次，不能一直显示旧状态
+    var allFilesGranted by remember { mutableStateOf(StorageAccess.isGranted(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                allFilesGranted = StorageAccess.isGranted(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // 版本号从系统读，别再写死（0.1.0 那次就是写死后忘了改）
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "?"
+    }
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var updateDialog by remember { mutableStateOf<UpdateDialog?>(null) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // 十一个数字框太占地方，默认收起，点标题栏才展开
-        SectionCard(title = "运行参数", collapsible = true, initiallyExpanded = false) {
+        SectionCard(
+            title = stringResource(R.string.set_section_run_params),
+            collapsible = true,
+            initiallyExpanded = false,
+        ) {
             Text(
-                "一次搬多少、搬多快、失败几次停。默认值适合大多数手机，不确定就别改。",
+                stringResource(R.string.set_run_params_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
-            intField("单轮扫描时间预算（秒）", settings.scanBudgetSec, 5..120) {
+            intField(stringResource(R.string.set_scan_budget_sec), settings.scanBudgetSec, 5..120) {
                 scope.launch { store.setScanBudgetSec(it) }
             }
-            intField("单轮最多搬运（个）", settings.maxPerRun, 1..500) {
+            intField(stringResource(R.string.set_max_per_run), settings.maxPerRun, 1..500) {
                 scope.launch { store.setMaxPerRun(it) }
             }
-            intField("每分钟最多搬运（个）", settings.maxPerMinute, 10..600) {
+            intField(stringResource(R.string.set_max_per_minute), settings.maxPerMinute, 10..600) {
                 scope.launch { store.setMaxPerMinute(it) }
             }
-            intField("单轮最长运行（秒）", settings.maxRunSec, 10..300) {
+            intField(stringResource(R.string.set_max_run_sec), settings.maxRunSec, 10..300) {
                 scope.launch { store.setMaxRunSec(it) }
             }
-            intField("文件稳定期（兜底等待，秒）", settings.stableSec, 0..300) {
+            intField(stringResource(R.string.set_stable_sec), settings.stableSec, 0..300) {
                 scope.launch { store.setStableSec(it) }
             }
-            intField("重复抑制窗口（分钟）", settings.loopWindowMin, 5..120) {
+            intField(stringResource(R.string.set_loop_window_min), settings.loopWindowMin, 5..120) {
                 scope.launch { store.setLoopWindowMin(it) }
             }
-            intField("重复抑制阈值（次）", settings.loopThreshold, 2..10) {
+            intField(stringResource(R.string.set_loop_threshold), settings.loopThreshold, 2..10) {
                 scope.launch { store.setLoopThreshold(it) }
             }
-            intField("连续失败阈值（次）", settings.failThreshold, 1..20) {
+            intField(stringResource(R.string.set_fail_threshold), settings.failThreshold, 1..20) {
                 scope.launch { store.setFailThreshold(it) }
             }
-            intField("低电量暂停阈值（%）", settings.lowBatteryPct, 0..50) {
+            intField(stringResource(R.string.set_low_battery_pct), settings.lowBatteryPct, 0..50) {
                 scope.launch { store.setLowBatteryPct(it) }
             }
-            intField("日志保留天数", settings.logKeepDays, 1..365) {
+            intField(stringResource(R.string.set_log_keep_days), settings.logKeepDays, 1..365) {
                 scope.launch { store.setLogKeepDays(it) }
             }
-            intField("日志保留条数", settings.logKeepCount, 1_000..200_000) {
+            intField(stringResource(R.string.set_log_keep_count), settings.logKeepCount, 1_000..200_000) {
                 scope.launch { store.setLogKeepCount(it) }
             }
         }
 
-        SectionCard(title = "检测速度") {
+        // 没有 Shizuku 时的后备通道：普通目录（Pictures/DCIM/Download…）靠这个权限搬
+        SectionCard(title = stringResource(R.string.set_section_storage_access)) {
+            Text(
+                if (allFilesGranted) {
+                    stringResource(R.string.set_storage_granted_desc)
+                } else {
+                    stringResource(R.string.set_storage_not_granted_desc)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { StorageAccess.openSettings(context) },
+                enabled = !allFilesGranted,
+            ) {
+                Text(
+                    if (allFilesGranted) {
+                        stringResource(R.string.set_storage_granted)
+                    } else {
+                        stringResource(R.string.set_storage_open)
+                    },
+                )
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.set_section_detection_speed)) {
             SwitchRow(
-                title = "正在用手机时加快检测",
+                title = stringResource(R.string.set_fast_while_active),
                 checked = settings.fastWhileActive,
                 onCheckedChange = { scope.launch { store.setFastWhileActive(it) } },
             )
-            intField("加快检测间隔（秒）", settings.fastIntervalSec, 3..60) {
+            intField(stringResource(R.string.set_fast_interval_sec), settings.fastIntervalSec, 3..60) {
                 scope.launch { store.setFastIntervalSec(it) }
             }
             Text(
-                "开着它：屏幕亮着时每隔上面这个秒数看一眼源目录有没有变化（只看目录时间，很省电），" +
-                    "一变就立刻搬，所以下载完十几秒内就能进相册。屏幕熄灭后回到每条规则自己的间隔。",
+                stringResource(R.string.set_fast_while_active_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -117,15 +184,15 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             SwitchRow(
-                title = "熄屏后暂停扫描",
+                title = stringResource(R.string.set_screen_off_pause),
                 checked = settings.screenOffPause,
                 onCheckedChange = { scope.launch { store.setScreenOffPause(it) } },
             )
             Text(
                 if (settings.screenOffPause) {
-                    "开着：熄屏或锁屏时停下（省电）；亮屏解锁后会自动继续，不用手动点。"
+                    stringResource(R.string.set_screen_off_pause_on_desc)
                 } else {
-                    "关着（默认）：熄屏后仍按每条规则自己的间隔继续搬（推荐，晚上充电时也能把没搬完的清掉）。"
+                    stringResource(R.string.set_screen_off_pause_off_desc)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -134,94 +201,96 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             SwitchRow(
-                title = "写完就搬（不等满稳定期）",
+                title = stringResource(R.string.set_settle_detect),
                 checked = settings.settleDetect,
                 onCheckedChange = { scope.launch { store.setSettleDetect(it) } },
             )
-            intField("写完判定窗口（秒）", settings.settleGapSec, 2..15) {
+            intField(stringResource(R.string.set_settle_gap_sec), settings.settleGapSec, 2..15) {
                 scope.launch { store.setSettleGapSec(it) }
             }
             Text(
-                "同一个文件两次看到的「大小 + 修改时间」都没变、间隔超过上面这个秒数，就认为它写完了，" +
-                    "立刻搬走——不用干等「文件稳定期」。正在下载的文件每隔一会儿就变一次，不会被误判。" +
-                    "关掉它则退回按「文件稳定期」等待。",
+                stringResource(R.string.set_settle_detect_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        SectionCard(title = "开关") {
+        SectionCard(title = stringResource(R.string.set_section_switches)) {
             SwitchRow(
-                title = "低电量/省电模式暂停",
+                title = stringResource(R.string.set_low_battery_pause),
                 checked = settings.lowBatteryPause,
                 onCheckedChange = { scope.launch { store.setLowBatteryPause(it) } },
             )
             SwitchRow(
-                title = "加速清空（一轮结束立刻开下一轮）",
+                title = stringResource(R.string.set_fast_drain),
                 checked = settings.fastDrain,
                 onCheckedChange = { scope.launch { store.setFastDrain(it) } },
             )
             SwitchRow(
-                title = "事件通知（暂停/失败/未就绪）",
+                title = stringResource(R.string.set_notify_enabled),
                 checked = settings.notifyEnabled,
                 onCheckedChange = { scope.launch { store.setNotifyEnabled(it) } },
             )
         }
 
-        SectionCard(title = "外观") {
+        SectionCard(title = stringResource(R.string.set_section_appearance)) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("主题", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.set_theme), style = MaterialTheme.typography.bodyLarge)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FilterChip(
                         selected = settings.themeMode == ThemeMode.SYSTEM,
                         onClick = { scope.launch { store.setThemeMode(ThemeMode.SYSTEM) } },
-                        label = { Text("跟随系统") },
+                        label = { Text(stringResource(R.string.set_theme_system)) },
                     )
                     Spacer(Modifier.width(6.dp))
                     FilterChip(
                         selected = settings.themeMode == ThemeMode.LIGHT,
                         onClick = { scope.launch { store.setThemeMode(ThemeMode.LIGHT) } },
-                        label = { Text("浅色") },
+                        label = { Text(stringResource(R.string.set_theme_light)) },
                     )
                     Spacer(Modifier.width(6.dp))
                     FilterChip(
                         selected = settings.themeMode == ThemeMode.DARK,
                         onClick = { scope.launch { store.setThemeMode(ThemeMode.DARK) } },
-                        label = { Text("深色") },
+                        label = { Text(stringResource(R.string.set_theme_dark)) },
                     )
                 }
             }
             SwitchRow(
-                title = "动态取色（Material You）",
+                title = stringResource(R.string.set_dynamic_color),
                 checked = settings.dynamicColor,
                 onCheckedChange = { scope.launch { store.setDynamicColor(it) } },
             )
             Text(
-                "安卓 12 及以上：颜色跟着壁纸走，整个 App 和系统一个色调。关掉就用固定的蓝色。",
+                stringResource(R.string.set_dynamic_color_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        SectionCard(title = "自检") {
+        SectionCard(title = stringResource(R.string.set_section_self_check)) {
+            val lastSelfCheck = settings.lastSelfCheck
             Text(
-                settings.lastSelfCheck?.let { "上次自检：$it" } ?: "还没做过自检。自检只用临时文件试一遍读写删，不动你的照片。",
+                if (lastSelfCheck != null) {
+                    stringResource(R.string.set_last_self_check, lastSelfCheck)
+                } else {
+                    stringResource(R.string.set_no_self_check)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onSelfCheck) { Text("立即自检") }
+            Button(onClick = onSelfCheck) { Text(stringResource(R.string.set_run_self_check)) }
         }
 
         // 复制模式的"这张图复制过没有"账本：清空后同样的图会再被复制一次进来
-        SectionCard(title = "复制记录") {
+        SectionCard(title = stringResource(R.string.set_section_copy_history)) {
             Text(
-                "复制模式的规则靠这份记录判断「这张图是不是已经复制过」，不看你后来把文件移到了哪里。" +
-                    "现在记着 $copiedCount 条。",
+                stringResource(R.string.set_copy_history_desc, copiedCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -229,53 +298,122 @@ fun SettingsScreen(
             OutlinedButton(
                 onClick = { askClearCopied = true },
                 enabled = copiedCount > 0,
-            ) { Text("清空复制记录（$copiedCount 条）") }
+            ) { Text(stringResource(R.string.set_clear_copy_history_button, copiedCount)) }
         }
 
         if (askClearCopied) {
             AlertDialog(
                 onDismissRequest = { askClearCopied = false },
-                title = { Text("清空复制记录？") },
+                title = { Text(stringResource(R.string.set_clear_copy_history_title)) },
                 text = {
                     Text(
-                        "清空之后，以前复制过的图会被当成「没复制过」——以后遇到同样的图会再复制一份进来。" +
-                            "已经复制过去的文件本身不受影响。",
+                        stringResource(R.string.set_clear_copy_history_body),
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         askClearCopied = false
                         onClearCopied()
-                    }) { Text("清空") }
+                    }) { Text(stringResource(R.string.set_clear_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { askClearCopied = false }) { Text("取消") }
+                    TextButton(onClick = { askClearCopied = false }) { Text(stringResource(R.string.set_cancel)) }
                 },
             )
         }
 
-        SectionCard(title = "关于") {
-            // 版本号从系统读，别再写死（0.1.0 那次就是写死后忘了改）
-            val context = LocalContext.current
-            val versionName = remember {
-                runCatching {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                }.getOrNull() ?: "?"
-            }
-            Text("拾图 Shitu $versionName · GPL-3.0", style = MaterialTheme.typography.bodyMedium)
+        SectionCard(title = stringResource(R.string.set_section_about)) {
+            Text(
+                stringResource(R.string.set_about_version, versionName),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Text(
                 "https://github.com/Landslide3154/shitu-android",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    checkingUpdate = true
+                    scope.launch {
+                        val info = withContext(Dispatchers.IO) {
+                            runCatching { UpdateChecker.fetchLatest() }.getOrNull()
+                        }
+                        checkingUpdate = false
+                        updateDialog = when {
+                            info == null -> UpdateDialog(
+                                context.getString(R.string.set_update_failed_title),
+                                context.getString(R.string.set_update_failed_body),
+                                null,
+                            )
+                            UpdateChecker.isNewer(versionName, info.version) -> UpdateDialog(
+                                context.getString(R.string.set_update_available_title, info.version),
+                                info.notes.ifBlank {
+                                    context.getString(R.string.set_update_notes_fallback)
+                                },
+                                info.apkUrl ?: info.pageUrl,
+                            )
+                            else -> UpdateDialog(
+                                context.getString(R.string.set_update_latest_title),
+                                context.getString(R.string.set_update_latest_body, versionName, info.version),
+                                null,
+                            )
+                        }
+                    }
+                },
+                enabled = !checkingUpdate,
+            ) {
+                Text(
+                    if (checkingUpdate) {
+                        stringResource(R.string.set_checking_update)
+                    } else {
+                        stringResource(R.string.set_check_update)
+                    },
+                )
+            }
+
             Spacer(Modifier.height(6.dp))
             Text(
-                "本 App 完全离线、不申请「所有文件访问」权限；所有文件操作都借 Shizuku 的 adb 身份完成。" +
-                    "系统更新后若搬不动，请先跑一次自检。",
+                stringResource(R.string.set_privacy_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+
+    updateDialog?.let { d ->
+        AlertDialog(
+            onDismissRequest = { updateDialog = null },
+            title = { Text(d.title) },
+            text = {
+                Text(
+                    d.body,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                if (d.url != null) {
+                    TextButton(onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(d.url))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                        updateDialog = null
+                    }) { Text(stringResource(R.string.set_go_download)) }
+                } else {
+                    TextButton(onClick = { updateDialog = null }) { Text(stringResource(R.string.set_got_it)) }
+                }
+            },
+            dismissButton = if (d.url != null) {
+                { TextButton(onClick = { updateDialog = null }) { Text(stringResource(R.string.set_later)) } }
+            } else {
+                null
+            },
+        )
     }
 }
 
@@ -293,7 +431,7 @@ private fun intField(
             text = t.filter { it.isDigit() }.take(6)
             text.toIntOrNull()?.let { if (it in range) onChange(it) }
         },
-        label = { Text("$label（${range.first}–${range.last}）") },
+        label = { Text(stringResource(R.string.set_field_range, label, range.first, range.last)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

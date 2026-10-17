@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 规格 §12 权限清单：明确不申请 MANAGE_EXTERNAL_STORAGE，也不申请 INTERNET（v1 完全离线） -->
+    <!-- 权限清单（0.12.4 起）：
+         · MANAGE_EXTERNAL_STORAGE 只用于「没有 Shizuku 时搬普通目录」（用户可选；不授权也能用 Shizuku 模式）
+         · INTERNET 只用于「检查更新」，其余功能仍然完全离线 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -11,6 +13,15 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- 本地通道（没有 Shizuku 时搬普通目录）：Android 11 起要靠「所有文件访问」才能用完整路径读写。
+         作用域确实大，但这是唯一不需要电脑/Shizuku 的授权方式；lint 的 ScopedStorage 提示有意忽略。 -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <!-- 另一个功能联网要用（与本地文件通道无关） -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".ShituApp"

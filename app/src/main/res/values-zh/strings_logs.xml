@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 日志页中文资源；英文见 values/strings_logs.xml -->
+    <string name="logs_title">日志</string>
+    <string name="logs_count">显示 %1$d 条 / 共 %2$d 条</string>
+    <string name="logs_filter">筛选</string>
+    <string name="logs_filter_count">筛选 (%1$d)</string>
+    <string name="logs_export">导出</string>
+    <string name="logs_clear">清除</string>
+    <string name="logs_search_label">按文件路径搜索</string>
+    <string name="logs_filtered">已筛选</string>
+    <string name="logs_filtered_result">：结果「%1$s」</string>
+    <string name="logs_filtered_rule">：规则「%1$s」</string>
+    <string name="logs_rule_deleted">已删除</string>
+    <string name="logs_clear_filters">清除筛选</string>
+    <string name="logs_empty_title">没有符合条件的日志</string>
+    <string name="logs_empty_no_logs">还没搬过东西；去规则页点「立即运行」试试</string>
+    <string name="logs_empty_no_match">换个筛选条件看看</string>
+    <string name="logs_by_result">按结果</string>
+    <string name="logs_by_rule">按规则</string>
+    <string name="logs_all_results">全部结果</string>
+    <string name="logs_all_rules">全部规则</string>
+    <string name="logs_unnamed_rule">未命名规则</string>
+    <string name="logs_reset">重置</string>
+    <string name="logs_done">完成</string>
+    <string name="logs_csv_privacy">导出的 CSV 含完整文件路径，分享前留意隐私。</string>
+    <string name="logs_clear_dialog_title">清空全部日志？</string>
+    <string name="logs_clear_dialog_body">会把 %1$d 条日志记录都删掉。只删记录——规则、已经搬过去的图片文件都不受影响。</string>
+    <string name="logs_clear_confirm">清空</string>
+    <string name="logs_cancel">取消</string>
+    <string name="logs_src">源\u0020\u0020%1$s</string>
+    <string name="logs_dst">目标\u0020\u0020%1$s</string>
+</resources>

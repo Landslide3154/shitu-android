@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  规则列表页与状态映射的英文文案（默认资源）。
+  中文在 values-zh/strings_rules.xml 里，key 必须一一对应。
+-->
+<resources>
+
+    <!-- Shizuku 状态卡：shizukuTitle / shizukuAdvice / shizukuActionLabel -->
+    <string name="rules_shizuku_title_ready">Shizuku is ready</string>
+    <string name="rules_shizuku_title_not_installed">Shizuku isn\'t installed</string>
+    <string name="rules_shizuku_title_not_running">Shizuku isn\'t running</string>
+    <string name="rules_shizuku_title_no_permission">Shitu doesn\'t have permission yet</string>
+    <string name="rules_shizuku_title_bind_failed">Couldn\'t connect to Shizuku</string>
+    <string name="rules_shizuku_advice_ready">Tap to run a self-check</string>
+    <string name="rules_shizuku_advice_not_installed">Install Shizuku first (search your app store or visit shizuku.rikka.app), then come back and tap Retry.</string>
+    <string name="rules_shizuku_advice_not_running">Open Shizuku and follow its prompts to start the service (wireless debugging or adb), then tap Retry.</string>
+    <string name="rules_shizuku_advice_no_permission">Tap the button on the right, then choose Allow in the dialog.</string>
+    <string name="rules_shizuku_advice_bind_failed">Tap Retry to reconnect. If it keeps failing, run a self-check to see details.</string>
+    <string name="rules_shizuku_action_install">Install</string>
+    <string name="rules_shizuku_action_open">Open Shizuku</string>
+    <string name="rules_shizuku_action_request_permission">Grant access</string>
+    <string name="rules_shizuku_action_retry">Retry</string>
+
+    <!-- 规则卡片状态胶囊：ruleStatusText -->
+    <string name="rules_status_stopped">Stopped</string>
+    <string name="rules_status_running">Running</string>
+    <string name="rules_status_paused_error">Paused after errors</string>
+    <string name="rules_status_paused_manual">Paused</string>
+    <string name="rules_status_paused_loop">Paused (loop)</string>
+    <string name="rules_status_idle">Idle</string>
+
+    <!-- 枚举标签：Enums.Labels.mode / state / result / itemStatus -->
+    <string name="rules_mode_move">Move</string>
+    <string name="rules_mode_copy">Copy</string>
+    <string name="rules_state_idle">Idle</string>
+    <string name="rules_state_running">Running</string>
+    <string name="rules_state_paused_manual">Paused (manual)</string>
+    <string name="rules_state_paused_error">Paused (repeated failures)</string>
+    <string name="rules_state_paused_loop">Paused (suspected loop)</string>
+    <string name="rules_result_moved">Moved</string>
+    <string name="rules_result_copied">Copied</string>
+    <string name="rules_result_skipped">Skipped</string>
+    <string name="rules_result_failed">Failed</string>
+    <string name="rules_result_undone">Undone</string>
+    <string name="rules_result_info">Info</string>
+    <string name="rules_item_pending">Pending</string>
+    <string name="rules_item_moved">Moved</string>
+    <string name="rules_item_copied">Copied</string>
+    <string name="rules_item_failed">Failed</string>
+    <string name="rules_item_skipped">Skipped</string>
+
+    <!-- 规则列表页：新建规则对话框 -->
+    <string name="rules_new_rule">New rule</string>
+    <string name="rules_blank_rule">Blank rule</string>
+    <string name="rules_blank_rule_detail">Pick the source folder yourself, starting from /sdcard</string>
+    <string name="rules_no_templates_hint">You don\'t have any templates yet. To turn a rule into a template, open that rule\'s Edit page and tap Save as template at the bottom.</string>
+    <string name="rules_my_templates">My templates</string>
+    <string name="rules_template_footer_hint">You\'ll go to the edit page after choosing and can still change anything. The rule is only created when you tap Save and start moving.</string>
+    <string name="rules_cancel">Cancel</string>
+    <string name="rules_delete">Delete</string>
+    <string name="rules_delete_rule_title">Delete “%1$s”?</string>
+    <string name="rules_delete_rule_body">Only this rule and its run history will be deleted. Photos that were already moved stay where they are and won\'t be moved back or deleted.</string>
+    <string name="rules_batch_delete_title">Delete %1$d selected rule(s)?</string>
+    <string name="rules_batch_delete_body">Only these rules and their run history will be deleted. Photos that were already moved stay where they are and won\'t be moved back or deleted. Afterwards you can tap Undo in the message at the bottom.</string>
+
+    <!-- 规则列表页：底部批量操作栏 -->
+    <string name="rules_select_all">Select all</string>
+    <string name="rules_batch_hint">Select rules to batch</string>
+    <string name="rules_selected_count">%1$d selected</string>
+    <string name="rules_enable">Turn on</string>
+    <string name="rules_disable">Turn off</string>
+    <string name="rules_batch_actions_desc">Batch actions for selected rules</string>
+    <string name="rules_copy_selected">Copy %1$d selected rule(s)</string>
+    <string name="rules_undo_selected">Undo selected moves</string>
+    <string name="rules_delete_selected">Delete selected</string>
+
+    <!-- 规则列表页：顶部状态卡与列表 -->
+    <string name="rules_local_mode_title">Local mode: move from regular folders without Shizuku</string>
+    <string name="rules_local_mode_body">Photos in regular folders such as Gallery, Downloads and Pictures work as usual. Images in app-private Android/data folders still need Shizuku. Tap the card to run a self-check.</string>
+    <string name="rules_total_moved_label">Moved so far</string>
+    <string name="rules_total_moved_unit">photos</string>
+    <string name="rules_compact">Compact</string>
+    <string name="rules_detailed">Detailed</string>
+    <string name="rules_empty_title">No rules yet</string>
+    <string name="rules_empty_body">Browse from /sdcard and pick the image folder you want to clear out (for example Android/data/com.qidian.QDReader/files). The destination defaults to /sdcard/DCIM. For your first try, use Copy mode for a day.</string>
+    <string name="rules_empty_cta">Create your first rule</string>
+
+    <!-- 规则列表页：卡片、菜单与左滑删除 -->
+    <string name="rules_delete_template">Delete template</string>
+    <string name="rules_copy_rule">Copy rule</string>
+    <string name="rules_undo_moved">Undo moved photos</string>
+    <string name="rules_resume">Resume</string>
+    <string name="rules_suffix_none">none</string>
+    <!-- 行首的 \u0020 是刻意保留的空格（资源会裁掉行首空白）；%4$s = 这一段可选后缀 -->
+    <string name="rules_content_rename_suffix">\u0020· named by content</string>
+    <string name="rules_card_meta">Mode %1$s · every %2$d min · suffix %3$s%4$s</string>
+    <string name="rules_card_stats">Last run %1$s · moved %2$d · moved %3$d total · failed %4$d</string>
+    <string name="rules_run_now">Run now</string>
+    <string name="rules_edit">Edit</string>
+
+</resources>

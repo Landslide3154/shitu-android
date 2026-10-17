@@ -41,6 +41,16 @@ interface ItemDao {
     @Query("SELECT COUNT(*) FROM items WHERE ruleId = :ruleId")
     suspend fun countForRule(ruleId: Long): Int
 
+    /**
+     * 这个源文件（同规则 + 同路径 + 同大小 + 同 mtime）以前是否已经成功搬走/复制过。
+     * 只看 MOVED / COPIED：失败和跳过都还要再处理。
+     */
+    @Query(
+        "SELECT COUNT(*) FROM items WHERE ruleId = :ruleId AND srcPath = :srcPath " +
+            "AND srcSize = :srcSize AND srcMtime = :srcMtime AND status IN ('MOVED','COPIED')",
+    )
+    suspend fun countHandled(ruleId: Long, srcPath: String, srcSize: Long, srcMtime: Long): Int
+
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun byId(id: Long): ItemEntity?
 
@@ -61,6 +71,16 @@ interface ItemDao {
 
     @Query("DELETE FROM items WHERE status = 'SKIPPED' AND processedAt < :before")
     suspend fun pruneSkipped(before: Long): Int
+
+    /**
+     * 清空「复制记录」账本时一起清掉复制模式的完成条目。
+     * 否则 `countHandled` 还会命中这些老条目，同一张图在账本清空后仍然不会被重新复制。
+     */
+    @Query(
+        "DELETE FROM items WHERE ruleId IN (SELECT id FROM rules WHERE mode = 'COPY') " +
+            "AND status IN ('MOVED','COPIED')",
+    )
+    suspend fun deleteDoneForCopyRules(): Int
 
     @Query("SELECT * FROM items WHERE ruleId = :ruleId")
     suspend fun allForRule(ruleId: Long): List<ItemEntity>

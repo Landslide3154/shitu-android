@@ -27,8 +27,10 @@ import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.data.db.RuleState
 import com.landslide.shitu.engine.RuleEngine
 import com.landslide.shitu.engine.UndoService
+import com.landslide.shitu.local.LocalFileBridge
 import com.landslide.shitu.service.FallbackWorker
 import com.landslide.shitu.service.Notifier
+import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.ShizukuBridge
 import com.landslide.shitu.shizuku.ShizukuState
 import java.io.File
@@ -40,7 +42,7 @@ import rikka.shizuku.Shizuku
 
 /**
  * 应用级容器（规格 §6.1）：持有数据库、设置、桥、通知，并负责"跑一轮"的编排与记账。
- * 注意：它不做任何文件操作 —— 文件操作只经 [bridge] 交给 shell 身份的 UserService。
+ * 注意：它不做任何文件操作 —— 文件操作只经 [fileBridge] 交给 shell 身份或本地通道。
  */
 class ShituApp : Application() {
 
@@ -54,6 +56,9 @@ class ShituApp : Application() {
     lateinit var settings: SettingsStore
         private set
     lateinit var bridge: ShizukuBridge
+        private set
+    /** 没有 Shizuku 时的后备通道：要求系统「所有文件访问」权限。 */
+    lateinit var localBridge: LocalFileBridge
         private set
     lateinit var notifier: Notifier
         private set
@@ -104,6 +109,18 @@ class ShituApp : Application() {
 
     data class UndoSummary(val done: Int = 0, val skipped: Int = 0, val notes: List<String> = emptyList())
 
+    /** 现在靠哪条通道搬文件。 */
+    enum class Channel {
+        /** Shizuku 就绪：能进 Android/data 里的 App 私有目录 */
+        SHIZUKU,
+
+        /** 本地「所有文件访问」：普通目录够用，Android/data 进不去 */
+        LOCAL,
+
+        /** 两条都没有：规则跑不了 */
+        NONE,
+    }
+
     companion object {
         /** 同一规则两次快节奏检测的最小间隔，避免目录一变就反复扫 */
         private const val MIN_FAST_GAP_MS = 5_000L
@@ -125,11 +142,46 @@ class ShituApp : Application() {
         ledger = RoomContentLedger(db)
         settings = SettingsStore(this)
         bridge = ShizukuBridge(this)
+        localBridge = LocalFileBridge(this)
         notifier = Notifier(this)
         notifier.ensureChannels()
         FallbackWorker.schedule(this)
         registerShizukuListeners()
         registerMediaObserver()
+    }
+
+    // ---------- 通道 ----------
+
+    fun channel(): Channel = when {
+        bridge.state() == ShizukuState.READY -> Channel.SHIZUKU
+        localBridge.available() -> Channel.LOCAL
+        else -> Channel.NONE
+    }
+
+    /**
+     * 引擎用的桥：Shizuku 就绪就用它（顺带能进 Android/data），否则退回本地通道。
+     * 两条都没有时返回 Shizuku 桥——真正的调用方应该先 [ensureChannel]，好把"没有通道"讲清楚。
+     */
+    val fileBridge: FileBridge
+        get() = if (bridge.state() == ShizukuState.READY) bridge else localBridge
+
+    fun hasChannel(): Boolean = channel() != Channel.NONE
+
+    /**
+     * 跑之前确认通道：先试着连 Shizuku，连不上再退回本地「所有文件访问」。
+     * 返回 false 表示两条路都不通（没装/没启动 Shizuku，也没给文件权限）。
+     */
+    suspend fun ensureChannel(): Boolean {
+        if (bridge.state() == ShizukuState.READY) return true
+        if (bridge.bindOnce()) return true
+        return localBridge.available()
+    }
+
+    /** 通道的界面文案（自检、提示条共用）。 */
+    fun channelLine(): String = when (channel()) {
+        Channel.SHIZUKU -> "Shizuku 通道（可读写 Android/data）"
+        Channel.LOCAL -> "本地通道（仅普通目录，Android/data 需要 Shizuku）"
+        Channel.NONE -> "没有可用的通道：请连上 Shizuku，或在设置里打开「所有文件访问」"
     }
 
     /** 相册（MediaStore）新增/变化 → 给快节奏通道一个"有动静"的信号。 */
@@ -170,10 +222,12 @@ class ShituApp : Application() {
             return@withLock RunSummary(message = "熄屏暂停中（亮屏解锁后自动继续）")
         }
 
-        if (bridge.state() != ShizukuState.READY && !bridge.bindWithRetry(1)) {
-            val msg = "Shizuku 未就绪（${bridge.state().name}）"
+        if (!ensureChannel()) {
+            val msg = "没有可用的搬图通道：Shizuku 没就绪，也没给「所有文件访问」权限"
             lastMessage = msg
-            if (s.notifyEnabled) notifier.event("Shizuku 未就绪", "请打开 Shizuku 并授权拾图，然后点此回到 App 自检")
+            if (s.notifyEnabled) {
+                notifier.event("还没有搬图通道", "连上 Shizuku，或在拾图「设置 → 存储访问」里打开「所有文件访问」。")
+            }
             return@withLock RunSummary(message = msg)
         }
 
@@ -231,7 +285,7 @@ class ShituApp : Application() {
         val s = currentSettings()
         if (!s.fastWhileActive) return@withLock RunSummary()
         if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary()
-        if (bridge.state() != ShizukuState.READY && !bridge.bindOnce()) return@withLock RunSummary()
+        if (!ensureChannel()) return@withLock RunSummary()
 
         val now = System.currentTimeMillis()
         val hintFresh = now - mediaHintAt < HINT_FRESH_MS
@@ -254,7 +308,7 @@ class ShituApp : Application() {
             val probe = probes.getOrPut(rule.id) { DirProbe() }
             val dueForRecheck = pendingRecheck[rule.id]?.let { now >= it } == true
             val hot = hintFresh || dueForRecheck || runCatching {
-                probe.changed(dirs) { p -> bridge.stat(p)?.mtimeMillis }.isNotEmpty()
+                probe.changed(dirs) { p -> fileBridge.stat(p)?.mtimeMillis }.isNotEmpty()
             }.getOrDefault(false)
             if (!hot) continue
 
@@ -266,7 +320,7 @@ class ShituApp : Application() {
             skipped += outcome.skipped
 
             // 搬完目录 mtime 又变了：对齐基线，避免下一拍又白跑一轮
-            runCatching { probe.sync(probeDirs(rule)) { p -> bridge.stat(p)?.mtimeMillis } }
+            runCatching { probe.sync(probeDirs(rule)) { p -> fileBridge.stat(p)?.mtimeMillis } }
 
             // 看到候选但一个都没搬（多半是文件还在写）→ 过一会儿再看一次
             if (outcome.moved == 0 && outcome.failed == 0 && outcome.scanned > 0) {
@@ -317,7 +371,7 @@ class ShituApp : Application() {
         val cfg = s ?: currentSettings()
         repo.setRuleState(rule.id, RuleState.RUNNING, null)
         val engine = RuleEngine(
-            bridge = bridge,
+            bridge = fileBridge,
             namePolicy = namePolicy,
             settings = cfg,
             sourceAppLabel = ::sourceAppLabel,
@@ -450,7 +504,7 @@ class ShituApp : Application() {
 
     /** 撤回一条规则最近成功搬走的文件（规格 §6.6）。 */
     suspend fun undoRule(ruleId: Long, limit: Int = 500): UndoSummary {
-        val undo = UndoService(bridge)
+        val undo = UndoService(fileBridge)
         var done = 0
         var skipped = 0
         val notes = ArrayList<String>()
@@ -478,7 +532,7 @@ class ShituApp : Application() {
         return UndoSummary(done, skipped, notes)
     }
 
-    /** 导出日志 CSV：先写 App 自己的外部目录，再用 shell 身份搬到 /sdcard/Download。 */
+    /** 导出日志 CSV：先写 App 自己的外部目录，再搬到 /sdcard/Download。 */
     suspend fun exportLogs(): String {
         val logs = repo.allLogs(50_000)
         val dir = getExternalFilesDir(null) ?: filesDir
@@ -487,8 +541,8 @@ class ShituApp : Application() {
 
         val target = "/sdcard/Download/${file.name}"
         val ok = runCatching {
-            bridge.mkdirs("/sdcard/Download")
-            bridge.move(file.absolutePath, target)
+            fileBridge.mkdirs("/sdcard/Download")
+            fileBridge.move(file.absolutePath, target)
         }.getOrDefault(false)
         return if (ok) target else file.absolutePath
     }

@@ -34,8 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.landslide.shitu.R
 import com.landslide.shitu.core.RuleConflictChecker
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
@@ -68,6 +70,18 @@ fun RuleEditScreen(
     var askTemplateName by remember { mutableStateOf(false) }
     var templateName by remember { mutableStateOf("") }
 
+    // 保存时缺什么就提示什么（新建的规则一开始三项都是空的）
+    var missing by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    val isNew = initial.id == 0L
+
+    // 下面几处要在 onClick 这类非 Composable 作用域里用，先在这里把资源文案取好
+    val defaultTemplateName = stringResource(R.string.edit_default_template)
+    val listSeparator = stringResource(R.string.edit_list_separator)
+    val fieldRuleName = stringResource(R.string.edit_label_name)
+    val fieldSrc = stringResource(R.string.edit_field_src)
+    val fieldDst = stringResource(R.string.edit_field_dst)
+
     LaunchedEffect(rule) {
         onDraftChange(rule)
         onDirtyChange(rule != initial)
@@ -92,7 +106,10 @@ fun RuleEditScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("编辑规则", style = MaterialTheme.typography.titleLarge)
+        Text(
+            if (isNew) stringResource(R.string.edit_title_new) else stringResource(R.string.edit_title_edit),
+            style = MaterialTheme.typography.titleLarge,
+        )
 
         // 配置提醒放到最上面：改的时候一眼能看到哪里有问题。
         // 一张卡装全部（以前一条提醒一张卡，两三条就把屏幕占掉一半）
@@ -100,17 +117,18 @@ fun RuleEditScreen(
             BannerCard(
                 tone = Tone.WARN,
                 icon = Icons.Filled.Warning,
-                title = "配置提醒",
+                title = stringResource(R.string.edit_conflicts_title),
                 body = conflicts.joinToString("\n\n"),
                 modifier = Modifier.padding(bottom = 6.dp),
             )
         }
 
-        SectionCard(title = "规则与源目录") {
+        SectionCard(title = stringResource(R.string.edit_section_rule_src)) {
             OutlinedTextField(
                 value = rule.name,
                 onValueChange = { rule = rule.copy(name = it) },
-                label = { Text("规则名称") },
+                label = { Text(stringResource(R.string.edit_label_name)) },
+                placeholder = { Text(stringResource(R.string.edit_placeholder_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -119,16 +137,18 @@ fun RuleEditScreen(
                 value = rule.srcPath,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("源目录（从这里把图片搬走）") },
-                trailingIcon = { TextButton(onClick = { picking = "src" }) { Text("选择") } },
+                label = { Text(stringResource(R.string.edit_label_src)) },
+                placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
+                trailingIcon = { TextButton(onClick = { picking = "src" }) { Text(stringResource(R.string.edit_pick)) } },
                 supportingText = {
                     Text(
                         when {
-                            srcIsRoot -> "这是整个存储根目录，会搬走手机里几乎所有图片"
+                            srcTrim.isBlank() ->
+                                stringResource(R.string.edit_src_empty_hint)
+                            srcIsRoot -> stringResource(R.string.edit_src_root_hint)
                             srcIsAllAppData ->
-                                "这是所有 App 的数据根目录，会搬走各个 App 里的图片；" +
-                                    "建议点「选择」往下选到具体那个 App"
-                            else -> "从 /sdcard 开始往下点，选到具体的图片文件夹最安全"
+                                stringResource(R.string.edit_src_all_app_data_hint)
+                            else -> stringResource(R.string.edit_src_hint)
                         },
                         color = if (srcIsRoot || srcIsAllAppData) {
                             MaterialTheme.colorScheme.error
@@ -145,14 +165,14 @@ fun RuleEditScreen(
                     checked = rule.includeSubdirs,
                     onCheckedChange = { rule = rule.copy(includeSubdirs = it) },
                 )
-                Text("包含子目录")
+                Text(stringResource(R.string.edit_include_subdirs))
             }
             Text(
                 if (rule.includeSubdirs) {
-                    "会把源目录下面所有层级的图片都搬走" +
-                        if (dstInsideSrc) "；注意目标目录就在源目录里面，会把刚搬进去的文件又当成源" else ""
+                    stringResource(R.string.edit_subdirs_on_hint) +
+                        if (dstInsideSrc) stringResource(R.string.edit_subdirs_dst_inside) else ""
                 } else {
-                    "只搬源目录这一层里的图片，子文件夹不看（目标目录在源目录里时更安全）"
+                    stringResource(R.string.edit_subdirs_off_hint)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = if (rule.includeSubdirs && dstInsideSrc) {
@@ -168,21 +188,22 @@ fun RuleEditScreen(
                     val digits = t.filter { it.isDigit() }.take(2)
                     rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
                 },
-                label = { Text("最大深度（留空 = 不限）") },
+                label = { Text(stringResource(R.string.edit_label_max_depth)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
 
-        SectionCard(title = "目标与模式") {
+        SectionCard(title = stringResource(R.string.edit_section_dst_mode)) {
             OutlinedTextField(
                 value = rule.dstPath,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("目标目录（搬到这里）") },
-                trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text("选择") } },
-                supportingText = { Text("建议放在 DCIM 或 Pictures 下，相册才能立刻看到") },
+                label = { Text(stringResource(R.string.edit_label_dst)) },
+                placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
+                trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text(stringResource(R.string.edit_pick)) } },
+                supportingText = { Text(stringResource(R.string.edit_dst_hint)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -193,20 +214,20 @@ fun RuleEditScreen(
                         selected = rule.mode == m,
                         onClick = { rule = rule.copy(mode = m) },
                         shape = SegmentedButtonDefaults.itemShape(i, Mode.entries.size),
-                    ) { Text(if (m == Mode.MOVE) "移动" else "复制") }
+                    ) { Text(if (m == Mode.MOVE) stringResource(R.string.edit_mode_move) else stringResource(R.string.edit_mode_copy)) }
                 }
             }
             Text(
-                if (rule.mode == Mode.MOVE) "移动：源文件会被搬到目标目录（推荐）"
-                else "复制：源文件保留，只复制一份到目标目录（第一天建议用它）",
+                if (rule.mode == Mode.MOVE) stringResource(R.string.edit_mode_move_hint)
+                else stringResource(R.string.edit_mode_copy_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
 
-        SectionCard(title = "频率与文件名") {
-            Text("轮询间隔：${rule.intervalMinutes} 分钟", style = MaterialTheme.typography.bodyLarge)
+        SectionCard(title = stringResource(R.string.edit_section_freq_name)) {
+            Text(stringResource(R.string.edit_interval, rule.intervalMinutes), style = MaterialTheme.typography.bodyLarge)
             Slider(
                 value = rule.intervalMinutes.toFloat(),
                 onValueChange = { rule = rule.copy(intervalMinutes = it.toInt().coerceIn(1, 30)) },
@@ -217,7 +238,7 @@ fun RuleEditScreen(
             OutlinedTextField(
                 value = rule.extensions,
                 onValueChange = { rule = rule.copy(extensions = it) },
-                label = { Text("扩展名白名单（逗号分隔）") },
+                label = { Text(stringResource(R.string.edit_label_extensions)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -225,15 +246,12 @@ fun RuleEditScreen(
             OutlinedTextField(
                 value = rule.suffix,
                 onValueChange = { rule = rule.copy(suffix = it) },
-                label = { Text("文件名后缀") },
+                label = { Text(stringResource(R.string.edit_label_suffix)) },
                 singleLine = true,
                 supportingText = {
-                    Text(
-                        "填 {app} = 自动用来源 App 名（封面_{app}.png → 封面_起点读书.png）；" +
-                            "填自己的文字 = 固定后缀（如 _拾图）；留空 = 不改文件名",
-                    )
+                    Text(stringResource(R.string.edit_suffix_hint))
                 },
-                placeholder = { Text("{app}") },
+                placeholder = { Text(stringResource(R.string.edit_suffix_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -248,15 +266,16 @@ fun RuleEditScreen(
                     checked = rule.contentRename,
                     onCheckedChange = { rule = rule.copy(contentRename = it) },
                 )
-                Text("改成按内容生成的文件名（15 位字母数字）")
+                Text(stringResource(R.string.edit_content_rename))
             }
             Text(
                 if (rule.contentRename) {
-                    "同一个文件永远得到同一个名字，重复的图不会再多存一份。\n例：K7pQ2mVx9Rb4TzW" +
-                        (if (rule.suffix.isBlank()) "" else "_起点读书") +
-                        ".jpg（后面的后缀照上面填的来）"
+                    stringResource(
+                        R.string.edit_content_rename_on_hint,
+                        if (rule.suffix.isBlank()) "" else stringResource(R.string.edit_content_rename_suffix_example),
+                    )
                 } else {
-                    "关着：目标文件名沿用原来的名字，只在后面加你填的后缀"
+                    stringResource(R.string.edit_content_rename_off_hint)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -266,39 +285,59 @@ fun RuleEditScreen(
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
             TextButton(
                 onClick = {
-                    templateName = rule.name.ifBlank { "我的模板" }
+                    templateName = rule.name.ifBlank { defaultTemplateName }
                     askTemplateName = true
                 },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-            ) { Text("存为模板") }
-            TextButton(onClick = onCancel) { Text("取消") }
+            ) { Text(stringResource(R.string.edit_save_as_template)) }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.edit_cancel)) }
             Button(
                 onClick = {
-                    val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
+                    // 名称/源目录/目标目录三样必须齐；缺了就弹提示，不偷偷替用户填「新规则」
+                    val gaps = buildList {
+                        if (rule.name.isBlank()) add(fieldRuleName)
+                        if (rule.srcPath.isBlank()) add(fieldSrc)
+                        if (rule.dstPath.isBlank()) add(fieldDst)
+                    }
                     when {
+                        gaps.isNotEmpty() -> missing = gaps
                         srcIsRoot -> confirmRoot = true
                         // 只有"勾了包含子目录 + 目标在源里面"才需要确认：
                         // 不勾子目录时，子文件夹（含目标目录）根本不会被扫描，是安全的
                         dstInsideSrc && rule.includeSubdirs -> confirmNested = true
-                        else -> onSave(fixed)
+                        else -> onSave(rule)
                     }
                 },
-                enabled = rule.srcPath.isNotBlank() && rule.dstPath.isNotBlank(),
-            ) { Text("保存并开始搬运") }
+            ) { Text(stringResource(R.string.edit_save_and_start)) }
         }
+    }
+
+    if (missing.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { missing = emptyList() },
+            title = { Text(stringResource(R.string.edit_missing_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.edit_missing_body, missing.joinToString(listSeparator)),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { missing = emptyList() }) { Text(stringResource(R.string.edit_got_it)) }
+            },
+        )
     }
 
     if (askTemplateName) {
         AlertDialog(
             onDismissRequest = { askTemplateName = false },
-            title = { Text("存为模板") },
+            title = { Text(stringResource(R.string.edit_save_as_template)) },
             text = {
                 Column {
-                    Text("把这份设置存下来，以后新建规则时可以一键套用（存模板不会保存这条规则）。")
+                    Text(stringResource(R.string.edit_template_dialog_body))
                     OutlinedTextField(
                         value = templateName,
                         onValueChange = { templateName = it },
-                        label = { Text("模板名字") },
+                        label = { Text(stringResource(R.string.edit_template_name_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
@@ -307,18 +346,20 @@ fun RuleEditScreen(
             confirmButton = {
                 TextButton(onClick = {
                     askTemplateName = false
-                    val fixed = if (rule.name.isBlank()) rule.copy(name = "新规则") else rule
-                    onSaveAsTemplate(fixed, templateName.trim().ifBlank { rule.name.ifBlank { "我的模板" } })
-                }) { Text("存下来") }
+                    onSaveAsTemplate(rule, templateName.trim().ifBlank { rule.name.ifBlank { defaultTemplateName } })
+                }) { Text(stringResource(R.string.edit_template_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { askTemplateName = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { askTemplateName = false }) { Text(stringResource(R.string.edit_cancel)) } },
         )
     }
 
     picking?.let { which ->
         DirPickerDialog(
             bridge = bridge,
-            startPath = if (which == "src") RuleEntity.PICKER_ROOT else "/sdcard/DCIM",
+            // 新建时这里是空的 → 从 /sdcard 开始；编辑已有规则则从当前目录开始，少点几层
+            startPath = (if (which == "src") rule.srcPath else rule.dstPath)
+                .trim()
+                .ifBlank { RuleEntity.PICKER_ROOT },
             onDismiss = { picking = null },
             onPick = { p ->
                 rule = if (which == "src") rule.copy(srcPath = p) else rule.copy(dstPath = p)
@@ -330,23 +371,20 @@ fun RuleEditScreen(
     if (confirmNested) {
         AlertDialog(
             onDismissRequest = { confirmNested = false },
-            title = { Text("目标目录在源目录里面") },
+            title = { Text(stringResource(R.string.edit_nested_title)) },
             text = {
                 Text(
-                    "你选的源目录是 ${rule.srcPath}，目标目录 ${rule.dstPath} 在它里面。" +
-                        "这种配法虽然不会再搬已搬好的文件（App 会自动跳过目标目录），" +
-                        "但建议把目标放到源目录外面，规则更清楚、也更好撤回。" +
-                        "确定要这样保存吗？",
+                    stringResource(R.string.edit_nested_body, rule.srcPath, rule.dstPath),
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirmNested = false
-                    onSave(rule.copy(name = if (rule.name.isBlank()) "新规则" else rule.name))
-                }) { Text("就这样保存") }
+                    onSave(rule)
+                }) { Text(stringResource(R.string.edit_nested_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmNested = false }) { Text("回去改") }
+                TextButton(onClick = { confirmNested = false }) { Text(stringResource(R.string.edit_nested_dismiss)) }
             },
         )
     }
@@ -354,22 +392,18 @@ fun RuleEditScreen(
     if (confirmRoot) {
         AlertDialog(
             onDismissRequest = { confirmRoot = false },
-            title = { Text("确定要搬整个存储？") },
+            title = { Text(stringResource(R.string.edit_root_title)) },
             text = {
-                Text(
-                    "你把源目录选成了 /sdcard（整个手机存储）。保存后，手机里几乎所有图片都会按这条规则被搬走" +
-                        "（移动模式下原图会离开原位）。如果只是想清理某个 App 的图片，" +
-                        "请回去点进 Android/data/<包名>/… 再选一层。",
-                )
+                Text(stringResource(R.string.edit_root_body))
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirmRoot = false
-                    onSave(rule.copy(name = if (rule.name.isBlank()) "新规则" else rule.name))
-                }) { Text("我知道，就这么办") }
+                    onSave(rule)
+                }) { Text(stringResource(R.string.edit_root_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmRoot = false }) { Text("回去重选") }
+                TextButton(onClick = { confirmRoot = false }) { Text(stringResource(R.string.edit_root_dismiss)) }
             },
         )
     }

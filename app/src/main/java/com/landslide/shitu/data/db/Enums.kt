@@ -1,5 +1,8 @@
 package com.landslide.shitu.data.db
 
+import android.content.Context
+import com.landslide.shitu.R
+
 enum class Mode { MOVE, COPY }
 
 enum class RuleState { IDLE, RUNNING, PAUSED_MANUAL, PAUSED_ERROR, PAUSED_LOOP }
@@ -8,32 +11,40 @@ enum class ItemStatus { PENDING, MOVED, COPIED, FAILED, SKIPPED }
 
 enum class LogResult { MOVED, COPIED, SKIPPED, FAILED, UNDONE, INFO }
 
-/** 供界面显示的中文标签。 */
+/** 供界面显示的本地化标签。 */
 object Labels {
-    fun mode(m: Mode) = if (m == Mode.MOVE) "移动" else "复制"
+    fun mode(context: Context, m: Mode): String = context.getString(
+        if (m == Mode.MOVE) R.string.rules_mode_move else R.string.rules_mode_copy,
+    )
 
-    fun state(s: RuleState) = when (s) {
-        RuleState.IDLE -> "待命"
-        RuleState.RUNNING -> "运行中"
-        RuleState.PAUSED_MANUAL -> "已暂停（手动）"
-        RuleState.PAUSED_ERROR -> "已暂停（连续失败）"
-        RuleState.PAUSED_LOOP -> "已暂停（疑似循环）"
-    }
+    fun state(context: Context, s: RuleState): String = context.getString(
+        when (s) {
+            RuleState.IDLE -> R.string.rules_state_idle
+            RuleState.RUNNING -> R.string.rules_state_running
+            RuleState.PAUSED_MANUAL -> R.string.rules_state_paused_manual
+            RuleState.PAUSED_ERROR -> R.string.rules_state_paused_error
+            RuleState.PAUSED_LOOP -> R.string.rules_state_paused_loop
+        },
+    )
 
-    fun result(r: LogResult) = when (r) {
-        LogResult.MOVED -> "已移动"
-        LogResult.COPIED -> "已复制"
-        LogResult.SKIPPED -> "已跳过"
-        LogResult.FAILED -> "失败"
-        LogResult.UNDONE -> "已撤回"
-        LogResult.INFO -> "信息"
-    }
+    fun result(context: Context, r: LogResult): String = context.getString(
+        when (r) {
+            LogResult.MOVED -> R.string.rules_result_moved
+            LogResult.COPIED -> R.string.rules_result_copied
+            LogResult.SKIPPED -> R.string.rules_result_skipped
+            LogResult.FAILED -> R.string.rules_result_failed
+            LogResult.UNDONE -> R.string.rules_result_undone
+            LogResult.INFO -> R.string.rules_result_info
+        },
+    )
 
-    fun itemStatus(s: ItemStatus) = when (s) {
-        ItemStatus.PENDING -> "待处理"
-        ItemStatus.MOVED -> "已移动"
-        ItemStatus.COPIED -> "已复制"
-        ItemStatus.FAILED -> "失败"
-        ItemStatus.SKIPPED -> "已跳过"
-    }
+    fun itemStatus(context: Context, s: ItemStatus): String = context.getString(
+        when (s) {
+            ItemStatus.PENDING -> R.string.rules_item_pending
+            ItemStatus.MOVED -> R.string.rules_item_moved
+            ItemStatus.COPIED -> R.string.rules_item_copied
+            ItemStatus.FAILED -> R.string.rules_item_failed
+            ItemStatus.SKIPPED -> R.string.rules_item_skipped
+        },
+    )
 }
