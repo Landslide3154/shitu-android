@@ -101,7 +101,7 @@ private fun HelpSectionCard(
 
 /** 窄输入框的标签行：短标签 + 右侧帮助点，三个框共用，保证行高一致。 */
 @Composable
-private fun FilterLabel(label: String, help: String) {
+private fun FilterLabel(label: String, help: String? = null) {
     Row(
         Modifier.fillMaxWidth().padding(bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -113,7 +113,7 @@ private fun FilterLabel(label: String, help: String) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        HelpDot(help)
+        if (help != null) HelpDot(help)
     }
 }
 
@@ -320,10 +320,7 @@ fun RuleEditScreen(
             // 标签放框外、统一 labelSmall + maxLines = 1，不会再被第三个框的字撑大。
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
-                    FilterLabel(
-                        stringResource(R.string.edit_label_max_depth),
-                        stringResource(R.string.edit_help_max_depth),
-                    )
+                    FilterLabel(stringResource(R.string.edit_label_max_depth))
                     OutlinedTextField(
                         value = rule.maxDepth?.toString() ?: "",
                         onValueChange = { t ->
@@ -337,10 +334,7 @@ fun RuleEditScreen(
                     )
                 }
                 Column(Modifier.weight(1f)) {
-                    FilterLabel(
-                        stringResource(R.string.edit_label_days),
-                        stringResource(R.string.edit_help_days),
-                    )
+                    FilterLabel(stringResource(R.string.edit_label_days))
                     OutlinedTextField(
                         value = if (rule.minAgeDays > 0) rule.minAgeDays.toString() else "",
                         onValueChange = { t ->
@@ -354,10 +348,7 @@ fun RuleEditScreen(
                     )
                 }
                 Column(Modifier.weight(1f)) {
-                    FilterLabel(
-                        stringResource(R.string.edit_label_size_kb),
-                        stringResource(R.string.edit_help_min_size),
-                    )
+                    FilterLabel(stringResource(R.string.edit_label_size_kb))
                     OutlinedTextField(
                         value = if (rule.minSizeKb > 0) rule.minSizeKb.toString() else "",
                         onValueChange = { t ->

@@ -87,7 +87,8 @@
     <string name="app_dir_current">当前：%1$s</string>
     <string name="app_dir_read_failed">读取失败</string>
     <string name="app_dir_read_failed_detail">读取失败：%1$s</string>
-    <string name="app_dir_up">⬆ 上一级</string>
+    <string name="app_dir_up">上一级</string>
     <string name="app_dir_pick">选择此目录</string>
+    <string name="app_dir_empty">这个文件夹里没有子文件夹</string>
     <string name="app_cancel">取消</string>
 </resources>

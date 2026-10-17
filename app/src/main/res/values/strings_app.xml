@@ -87,7 +87,8 @@
     <string name="app_dir_current">Current: %1$s</string>
     <string name="app_dir_read_failed">Couldn\'t read this folder</string>
     <string name="app_dir_read_failed_detail">Couldn\'t read this folder: %1$s</string>
-    <string name="app_dir_up">⬆ Up one level</string>
+    <string name="app_dir_up">Up one level</string>
     <string name="app_dir_pick">Use this folder</string>
+    <string name="app_dir_empty">No subfolders here</string>
     <string name="app_cancel">Cancel</string>
 </resources>
