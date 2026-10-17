@@ -31,5 +31,12 @@ class RoomContentLedger(db: AppDatabase) : ContentLedger {
 
     override suspend fun count(): Int = dao.total()
 
+    /** 复制记录列表（设置页多选清除、看缩略图用）。 */
+    suspend fun recent(limit: Int = 500): List<CopiedEntity> = dao.recent(limit)
+
+    /** 只清掉选中的几条；返回实际删除条数。 */
+    suspend fun deleteSelected(fingerprints: Collection<String>): Int =
+        if (fingerprints.isEmpty()) 0 else dao.deleteSelected(fingerprints.toList())
+
     override suspend fun clear(): Int = dao.clearAll()
 }

@@ -2,41 +2,40 @@
 <resources>
     <!-- 设置页（默认英文资源；中文见 values-zh/strings_settings.xml） -->
 
-    <!-- 1. 语言 -->
-    <string name="set_section_language">Language</string>
-    <string name="set_language_system">Follow system</string>
-    <string name="set_language_chinese">中文</string>
-    <string name="set_language_english">English</string>
-
-    <!-- 2. 存储访问 -->
+    <!-- 1. 存储访问 -->
     <string name="set_section_storage_access">Storage access</string>
-    <string name="set_storage_granted_desc">All files access is on: ordinary folders work without Shizuku; Android/data still needs Shizuku.</string>
-    <string name="set_storage_not_granted_desc">Not on: enable it to move between ordinary folders without Shizuku; Android/data still needs Shizuku.</string>
+    <string name="set_storage_granted_desc">On: ordinary folders work without Shizuku; Android/data still needs Shizuku.</string>
+    <string name="set_storage_not_granted_desc">Off: turn it on to move between ordinary folders without Shizuku; Android/data still needs Shizuku.</string>
     <string name="set_storage_granted">Granted</string>
     <string name="set_storage_open">Open “All files access”</string>
+    <string name="set_help_storage_access">Lets Shitu move photos between ordinary folders. With all-files access on, Shizuku isn’t needed for those; Android/data still needs Shizuku.</string>
 
-    <!-- 3. 运行条件 -->
+    <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">Run conditions</string>
-    <string name="set_run_conditions_desc">All off = move any time.</string>
-    <string name="set_run_only_charging">Only while charging</string>
-    <string name="set_run_only_screen_off">Only while the screen is off</string>
-    <string name="set_run_only_night">Only at night</string>
-    <string name="set_night_start_hour">Start</string>
-    <string name="set_night_end_hour">End</string>
-    <string name="set_run_min_battery">Only above %1$d%% battery (0 = ignore)</string>
+    <string name="set_run_conditions_desc">Pick any combination. While charging, the battery limit is ignored. All off = move any time.</string>
+    <string name="set_run_only_charging">While charging</string>
+    <string name="set_run_only_screen_on">While the screen is on</string>
+    <string name="set_run_only_screen_off">While the screen is off</string>
+    <string name="set_run_min_battery">Don’t move below %1$d%% battery</string>
+    <string name="set_run_min_battery_off">Don’t move below __% battery</string>
     <string name="set_run_min_battery_pct">Battery threshold</string>
+    <string name="set_help_run_conditions">You can turn on several conditions at once. All off = move any time. The battery limit does not apply while charging.</string>
+    <string name="set_help_run_charging">Move only while charging. The battery limit is also ignored while charging.</string>
+    <string name="set_help_run_screen_on">Move only while the screen is on and unlocked. Combined with “screen off”, it means any time.</string>
+    <string name="set_help_run_screen_off">Move only while the screen is off — handy when charging overnight.</string>
+    <string name="set_help_run_battery">Pause below the set battery level. Charging ignores this limit. Range 1–100.</string>
 
-    <!-- 4. 检测速度 -->
-    <string name="set_section_detection_speed">Detection speed</string>
-    <string name="set_fast_while_active">Speed up detection while the phone is in use</string>
+    <!-- 3. 检测时机 -->
+    <string name="set_section_detection_timing">Detection timing</string>
+    <string name="set_fast_while_active">Speed up while the screen is on</string>
     <string name="set_fast_interval_sec">Check interval (sec)</string>
-    <string name="set_fast_while_active_desc">Peek at the folder every few seconds while the screen is on.</string>
-    <string name="set_screen_off_pause">Pause scanning while the screen is off</string>
-    <string name="set_screen_off_pause_on_desc">Stops on screen off; resumes after unlock.</string>
-    <string name="set_screen_off_pause_off_desc">Keeps going at each rule interval after screen off.</string>
+    <string name="set_fast_while_active_desc">Peeks at source folders every few seconds while the screen is on.</string>
     <string name="set_settle_detect">Move as soon as writing finishes</string>
     <string name="set_settle_gap_sec">Write-finished window (sec)</string>
-    <string name="set_settle_detect_desc">If size and modified time stay the same, move it right away.</string>
+    <string name="set_settle_detect_desc">Moves it as soon as size and modified time stop changing.</string>
+    <string name="set_help_detection">How often source folders are checked, and how soon a finished file is moved.</string>
+    <string name="set_help_fast_while_active">While the screen is on, peeks at folders every few seconds; a full scan runs only when something changed.</string>
+    <string name="set_help_settle_detect">Moves a file as soon as its size and modified time stop changing, without waiting out the settle time.</string>
 
     <!-- 运行参数（默认收起） -->
     <string name="set_section_run_params">Run parameters</string>
@@ -53,47 +52,59 @@
     <string name="set_log_keep_days">Log retention (days)</string>
     <string name="set_log_keep_count">Log retention (entries)</string>
     <string name="set_field_range">%1$s (%2$d–%3$d)</string>
+    <string name="set_help_run_params">Advanced limits: scan budget, per-run/minute caps, log retention and more. Defaults suit most phones.</string>
 
-    <!-- 5. 开关 -->
-    <string name="set_section_switches">Switches</string>
-    <string name="set_low_battery_pause">Pause on low battery / power saving</string>
-    <string name="set_fast_drain">Back-to-back runs</string>
-    <string name="set_notify_enabled">Event notifications</string>
+    <!-- 4. 复制记录 -->
+    <string name="set_section_copy_history">Copy records</string>
+    <string name="set_copy_history_count">%1$d records</string>
+    <string name="set_copy_history_view">View / clear selected</string>
+    <string name="set_copy_sheet_hint">Tick the ones to clear. Cleared photos count as new and may be copied again.</string>
+    <string name="set_copy_history_empty">No copy records yet</string>
+    <string name="set_copy_unknown_path">(location unknown)</string>
+    <string name="set_clear_selected_count">Clear selected (%1$d)</string>
+    <string name="set_clear_all">Clear all</string>
+    <string name="set_clear_copy_history_title">Clear all copy records?</string>
+    <string name="set_clear_copy_history_body">Cleared photos will be treated as new and may be copied again. Rules and files already moved are not affected.</string>
+    <string name="set_clear_confirm">Clear</string>
+    <string name="set_cancel">Cancel</string>
+    <string name="set_help_copy_history">Copy-mode rules use this to know what was copied. Cleared photos count as new and may be copied again.</string>
 
-    <!-- 6. 外观 -->
-    <string name="set_section_appearance">Appearance</string>
+    <!-- 5. 设置管理 -->
+    <string name="set_section_backup">Settings &amp; backup</string>
+    <string name="set_rules_count">%1$d rules</string>
+    <string name="set_backup_desc">Rules and settings are exported together; import the file on a new phone.</string>
+    <string name="set_export_backup">Export backup</string>
+    <string name="set_import_backup">Import backup</string>
+    <string name="set_rules_import_paused_hint">Imported rules start paused.</string>
+    <string name="set_rules_import_failed">Could not read that file. Try another one.</string>
+    <string name="set_help_backup">Rules and settings go into one text file; import it after switching phones or reinstalling. Imported rules start paused.</string>
+
+    <!-- 6. 外观与语言 -->
+    <string name="set_section_appearance_language">Appearance &amp; language</string>
+    <string name="set_language">Language</string>
+    <string name="set_language_system">Follow system</string>
+    <string name="set_language_chinese">中文</string>
+    <string name="set_language_english">English</string>
     <string name="set_theme">Theme</string>
     <string name="set_theme_system">Follow system</string>
     <string name="set_theme_light">Light</string>
     <string name="set_theme_dark">Dark</string>
     <string name="set_dynamic_color">Dynamic color (Material You)</string>
     <string name="set_dynamic_color_desc">Android 12+: colors follow the wallpaper.</string>
+    <string name="set_help_appearance">Theme, dynamic color and interface language. Changes apply immediately.</string>
+    <string name="set_help_language">Follow system uses the phone language; switching rebuilds the interface right away.</string>
+    <string name="set_help_theme">Follow system, light or dark. Follow system tracks the phone’s dark mode.</string>
+    <string name="set_help_dynamic_color">Android 12+ takes colors from the wallpaper. Turn it off to use the default palette.</string>
 
-    <!-- 7. 复制记录 -->
-    <string name="set_section_copy_history">Copy records</string>
-    <string name="set_copy_history_desc">Copy-mode rules use this to know what was copied: %1$d entries now.</string>
-    <string name="set_clear_copy_history_button">Clear copy records (%1$d)</string>
-    <string name="set_clear_copy_history_title">Clear copy records?</string>
-    <string name="set_clear_copy_history_body">Copied photos will be treated as new and copied again. Rules and files already moved are not affected.</string>
-    <string name="set_clear_confirm">Clear</string>
-    <string name="set_cancel">Cancel</string>
-
-    <!-- 8. 规则管理 -->
-    <string name="set_section_rules">Rule management</string>
-    <string name="set_rules_count">%1$d rules</string>
-    <string name="set_export_rules">Export rules</string>
-    <string name="set_import_rules">Import rules</string>
-    <string name="set_rules_import_paused_hint">Imported rules start paused.</string>
-    <string name="set_rules_import_failed">Could not read that file. Try another one.</string>
-
-    <!-- 9. 自检 -->
+    <!-- 7. 自检 -->
     <string name="set_section_self_check">Self-check</string>
     <string name="set_last_self_check">Last self-check: %1$s</string>
     <string name="set_self_check_earlier">Last self-check: earlier</string>
     <string name="set_no_self_check">Not checked yet</string>
     <string name="set_run_self_check">Run self-check</string>
+    <string name="set_help_self_check">Checks the storage permission, Shizuku connection and database, then shows the result.</string>
 
-    <!-- 10. 关于 -->
+    <!-- 8. 关于 -->
     <string name="set_section_about">About</string>
     <string name="set_about_version">Shitu %1$s · GPL-3.0</string>
     <string name="set_check_update">Check for updates</string>
@@ -115,4 +126,6 @@
     <string name="set_got_it">Got it</string>
     <string name="set_later">Later</string>
     <string name="set_privacy_note">Only update checks use the network.</string>
+    <string name="set_help_about">Version, project page and update check. Only update checks use the network.</string>
+    <string name="set_help_check_update">Checks GitHub for the latest version and can download it. This is the only network feature.</string>
 </resources>

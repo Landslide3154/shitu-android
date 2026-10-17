@@ -26,8 +26,8 @@
     <string name="edit_subdirs_dst_inside">; note the target folder is inside the source, so files just moved there will be picked up as source again</string>
     <string name="edit_subdirs_off_hint">Only moves images directly in the source folder, subfolders are ignored (safer when the target is inside the source)</string>
     <string name="edit_label_max_depth">Max depth</string>
-    <string name="edit_label_days">Last days</string>
-    <string name="edit_label_size_kb">Min KB</string>
+    <string name="edit_label_days">Last N days</string>
+    <string name="edit_label_size_kb">At least KB</string>
     <string name="edit_unlimited">No limit</string>
     <string name="edit_filter_hint">Blank = no limit; skips old photos and thumbnails</string>
 
@@ -56,10 +56,26 @@
     <string name="edit_label_suffix">Name suffix</string>
     <string name="edit_suffix_hint">{app} = source app name; blank = keep original</string>
     <string name="edit_suffix_placeholder">{app}</string>
-    <string name="edit_content_rename">Name by content</string>
-    <string name="edit_content_rename_on_hint">The same photo always gets the same name, so nothing is stored twice</string>
+    <string name="edit_content_rename">Name by content (15-char code)</string>
+    <string name="edit_content_rename_on_hint">The new name is a 15-character code; the same photo always gets the same name, so nothing is stored twice</string>
     <string name="edit_content_rename_suffix_example">_Qidian</string>
     <string name="edit_content_rename_off_hint">Off: the target keeps the original name and only gets the suffix you set</string>
+
+    <!-- 帮助点（HelpDot）文案：每项 1～2 句 -->
+    <string name="edit_help_name">Just a name so you can tell your rules apart.</string>
+    <string name="edit_help_src">Where the images to move are. The exact image folder is safest; picking the whole storage moves almost every photo.</string>
+    <string name="edit_help_subdirs">When on, images in every subfolder below the source are moved too; off means only the top folder.</string>
+    <string name="edit_help_max_depth">Only used with subfolders on: how many levels below the source to scan, 1 = the source folder only. Blank = all levels.</string>
+    <string name="edit_help_days">Only images changed in the last N days are moved; older ones stay. Blank = no limit.</string>
+    <string name="edit_help_min_size">Images smaller than N KB are skipped — handy for thumbnails and stickers. Exactly N KB is moved.</string>
+    <string name="edit_help_dst">Where the images go. Keep it under DCIM or Pictures so the gallery can see them.</string>
+    <string name="edit_help_dst_subdir">When on, each app\'s images go into a subfolder named after the app, e.g. DCIM/Qidian/…, so they do not mix.</string>
+    <string name="edit_help_mode">Move: the original leaves its place. Copy: the original stays and the target gets a copy.</string>
+    <string name="edit_help_freq">This is only a fallback: a change is usually moved within about 15 seconds. It sets the longest wait before a forced scan, not how often the folder is checked.</string>
+    <string name="edit_help_suffix">Added to the file name in the target. {app} becomes the source app name; blank keeps the original.</string>
+    <string name="edit_help_content_rename">The new name is a 15-character code made from the content, so the same photo always gets the same name and is never stored twice.</string>
+    <string name="edit_help_extensions">Only files with these extensions are moved, separated by commas, e.g. jpg,png. Keep at least one, or nothing moves.</string>
+    <string name="edit_help_preview">Counts how many images would move and roughly how much space they take. No file is touched.</string>
 
     <!-- 按钮与保存校验 -->
     <string name="edit_save_as_template">Save as template</string>

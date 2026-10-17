@@ -64,10 +64,11 @@
     <string name="app_close">关闭</string>
 
     <!-- 规则导入导出 -->
-    <string name="app_rules_exported">规则已导出到 %1$s</string>
+    <string name="app_rules_exported">备份已导出到 %1$s</string>
     <string name="app_rules_export_failed">导出失败：%1$s</string>
-    <string name="app_rules_imported">已导入 %1$d 条规则（暂停状态，确认后再开）</string>
+    <string name="app_rules_imported">已导入 %1$d 条规则（设置也一并恢复；规则是暂停状态）</string>
     <string name="app_rules_import_empty">那个文件里没有找到规则</string>
+    <string name="app_copied_removed">已清除 %1$d 条复制记录</string>
 
     <!-- 电池优化 -->
     <string name="app_battery_title">让它一直在后台搬</string>

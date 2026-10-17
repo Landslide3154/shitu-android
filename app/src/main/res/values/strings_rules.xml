@@ -79,6 +79,7 @@
     <string name="rules_local_mode_body">Photos in regular folders such as Gallery, Downloads and Pictures work as usual. Images in app-private Android/data folders still need Shizuku. Tap the card to run a self-check.</string>
     <string name="rules_total_moved_label">Moved so far</string>
     <string name="rules_total_moved_unit">photos</string>
+    <string name="rules_help_stats">“Moved so far” is the total across all rules. The weekly line below also shows failures; tap it to see the top source apps.</string>
     <string name="rules_week_moved">This week +%1$d</string>
     <string name="rules_week_failed">%1$d failed</string>
     <string name="rules_week_dialog_title">This week</string>
@@ -89,6 +90,7 @@
     <string name="rules_week_close">Close</string>
     <string name="rules_compact">Compact</string>
     <string name="rules_detailed">Detailed</string>
+    <string name="rules_help_view">Compact shows only the name and switch, so more rules fit on screen. Detailed also shows paths, interval and history. In either mode, tapping a card opens its editor.</string>
     <string name="rules_empty_title">No rules yet</string>
     <string name="rules_empty_body">Browse from /sdcard and pick the image folder you want to clear out (for example Android/data/com.qidian.QDReader/files). The destination defaults to /sdcard/DCIM. For your first try, use Copy mode for a day.</string>
     <string name="rules_empty_cta">Create your first rule</string>

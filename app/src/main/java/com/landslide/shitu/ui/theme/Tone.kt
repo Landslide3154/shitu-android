@@ -17,7 +17,7 @@ enum class Tone { OK, BUSY, WARN, ERROR, IDLE, COPY }
 private val OkLight = Color(0xFF1B7F4B)
 private val OkDark = Color(0xFF6FD79B)
 
-// 「复制」用一个偏蓝的固定色，和「移动」的绿一眼区分（不受动态取色影响）。
+// 「复制」用固定的深蓝（用户指定：要蓝，不要偏紫）：和移动绿（OK）一眼区分，也不受动态取色影响。
 private val CopyLight = Color(0xFF1F5FBF)
 private val CopyDark = Color(0xFF9DC0FF)
 

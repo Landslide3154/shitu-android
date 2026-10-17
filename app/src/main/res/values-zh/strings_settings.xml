@@ -2,41 +2,40 @@
 <resources>
     <!-- 设置页中文资源；英文见 values/strings_settings.xml -->
 
-    <!-- 1. 语言 -->
-    <string name="set_section_language">语言</string>
-    <string name="set_language_system">跟随系统</string>
-    <string name="set_language_chinese">中文</string>
-    <string name="set_language_english">English</string>
-
-    <!-- 2. 存储访问 -->
+    <!-- 1. 存储访问 -->
     <string name="set_section_storage_access">存储访问</string>
-    <string name="set_storage_granted_desc">已开：普通目录不用 Shizuku；Android/data 仍要 Shizuku。</string>
-    <string name="set_storage_not_granted_desc">没开：打开后普通目录之间不用 Shizuku 也能搬；Android/data 仍要 Shizuku。</string>
+    <string name="set_storage_granted_desc">已授权：普通目录不用 Shizuku；Android/data 仍需 Shizuku。</string>
+    <string name="set_storage_not_granted_desc">未授权：打开后普通目录之间不用 Shizuku 也能搬；Android/data 仍需 Shizuku。</string>
     <string name="set_storage_granted">已授权</string>
     <string name="set_storage_open">去打开「所有文件访问」</string>
+    <string name="set_help_storage_access">普通目录之间搬图靠它。打开「所有文件访问」后，不装 Shizuku 也能搬；Android/data 仍需要 Shizuku。</string>
 
-    <!-- 3. 运行条件 -->
+    <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">运行条件</string>
-    <string name="set_run_conditions_desc">全关 = 任何时候都能搬。</string>
-    <string name="set_run_only_charging">只在充电时搬</string>
-    <string name="set_run_only_screen_off">只在熄屏时搬</string>
-    <string name="set_run_only_night">只在夜间搬</string>
-    <string name="set_night_start_hour">开始</string>
-    <string name="set_night_end_hour">结束</string>
-    <string name="set_run_min_battery">电量高于 %1$d%% 才搬（0 = 不看电量）</string>
+    <string name="set_run_conditions_desc">可以同时开多个。插着充电器时不受电量条件限制（充电优先）；全关 = 任何时候都搬。</string>
+    <string name="set_run_only_charging">充电时搬</string>
+    <string name="set_run_only_screen_on">亮屏时搬</string>
+    <string name="set_run_only_screen_off">熄屏时搬</string>
+    <string name="set_run_min_battery">电量低于 %1$d%% 时不搬</string>
+    <string name="set_run_min_battery_off">电量低于 __% 时不搬</string>
     <string name="set_run_min_battery_pct">电量阈值</string>
+    <string name="set_help_run_conditions">可以同时开多个条件；全关 = 任何时候都搬。插着充电器时电量条件不生效。</string>
+    <string name="set_help_run_charging">只有插着充电器时才搬；这时也不受电量条件限制。</string>
+    <string name="set_help_run_screen_on">只有亮屏（且解锁）时才搬。和「熄屏时搬」同时开 = 任何时候都搬。</string>
+    <string name="set_help_run_screen_off">只有熄屏时才搬，适合晚上放着充电时慢慢搬。</string>
+    <string name="set_help_run_battery">电量低于设定值时先不搬；插着充电器时不受限制。数字范围 1–100。</string>
 
-    <!-- 4. 检测速度 -->
-    <string name="set_section_detection_speed">检测速度</string>
-    <string name="set_fast_while_active">正在用手机时加快检测</string>
+    <!-- 3. 检测时机 -->
+    <string name="set_section_detection_timing">检测时机</string>
+    <string name="set_fast_while_active">亮屏时加快检测</string>
     <string name="set_fast_interval_sec">检测间隔（秒）</string>
     <string name="set_fast_while_active_desc">亮屏时每几秒看一眼源目录。</string>
-    <string name="set_screen_off_pause">熄屏后暂停扫描</string>
-    <string name="set_screen_off_pause_on_desc">熄屏就停，解锁后自动继续。</string>
-    <string name="set_screen_off_pause_off_desc">熄屏后按每条规则的间隔继续。</string>
     <string name="set_settle_detect">写完就搬（不等稳定期）</string>
     <string name="set_settle_gap_sec">写完判定窗口（秒）</string>
     <string name="set_settle_detect_desc">大小和修改时间不再变，就立刻搬。</string>
+    <string name="set_help_detection">决定多久看一眼源目录、文件写完多久后搬走。</string>
+    <string name="set_help_fast_while_active">亮屏时每隔几秒快速看一眼目录，有变化才真正扫描，省电。</string>
+    <string name="set_help_settle_detect">文件大小和修改时间不再变化就立刻搬，不用等满稳定期。</string>
 
     <!-- 运行参数（默认收起） -->
     <string name="set_section_run_params">运行参数</string>
@@ -53,47 +52,59 @@
     <string name="set_log_keep_days">日志保留天数</string>
     <string name="set_log_keep_count">日志保留条数</string>
     <string name="set_field_range">%1$s（%2$d–%3$d）</string>
+    <string name="set_help_run_params">高级参数：扫描预算、每次/每分钟上限、日志保留等。不确定就别改，默认值适合大多数手机。</string>
 
-    <!-- 5. 开关 -->
-    <string name="set_section_switches">开关</string>
-    <string name="set_low_battery_pause">低电量/省电模式暂停</string>
-    <string name="set_fast_drain">加速清空（一轮接一轮）</string>
-    <string name="set_notify_enabled">事件通知（暂停/失败）</string>
+    <!-- 4. 复制记录 -->
+    <string name="set_section_copy_history">复制记录</string>
+    <string name="set_copy_history_count">共 %1$d 条</string>
+    <string name="set_copy_history_view">查看 / 清除选中</string>
+    <string name="set_copy_sheet_hint">勾选后只清掉选中的记录。清掉后，这些图会被当成没复制过，下次遇到会再复制一份。</string>
+    <string name="set_copy_history_empty">还没有复制记录</string>
+    <string name="set_copy_unknown_path">（位置未知）</string>
+    <string name="set_clear_selected_count">清除选中（%1$d）</string>
+    <string name="set_clear_all">全部清空</string>
+    <string name="set_clear_copy_history_title">清空全部复制记录？</string>
+    <string name="set_clear_copy_history_body">清空后，以前复制过的图会被当成没复制过，以后遇到会再复制一份；规则和已搬走的文件不受影响。</string>
+    <string name="set_clear_confirm">清空</string>
+    <string name="set_cancel">取消</string>
+    <string name="set_help_copy_history">复制模式靠它判断图片复制过没有。清掉记录后，这些图会被当成没复制过，下次可能再复制一份。</string>
 
-    <!-- 6. 外观 -->
-    <string name="set_section_appearance">外观</string>
+    <!-- 5. 设置管理 -->
+    <string name="set_section_backup">设置管理</string>
+    <string name="set_rules_count">共 %1$d 条规则</string>
+    <string name="set_backup_desc">规则和各项设置一起导出，换手机时直接导入。</string>
+    <string name="set_export_backup">导出备份</string>
+    <string name="set_import_backup">导入备份</string>
+    <string name="set_rules_import_paused_hint">导入的规则默认是暂停状态。</string>
+    <string name="set_rules_import_failed">这个文件读不了，换一个试试。</string>
+    <string name="set_help_backup">规则和各项设置一起写进一个文本文件；换手机或重装后导入即可恢复。导入的规则默认暂停。</string>
+
+    <!-- 6. 外观与语言 -->
+    <string name="set_section_appearance_language">外观与语言</string>
+    <string name="set_language">语言</string>
+    <string name="set_language_system">跟随系统</string>
+    <string name="set_language_chinese">中文</string>
+    <string name="set_language_english">English</string>
     <string name="set_theme">主题</string>
     <string name="set_theme_system">跟随系统</string>
     <string name="set_theme_light">浅色</string>
     <string name="set_theme_dark">深色</string>
     <string name="set_dynamic_color">动态取色（Material You）</string>
     <string name="set_dynamic_color_desc">安卓 12+：颜色跟壁纸走。</string>
+    <string name="set_help_appearance">主题、动态取色和界面语言都在这里，改完立即生效。</string>
+    <string name="set_help_language">跟随系统会随手机语言自动切；切换后界面立刻变成所选语言。</string>
+    <string name="set_help_theme">跟随系统 / 浅色 / 深色；跟随系统会随手机的深色模式切换。</string>
+    <string name="set_help_dynamic_color">安卓 12+ 从壁纸取色，界面颜色跟着壁纸走。关掉后使用默认配色。</string>
 
-    <!-- 7. 复制记录 -->
-    <string name="set_section_copy_history">复制记录</string>
-    <string name="set_copy_history_desc">复制模式靠它判断「这张图复制过没有」，现在 %1$d 条。</string>
-    <string name="set_clear_copy_history_button">清空复制记录（%1$d 条）</string>
-    <string name="set_clear_copy_history_title">清空复制记录？</string>
-    <string name="set_clear_copy_history_body">清空后，以前复制过的图会被当成没复制过，以后遇到会再复制一份；规则和已搬走的文件不受影响。</string>
-    <string name="set_clear_confirm">清空</string>
-    <string name="set_cancel">取消</string>
-
-    <!-- 8. 规则管理 -->
-    <string name="set_section_rules">规则管理</string>
-    <string name="set_rules_count">共 %1$d 条规则</string>
-    <string name="set_export_rules">导出规则</string>
-    <string name="set_import_rules">导入规则</string>
-    <string name="set_rules_import_paused_hint">导入的规则默认是暂停状态。</string>
-    <string name="set_rules_import_failed">这个文件读不了，换一个试试。</string>
-
-    <!-- 9. 自检 -->
+    <!-- 7. 自检 -->
     <string name="set_section_self_check">自检</string>
     <string name="set_last_self_check">上次自检：%1$s</string>
     <string name="set_self_check_earlier">上次自检：较早前</string>
     <string name="set_no_self_check">还没自检过</string>
     <string name="set_run_self_check">立即自检</string>
+    <string name="set_help_self_check">检查存储权限、Shizuku 连接和数据库，点一下就能看结果。</string>
 
-    <!-- 10. 关于 -->
+    <!-- 8. 关于 -->
     <string name="set_section_about">关于</string>
     <string name="set_about_version">拾图 Shitu %1$s · GPL-3.0</string>
     <string name="set_check_update">检查更新</string>
@@ -115,4 +126,6 @@
     <string name="set_got_it">知道了</string>
     <string name="set_later">以后再说</string>
     <string name="set_privacy_note">只有检查更新会联网，其余功能都不联网。</string>
+    <string name="set_help_about">版本号、项目主页和检查更新。只有检查更新会联网。</string>
+    <string name="set_help_check_update">去 GitHub 查最新版本，有新版可以直接下载安装。这是全 App 唯一联网的地方。</string>
 </resources>

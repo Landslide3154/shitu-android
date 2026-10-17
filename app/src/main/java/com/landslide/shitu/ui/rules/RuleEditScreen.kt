@@ -2,6 +2,7 @@ package com.landslide.shitu.ui.rules
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -11,12 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
 import com.landslide.shitu.ShituApp
@@ -48,6 +54,7 @@ import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.ui.components.BannerCard
 import com.landslide.shitu.ui.components.DirPickerDialog
+import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.SectionCard
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
@@ -57,6 +64,59 @@ import kotlinx.coroutines.launch
 /** 预览里的体积：统一按 MB 显示，和界面上「约 X MB」的说法一致。 */
 private fun previewSize(bytes: Long): String =
     String.format(Locale.US, "%.1f MB", bytes / 1_048_576.0)
+
+/**
+ * 和 [SectionCard] 一样的卡片，只是标题行右侧多一个帮助点。
+ *
+ * [SectionCard] 的标题只收字符串，塞不进可点的 HelpDot；这里按同样的圆角、底色、内边距和字号
+ * 抄一份最小实现（设置页的 SettingsCard 也是这么做的），保证整页卡片外观一致。
+ */
+@Composable
+private fun HelpSectionCard(
+    title: String,
+    help: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                HelpDot(help)
+            }
+            Spacer(Modifier.height(10.dp))
+            content()
+        }
+    }
+}
+
+/** 窄输入框的标签行：短标签 + 右侧帮助点，三个框共用，保证行高一致。 */
+@Composable
+private fun FilterLabel(label: String, help: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        HelpDot(help)
+    }
+}
 
 /**
  * 规则编辑（规格 §10 页面 2）。
@@ -198,7 +258,10 @@ fun RuleEditScreen(
         }
 
         // 1. 规则名称
-        SectionCard(title = stringResource(R.string.edit_label_name)) {
+        HelpSectionCard(
+            title = stringResource(R.string.edit_label_name),
+            help = stringResource(R.string.edit_help_name),
+        ) {
             OutlinedTextField(
                 value = rule.name,
                 onValueChange = { rule = rule.copy(name = it) },
@@ -215,7 +278,10 @@ fun RuleEditScreen(
         }
 
         // 2. 源目录：目录 + 子目录/深度 + 老图/小图过滤
-        SectionCard(title = stringResource(R.string.edit_label_src)) {
+        HelpSectionCard(
+            title = stringResource(R.string.edit_label_src),
+            help = stringResource(R.string.edit_help_src),
+        ) {
             OutlinedTextField(
                 value = rule.srcPath,
                 onValueChange = {},
@@ -245,46 +311,68 @@ fun RuleEditScreen(
                     checked = rule.includeSubdirs,
                     onCheckedChange = { rule = rule.copy(includeSubdirs = it) },
                 )
-                Text(stringResource(R.string.edit_include_subdirs))
+                Text(
+                    stringResource(R.string.edit_include_subdirs),
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                HelpDot(stringResource(R.string.edit_help_subdirs))
             }
 
+            // 三个数字框：外置标签行（短词 + 帮助点）+ 单行输入框。
+            // 三列都是 Column(weight(1f))、结构完全一样，宽度和高度自然一致；
+            // 标签放框外、统一 labelSmall + maxLines = 1，不会再被第三个框的字撑大。
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = rule.maxDepth?.toString() ?: "",
-                    onValueChange = { t ->
-                        val digits = t.filter { it.isDigit() }.take(2)
-                        rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
-                    },
-                    label = { Text(stringResource(R.string.edit_label_max_depth)) },
-                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                    value = if (rule.minAgeDays > 0) rule.minAgeDays.toString() else "",
-                    onValueChange = { t ->
-                        val digits = t.filter { it.isDigit() }.take(3)
-                        rule = rule.copy(minAgeDays = digits.toIntOrNull() ?: 0)
-                    },
-                    label = { Text(stringResource(R.string.edit_label_days)) },
-                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                    value = if (rule.minSizeKb > 0) rule.minSizeKb.toString() else "",
-                    onValueChange = { t ->
-                        val digits = t.filter { it.isDigit() }.take(5)
-                        rule = rule.copy(minSizeKb = digits.toIntOrNull() ?: 0)
-                    },
-                    label = { Text(stringResource(R.string.edit_label_size_kb)) },
-                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
+                Column(Modifier.weight(1f)) {
+                    FilterLabel(
+                        stringResource(R.string.edit_label_max_depth),
+                        stringResource(R.string.edit_help_max_depth),
+                    )
+                    OutlinedTextField(
+                        value = rule.maxDepth?.toString() ?: "",
+                        onValueChange = { t ->
+                            val digits = t.filter { it.isDigit() }.take(2)
+                            rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
+                        },
+                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    FilterLabel(
+                        stringResource(R.string.edit_label_days),
+                        stringResource(R.string.edit_help_days),
+                    )
+                    OutlinedTextField(
+                        value = if (rule.minAgeDays > 0) rule.minAgeDays.toString() else "",
+                        onValueChange = { t ->
+                            val digits = t.filter { it.isDigit() }.take(3)
+                            rule = rule.copy(minAgeDays = digits.toIntOrNull() ?: 0)
+                        },
+                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    FilterLabel(
+                        stringResource(R.string.edit_label_size_kb),
+                        stringResource(R.string.edit_help_min_size),
+                    )
+                    OutlinedTextField(
+                        value = if (rule.minSizeKb > 0) rule.minSizeKb.toString() else "",
+                        onValueChange = { t ->
+                            val digits = t.filter { it.isDigit() }.take(5)
+                            rule = rule.copy(minSizeKb = digits.toIntOrNull() ?: 0)
+                        },
+                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
             Text(
                 stringResource(R.string.edit_filter_hint),
@@ -295,7 +383,10 @@ fun RuleEditScreen(
         }
 
         // 3. 目标目录：目录 + 按 App 名建子目录
-        SectionCard(title = stringResource(R.string.edit_label_dst)) {
+        HelpSectionCard(
+            title = stringResource(R.string.edit_label_dst),
+            help = stringResource(R.string.edit_help_dst),
+        ) {
             OutlinedTextField(
                 value = rule.dstPath,
                 onValueChange = {},
@@ -310,7 +401,13 @@ fun RuleEditScreen(
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.edit_dst_subdir_app))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.edit_dst_subdir_app),
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        HelpDot(stringResource(R.string.edit_help_dst_subdir))
+                    }
                     Text(
                         stringResource(R.string.edit_dst_subdir_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -325,7 +422,10 @@ fun RuleEditScreen(
         }
 
         // 4. 移动模式
-        SectionCard(title = stringResource(R.string.edit_section_mode)) {
+        HelpSectionCard(
+            title = stringResource(R.string.edit_section_mode),
+            help = stringResource(R.string.edit_help_mode),
+        ) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Mode.entries.forEachIndexed { i, m ->
                     SegmentedButton(
@@ -352,8 +452,11 @@ fun RuleEditScreen(
             )
         }
 
-        // 5. 频率
-        SectionCard(title = stringResource(R.string.edit_section_freq)) {
+        // 5. 频率：这只是兜底——平时源目录一变，十几秒内就搬，不是真的等这么久
+        HelpSectionCard(
+            title = stringResource(R.string.edit_section_freq),
+            help = stringResource(R.string.edit_help_freq),
+        ) {
             Text(
                 stringResource(R.string.edit_interval, rule.intervalMinutes),
                 style = MaterialTheme.typography.bodyMedium,
@@ -364,9 +467,15 @@ fun RuleEditScreen(
                 valueRange = 1f..30f,
                 steps = 28,
             )
+            Text(
+                stringResource(R.string.edit_help_freq),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
 
-        // 6. 文件名：后缀 → 按内容命名 → 扩展名白名单
+        // 6. 文件名：后缀 → 扩展名白名单 → 按内容生成文件名
         SectionCard(title = stringResource(R.string.edit_section_file)) {
             OutlinedTextField(
                 value = rule.suffix,
@@ -375,25 +484,49 @@ fun RuleEditScreen(
                 placeholder = { Text(stringResource(R.string.edit_suffix_placeholder)) },
                 singleLine = true,
                 supportingText = { Text(stringResource(R.string.edit_suffix_hint)) },
+                trailingIcon = {
+                    HelpDot(stringResource(R.string.edit_help_suffix))
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = rule.contentRename,
-                    onCheckedChange = { rule = rule.copy(contentRename = it) },
-                )
-                Text(stringResource(R.string.edit_content_rename))
-            }
-
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = rule.extensions,
                 onValueChange = { rule = rule.copy(extensions = it) },
                 label = { Text(stringResource(R.string.edit_label_extensions)) },
                 singleLine = true,
+                trailingIcon = {
+                    HelpDot(stringResource(R.string.edit_help_extensions))
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(4.dp))
+            // 说明放进复选框右侧的 Column：起点天然和复选框文字对齐，不用猜复选框有多宽
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = rule.contentRename,
+                    onCheckedChange = { rule = rule.copy(contentRename = it) },
+                )
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.edit_content_rename),
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        HelpDot(stringResource(R.string.edit_help_content_rename))
+                    }
+                    Text(
+                        stringResource(
+                            if (rule.contentRename) R.string.edit_content_rename_on_hint
+                            else R.string.edit_content_rename_off_hint,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
 
         // 底部按钮：窄屏放不下会自动换行
@@ -402,15 +535,19 @@ fun RuleEditScreen(
             horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.End),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            TextButton(
-                onClick = { startPreview(beforeSave = false) },
-                enabled = !previewing,
-            ) {
-                Text(
-                    stringResource(
-                        if (previewing) R.string.edit_preview_running else R.string.edit_preview_title,
-                    ),
-                )
+            // 试运行按钮和它的帮助点绑在一起，窄屏换行时不会被拆开
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { startPreview(beforeSave = false) },
+                    enabled = !previewing,
+                ) {
+                    Text(
+                        stringResource(
+                            if (previewing) R.string.edit_preview_running else R.string.edit_preview_title,
+                        ),
+                    )
+                }
+                HelpDot(stringResource(R.string.edit_help_preview))
             }
             TextButton(
                 onClick = {

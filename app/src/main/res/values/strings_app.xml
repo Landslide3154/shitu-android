@@ -64,10 +64,11 @@
     <string name="app_close">Close</string>
 
     <!-- 规则导入导出 -->
-    <string name="app_rules_exported">Rules exported to %1$s</string>
+    <string name="app_rules_exported">Backup exported to %1$s</string>
     <string name="app_rules_export_failed">Export failed: %1$s</string>
-    <string name="app_rules_imported">Imported %1$d rules (paused — turn them on when ready)</string>
+    <string name="app_rules_imported">Imported %1$d rules (settings restored; rules are paused)</string>
     <string name="app_rules_import_empty">No rules found in that file</string>
+    <string name="app_copied_removed">Cleared %1$d copy records</string>
 
     <!-- 电池优化 -->
     <string name="app_battery_title">Keep it moving in the background</string>

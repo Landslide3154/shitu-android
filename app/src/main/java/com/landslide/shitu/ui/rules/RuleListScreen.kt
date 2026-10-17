@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -54,7 +53,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -95,6 +93,7 @@ import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.components.BannerCard
+import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.StatusDot
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.canResume
@@ -145,6 +144,7 @@ fun RuleListScreen(
     onDeleteTemplate: (RuleTemplate) -> Unit,
     onEdit: (RuleEntity) -> Unit,
     onCopy: (RuleEntity) -> Unit,
+    /** 参数保留：卡片上已不再显示「立即运行」按钮（打开页面自然会跑） */
     onRunNow: (RuleEntity) -> Unit,
     onUndo: (RuleEntity) -> Unit,
     onResume: (RuleEntity) -> Unit,
@@ -475,6 +475,10 @@ fun RuleListScreen(
                         stringResource(R.string.rules_total_moved_unit),
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    HelpDot(stringResource(R.string.rules_help_stats))
+                }
+                // 简略/详细单独一行：英文文案更长，和统计挤在一行会把两个胶囊挤出屏幕
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.weight(1f))
                     FilterChip(
                         selected = compact,
@@ -487,6 +491,8 @@ fun RuleListScreen(
                         onClick = { onCompactChange(false) },
                         label = { Text(stringResource(R.string.rules_detailed)) },
                     )
+                    Spacer(Modifier.width(6.dp))
+                    HelpDot(stringResource(R.string.rules_help_view))
                 }
                 // 本周统计：只有拿到数据才显示；null 时整行不占位，点了看 Top 3 来源 App
                 stats?.let { s ->
@@ -564,7 +570,6 @@ fun RuleListScreen(
                             },
                             onEdit = { onEdit(rule) },
                             onCopy = { onCopy(rule) },
-                            onRunNow = { onRunNow(rule) },
                             onUndo = { onUndo(rule) },
                             onResume = { onResume(rule) },
                             onDelete = { pendingDelete = rule },
@@ -641,14 +646,14 @@ private fun RuleCard(
     onCheckedChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onCopy: () -> Unit,
-    onRunNow: () -> Unit,
     onUndo: () -> Unit,
     onResume: () -> Unit,
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tone = ruleTone(rule)
+    // 复制模式的规则在正常状态下连圆点和胶囊一起用蓝色；运行中/失败/暂停仍按状态色
+    val tone = cardTone(rule)
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
 
@@ -876,23 +881,9 @@ private fun RuleCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(
-                    onClick = onRunNow,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.rules_run_now))
-                }
-                Spacer(Modifier.width(6.dp))
-                TextButton(onClick = onEdit) { Text(stringResource(R.string.rules_edit)) }
-                Spacer(Modifier.weight(1f))
-                // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）
+            // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）。
+            // 「立即运行」「编辑」按钮已去掉：打开页面会自动跑，点卡片就能进编辑。
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Checkbox(checked = checked, onCheckedChange = onCheckedChange)
             }
             }
@@ -902,6 +893,15 @@ private fun RuleCard(
 
 /** 模式配色：移动=绿、复制=蓝（与日志里的 COPIED 一致）。 */
 private fun modeTone(mode: Mode): Tone = if (mode == Mode.COPY) Tone.COPY else Tone.OK
+
+/**
+ * 卡片状态色：复制模式的规则在正常状态下也用蓝色（和日志里的「已复制」一致）。
+ * 运行中 / 失败 / 暂停 / 已停止仍然用原本的状态色，避免把异常状态也染成「正常蓝」。
+ */
+private fun cardTone(rule: RuleEntity): Tone {
+    val status = ruleTone(rule)
+    return if (rule.mode == Mode.COPY && status == Tone.OK) Tone.COPY else status
+}
 
 /** 很小的模式标签：移动=绿、复制=蓝；比状态胶囊更轻，放简略模式行里不抢空间。 */
 @Composable

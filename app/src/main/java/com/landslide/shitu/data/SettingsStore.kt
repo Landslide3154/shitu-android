@@ -52,6 +52,8 @@ data class Settings(
     val language: Int = AppLocale.SYSTEM,
     // —— 运行条件（多选；默认全关 = 和以前一样，随时都能搬） ——
     val runOnlyCharging: Boolean = false,
+    /** 只在亮屏（且解锁）时搬；和 [runOnlyScreenOff] 可以同时选（= 任何时候都搬） */
+    val runOnlyScreenOn: Boolean = false,
     val runOnlyScreenOff: Boolean = false,
     /** 只在夜间搬运；时段默认 22:00–07:00（跨午夜用 hourInNightRange 判断） */
     val runOnlyNight: Boolean = false,
@@ -91,6 +93,7 @@ class SettingsStore(private val context: Context) {
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
         val LANGUAGE = intPreferencesKey("language")
         val RUN_ONLY_CHARGING = booleanPreferencesKey("run_only_charging")
+        val RUN_ONLY_SCREEN_ON = booleanPreferencesKey("run_only_screen_on")
         val RUN_ONLY_SCREEN_OFF = booleanPreferencesKey("run_only_screen_off")
         val RUN_ONLY_NIGHT = booleanPreferencesKey("run_only_night")
         val NIGHT_START_HOUR = intPreferencesKey("night_start_hour")
@@ -127,8 +130,12 @@ class SettingsStore(private val context: Context) {
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
             language = p[K.LANGUAGE] ?: AppLocale.SYSTEM,
             runOnlyCharging = p[K.RUN_ONLY_CHARGING] ?: false,
+            // 旧版的「熄屏后暂停扫描」等价于新版的「只在亮屏时搬」；老设置升级后自动带过来
+            runOnlyScreenOn = p[K.RUN_ONLY_SCREEN_ON] ?: (p[K.SCREEN_OFF_PAUSE] ?: false),
             runOnlyScreenOff = p[K.RUN_ONLY_SCREEN_OFF] ?: false,
-            runOnlyNight = p[K.RUN_ONLY_NIGHT] ?: false,
+            // 0.12.6 起设置页不再提供「夜间」条件；老用户之前开过的直接失效，
+            // 否则会出现「还在只在夜间搬、但界面上没有开关可关」的死角。
+            runOnlyNight = false,
             nightStartHour = p[K.NIGHT_START_HOUR] ?: 22,
             nightEndHour = p[K.NIGHT_END_HOUR] ?: 7,
             runMinBatteryPct = p[K.RUN_MIN_BATTERY_PCT] ?: 0,
@@ -159,6 +166,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
     suspend fun setRunOnlyCharging(v: Boolean) = put(K.RUN_ONLY_CHARGING, v)
+    suspend fun setRunOnlyScreenOn(v: Boolean) = put(K.RUN_ONLY_SCREEN_ON, v)
     suspend fun setRunOnlyScreenOff(v: Boolean) = put(K.RUN_ONLY_SCREEN_OFF, v)
     suspend fun setRunOnlyNight(v: Boolean) = put(K.RUN_ONLY_NIGHT, v)
     suspend fun setNightStartHour(v: Int) = put(K.NIGHT_START_HOUR, v)
@@ -169,6 +177,44 @@ class SettingsStore(private val context: Context) {
     suspend fun setLanguage(v: Int) {
         put(K.LANGUAGE, v)
         AppLocale.set(context, v)
+    }
+
+    /** 备份导入：把整份设置写回去（不动 lastSelfCheck 这类纯状态项）。 */
+    suspend fun apply(s: Settings) {
+        context.dataStore.edit { p ->
+            p[K.SCAN_BUDGET_SEC] = s.scanBudgetSec
+            p[K.MAX_PER_RUN] = s.maxPerRun
+            p[K.MAX_PER_MINUTE] = s.maxPerMinute
+            p[K.MAX_RUN_SEC] = s.maxRunSec
+            p[K.STABLE_SEC] = s.stableSec
+            p[K.LOOP_WINDOW_MIN] = s.loopWindowMin
+            p[K.LOOP_THRESHOLD] = s.loopThreshold
+            p[K.FAIL_THRESHOLD] = s.failThreshold
+            p[K.LOW_BATTERY_PAUSE] = s.lowBatteryPause
+            p[K.LOW_BATTERY_PCT] = s.lowBatteryPct
+            p[K.LOG_KEEP_DAYS] = s.logKeepDays
+            p[K.LOG_KEEP_COUNT] = s.logKeepCount
+            p[K.FAST_DRAIN] = s.fastDrain
+            p[K.FAST_WHILE_ACTIVE] = s.fastWhileActive
+            p[K.FAST_INTERVAL_SEC] = s.fastIntervalSec
+            p[K.SETTLE_DETECT] = s.settleDetect
+            p[K.SETTLE_GAP_SEC] = s.settleGapSec
+            p[K.SCREEN_OFF_PAUSE] = s.runOnlyScreenOn
+            p[K.RULE_CARDS_COMPACT] = s.ruleCardsCompact
+            p[K.THEME_MODE] = s.themeMode
+            p[K.DYNAMIC_COLOR] = s.dynamicColor
+            p[K.NOTIFY] = s.notifyEnabled
+            p[K.LANGUAGE] = s.language
+            p[K.RUN_ONLY_CHARGING] = s.runOnlyCharging
+            p[K.RUN_ONLY_SCREEN_ON] = s.runOnlyScreenOn
+            p[K.RUN_ONLY_SCREEN_OFF] = s.runOnlyScreenOff
+            p[K.RUN_ONLY_NIGHT] = s.runOnlyNight
+            p[K.NIGHT_START_HOUR] = s.nightStartHour
+            p[K.NIGHT_END_HOUR] = s.nightEndHour
+            p[K.RUN_MIN_BATTERY_PCT] = s.runMinBatteryPct
+            p[K.RULE_TEMPLATES] = RuleTemplate.encode(s.ruleTemplates)
+        }
+        AppLocale.set(context, s.language)
     }
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {

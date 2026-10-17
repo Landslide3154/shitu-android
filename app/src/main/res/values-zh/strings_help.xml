@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 说明组件（HelpDot）：key 与 values/strings_help.xml 一一对应。 -->
+
+    <string name="help_title">说明</string>
+    <string name="help_ok">知道了</string>
+</resources>

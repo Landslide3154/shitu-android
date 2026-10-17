@@ -63,6 +63,7 @@ import com.landslide.shitu.R
 import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.Settings
+import com.landslide.shitu.data.db.CopiedEntity
 import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.data.db.RuleState
@@ -96,6 +97,8 @@ fun ShituRoot(app: ShituApp) {
     var copiedCount by remember { mutableStateOf(0) }
     /** 本周统计；拿不到就不显示统计行，不占位 */
     var stats by remember { mutableStateOf<ShituApp.Stats?>(null) }
+    /** 复制记录列表（设置页多选清除用） */
+    var copiedItems by remember { mutableStateOf<List<CopiedEntity>>(emptyList()) }
     var state by remember { mutableStateOf(app.bridge.state()) }
     var channel by remember { mutableStateOf(app.channel()) }
     var health by remember { mutableStateOf<List<HealthChecker.Item>?>(null) }
@@ -107,6 +110,7 @@ fun ShituRoot(app: ShituApp) {
         rules = app.repo.allRules()
         logs = app.repo.recentLogs(500)
         copiedCount = app.ledger.count()
+        copiedItems = runCatching { app.ledger.recent(500) }.getOrDefault(emptyList())
         stats = runCatching { app.stats() }.getOrNull()
         state = app.bridge.state()
         channel = app.channel()
@@ -534,9 +538,20 @@ fun ShituRoot(app: ShituApp) {
                         }
                     },
                     rulesCount = rules.size,
-                    onExportRules = {
+                    copiedItems = copiedItems,
+                    onClearCopiedSelected = { fingerprints ->
                         scope.launch {
-                            val res = runCatching { app.exportRules() }
+                            val n = runCatching { app.ledger.deleteSelected(fingerprints) }
+                                .getOrDefault(0)
+                            refresh()
+                            snackbar.showSnackbar(
+                                context.getString(R.string.app_copied_removed, n),
+                            )
+                        }
+                    },
+                    onExportBackup = {
+                        scope.launch {
+                            val res = runCatching { app.exportBackup() }
                             refresh()
                             res.onSuccess { path ->
                                 snackbar.showSnackbar(
@@ -552,9 +567,9 @@ fun ShituRoot(app: ShituApp) {
                             }
                         }
                     },
-                    onImportRules = { text ->
+                    onImportBackup = { text ->
                         scope.launch {
-                            val n = runCatching { app.importRules(text) }.getOrDefault(0)
+                            val n = runCatching { app.importBackup(text) }.getOrDefault(0)
                             refresh()
                             snackbar.showSnackbar(
                                 if (n > 0) {

@@ -2,6 +2,7 @@ package com.landslide.shitu.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,14 +62,14 @@ fun StatusPill(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
 ) {
-    // 状态切换时颜色渐变过去，不要「啪」地跳
-    val fg by animateColorAsState(tone.color(), label = "pillFg")
-    val bg by animateColorAsState(tone.container(), label = "pillBg")
+    // 状态切换时颜色用无回弹的 spring 过渡，不要「啪」地跳
+    val fg by animateColorAsState(tone.color(), animationSpec = spring(), label = "pillFg")
+    val bg by animateColorAsState(tone.container(), animationSpec = spring(), label = "pillBg")
     Row(
         modifier
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -77,7 +79,7 @@ fun StatusPill(
         }
         Text(
             text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             color = fg,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(start = 5.dp),
@@ -88,7 +90,7 @@ fun StatusPill(
 /** 只有一个小圆点，放卡片标题左边。 */
 @Composable
 fun StatusDot(tone: Tone, size: Dp = 8.dp, modifier: Modifier = Modifier) {
-    val c by animateColorAsState(tone.color(), label = "dotColor")
+    val c by animateColorAsState(tone.color(), animationSpec = spring(), label = "dotColor")
     Box(modifier.size(size).clip(CircleShape).background(c))
 }
 
@@ -107,9 +109,9 @@ fun BannerCard(
     onAction: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    val fg by animateColorAsState(tone.color(), label = "bannerFg")
-    val bg by animateColorAsState(tone.container(), label = "bannerBg")
+    val shape = RoundedCornerShape(18.dp)
+    val fg by animateColorAsState(tone.color(), animationSpec = spring(), label = "bannerFg")
+    val bg by animateColorAsState(tone.container(), animationSpec = spring(), label = "bannerBg")
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -119,10 +121,10 @@ fun BannerCard(
         shape = shape,
     ) {
         Row(
-            Modifier.padding(start = 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
             Column(Modifier.weight(1f).padding(start = 10.dp, end = 6.dp)) {
                 Text(
                     title,
@@ -165,8 +167,14 @@ fun SectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
-    Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 14.dp)) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -182,7 +190,12 @@ fun SectionCard(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
                 if (collapsible) {
                     Icon(
                         if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
@@ -195,7 +208,7 @@ fun SectionCard(
             }
             AnimatedVisibility(visible = !collapsible || expanded) {
                 Column {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
                     content()
                 }
             }
@@ -213,7 +226,7 @@ fun SwitchRow(
     subtitle: String? = null,
 ) {
     Row(
-        modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

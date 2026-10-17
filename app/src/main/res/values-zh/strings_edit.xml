@@ -27,7 +27,7 @@
     <string name="edit_subdirs_off_hint">只搬源目录这一层里的图片，子文件夹不看（目标目录在源目录里时更安全）</string>
     <string name="edit_label_max_depth">最大深度</string>
     <string name="edit_label_days">最近 N 天</string>
-    <string name="edit_label_size_kb">大于 N KB</string>
+    <string name="edit_label_size_kb">不小于 KB</string>
     <string name="edit_unlimited">不限</string>
     <string name="edit_filter_hint">留空 = 不限；可过滤老图和缩略图</string>
 
@@ -56,10 +56,26 @@
     <string name="edit_label_suffix">文件名后缀</string>
     <string name="edit_suffix_hint">填 {app} = 用来源 App 名；留空 = 原名</string>
     <string name="edit_suffix_placeholder">{app}</string>
-    <string name="edit_content_rename">按内容生成文件名</string>
-    <string name="edit_content_rename_on_hint">同一张图永远同名，不会重复存</string>
+    <string name="edit_content_rename">按内容生成文件名（15 位乱码）</string>
+    <string name="edit_content_rename_on_hint">文件名是 15 位乱码；同一张图永远同名，不会重复存</string>
     <string name="edit_content_rename_suffix_example">_起点读书</string>
     <string name="edit_content_rename_off_hint">关着：目标文件名沿用原来的名字，只在后面加你填的后缀</string>
+
+    <!-- 帮助点（HelpDot）文案：每项 1～2 句 -->
+    <string name="edit_help_name">只是给这条规则起个名字，方便自己区分。</string>
+    <string name="edit_help_src">要搬的图片放在哪。选到具体的图片文件夹最安全；选整个存储会搬走几乎所有图片。</string>
+    <string name="edit_help_subdirs">勾上后，源目录下面每一层子文件夹里的图片都会搬；不勾只搬源目录这一层。</string>
+    <string name="edit_help_max_depth">勾了「包含子目录」才有用：往下最多看几层，1 = 只看源目录这一层。留空 = 不限。</string>
+    <string name="edit_help_days">只搬最近 N 天改过的图片，更早的不动。留空 = 不限。</string>
+    <string name="edit_help_min_size">比 N KB 小的图片跳过，适合滤掉缩略图和表情包；正好 N KB 的会搬。</string>
+    <string name="edit_help_dst">图片要搬到哪里。放在 DCIM 或 Pictures 下面，相册才看得到。</string>
+    <string name="edit_help_dst_subdir">勾上后，每个 App 的图片会放进以 App 命名的子文件夹（如 DCIM/起点读书/…），不同 App 不混在一起。</string>
+    <string name="edit_help_mode">移动：原图离开原位置；复制：原图保留，目标多一份。</string>
+    <string name="edit_help_freq">这是兜底频率：平时源目录一变，十几秒内就会搬；这里设的只是「最长多久强制扫一次」，不是真的等这么久。</string>
+    <string name="edit_help_suffix">搬到目标后给文件名加的后缀；填 {app} 会换成来源 App 的名字，留空就是原名。</string>
+    <string name="edit_help_content_rename">按图片内容生成 15 位乱码文件名，同一张图永远同名，不会重复存。</string>
+    <string name="edit_help_extensions">只搬这些扩展名的图片，逗号分隔（如 jpg,png）；至少留一个，否则什么都不搬。</string>
+    <string name="edit_help_preview">只数一数会搬多少张、大概多大，不会真的动文件。</string>
 
     <!-- 按钮与保存校验 -->
     <string name="edit_save_as_template">存为模板</string>

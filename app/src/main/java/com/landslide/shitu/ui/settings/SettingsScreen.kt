@@ -8,7 +8,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +20,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,13 +31,22 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,10 +73,14 @@ import com.landslide.shitu.core.UpdateInstaller
 import com.landslide.shitu.data.AppLocale
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
+import com.landslide.shitu.data.db.CopiedEntity
 import com.landslide.shitu.local.StorageAccess
-import com.landslide.shitu.ui.components.SectionCard
-import com.landslide.shitu.ui.components.SwitchRow
+import com.landslide.shitu.ui.components.FileThumbnail
+import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.theme.ThemeMode
+import com.landslide.shitu.ui.theme.Tone
+import com.landslide.shitu.ui.theme.color
+import com.landslide.shitu.ui.theme.container
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,11 +100,13 @@ private data class UpdateDialog(
 )
 
 /**
- * 设置页。卡片顺序固定为：语言 → 存储访问 → 运行条件 → 检测速度 → 开关 → 外观 →
- * 复制记录 → 规则管理 → 自检 → 关于。
+ * 设置页。卡片顺序固定为：存储访问 → 运行条件 → 检测时机 → 复制记录 →
+ * 设置管理 → 外观与语言 → 自检 → 关于。
  *
+ * 每张卡标题右侧都有帮助问号，开关和关键按钮旁也有。
  * 常用项直接露在卡片里，十几根数字输入框收进「运行参数」，默认不展开。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: Settings,
@@ -93,19 +114,26 @@ fun SettingsScreen(
     onSelfCheck: () -> Unit,
     /** 「已经复制过的内容」账本里有多少条 */
     copiedCount: Int = 0,
+    /** 账本明细（最多 500 条），点开复制记录列表用 */
+    copiedItems: List<CopiedEntity> = emptyList(),
     onClearCopied: () -> Unit = {},
-    /** 现有规则条数（规则管理卡片） */
+    /** 只清掉选中的 fingerprint */
+    onClearCopiedSelected: (List<String>) -> Unit = {},
+    /** 现有规则条数（设置管理卡片） */
     rulesCount: Int = 0,
-    onExportRules: () -> Unit = {},
-    /** 导入：把选中的文本文件读成字符串交给上层解析 */
-    onImportRules: (String) -> Unit = {},
+    /** 把规则和各项设置一起导出成备份文件 */
+    onExportBackup: () -> Unit = {},
+    /** 导入：把选中的备份文件读成字符串交给上层解析 */
+    onImportBackup: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var askClearCopied by remember { mutableStateOf(false) }
+    var showCopySheet by remember { mutableStateOf(false) }
     var showRunParams by remember { mutableStateOf(false) }
     var importFailed by remember { mutableStateOf(false) }
+    val copySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // 「所有文件访问」是在系统设置里打开的，回到 App 时要重新读一次，不能一直显示旧状态
     var allFilesGranted by remember { mutableStateOf(StorageAccess.isGranted(context)) }
@@ -154,7 +182,7 @@ fun SettingsScreen(
         }
     }
 
-    // 导入规则：系统文件选择器只收纯文本，读成字符串后交给上层解析入库
+    // 导入备份：系统文件选择器只收纯文本，读成字符串后交给上层解析入库
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -167,7 +195,7 @@ fun SettingsScreen(
                             ?.use { it.bufferedReader().readText() }
                     }.getOrNull()
                 }
-                if (text.isNullOrBlank()) importFailed = true else onImportRules(text)
+                if (text.isNullOrBlank()) importFailed = true else onImportBackup(text)
             }
         }
     }
@@ -240,104 +268,84 @@ fun SettingsScreen(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 1. 语言：切换后立即重建 Activity，界面马上变
-        SectionCard(title = stringResource(R.string.set_section_language)) {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                FilterChip(
-                    selected = settings.language == AppLocale.SYSTEM,
-                    onClick = { pickLanguage(AppLocale.SYSTEM) },
-                    label = { Text(stringResource(R.string.set_language_system)) },
-                )
-                FilterChip(
-                    selected = settings.language == AppLocale.CHINESE,
-                    onClick = { pickLanguage(AppLocale.CHINESE) },
-                    label = { Text(stringResource(R.string.set_language_chinese)) },
-                )
-                FilterChip(
-                    selected = settings.language == AppLocale.ENGLISH,
-                    onClick = { pickLanguage(AppLocale.ENGLISH) },
-                    label = { Text(stringResource(R.string.set_language_english)) },
-                )
-            }
-        }
-
-        // 2. 存储访问：没有 Shizuku 时的后备通道
-        SectionCard(title = stringResource(R.string.set_section_storage_access)) {
-            Text(
-                if (allFilesGranted) {
-                    stringResource(R.string.set_storage_granted_desc)
-                } else {
-                    stringResource(R.string.set_storage_not_granted_desc)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { StorageAccess.openSettings(context) },
-                enabled = !allFilesGranted,
-            ) {
+        // 1. 存储访问：说明和按钮同一行，已授权时按钮是绿色的
+        SettingsCard(
+            title = stringResource(R.string.set_section_storage_access),
+            help = stringResource(R.string.set_help_storage_access),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     if (allFilesGranted) {
-                        stringResource(R.string.set_storage_granted)
+                        stringResource(R.string.set_storage_granted_desc)
                     } else {
-                        stringResource(R.string.set_storage_open)
+                        stringResource(R.string.set_storage_not_granted_desc)
                     },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
+                Spacer(Modifier.width(10.dp))
+                if (allFilesGranted) {
+                    FilledTonalButton(
+                        onClick = { StorageAccess.openSettings(context) },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Tone.OK.container(),
+                            contentColor = Tone.OK.color(),
+                        ),
+                    ) {
+                        Text(stringResource(R.string.set_storage_granted))
+                    }
+                } else {
+                    OutlinedButton(onClick = { StorageAccess.openSettings(context) }) {
+                        Text(stringResource(R.string.set_storage_open))
+                    }
+                }
             }
         }
 
-        // 3. 运行条件：默认全关 = 和以前一样，任何时候都能搬
-        SectionCard(title = stringResource(R.string.set_section_run_conditions)) {
+        // 2. 运行条件：多选；插着充电器时电量条件不生效
+        SettingsCard(
+            title = stringResource(R.string.set_section_run_conditions),
+            help = stringResource(R.string.set_help_run_conditions),
+        ) {
             Text(
                 stringResource(R.string.set_run_conditions_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SwitchRow(
+            SettingSwitchRow(
                 title = stringResource(R.string.set_run_only_charging),
                 checked = settings.runOnlyCharging,
                 onCheckedChange = { scope.launch { store.setRunOnlyCharging(it) } },
+                help = stringResource(R.string.set_help_run_charging),
             )
-            SwitchRow(
+            SettingSwitchRow(
+                title = stringResource(R.string.set_run_only_screen_on),
+                checked = settings.runOnlyScreenOn,
+                onCheckedChange = { scope.launch { store.setRunOnlyScreenOn(it) } },
+                help = stringResource(R.string.set_help_run_screen_on),
+            )
+            SettingSwitchRow(
                 title = stringResource(R.string.set_run_only_screen_off),
                 checked = settings.runOnlyScreenOff,
                 onCheckedChange = { scope.launch { store.setRunOnlyScreenOff(it) } },
+                help = stringResource(R.string.set_help_run_screen_off),
             )
-            SwitchRow(
-                title = stringResource(R.string.set_run_only_night),
-                checked = settings.runOnlyNight,
-                onCheckedChange = { scope.launch { store.setRunOnlyNight(it) } },
-            )
-            if (settings.runOnlyNight) {
-                // 22 → 7 这种跨午夜的时段是常态，两个小框并排放，省地方
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    intField(
-                        stringResource(R.string.set_night_start_hour),
-                        settings.nightStartHour,
-                        0..23,
-                        Modifier.weight(1f),
-                    ) { scope.launch { store.setNightStartHour(it) } }
-                    intField(
-                        stringResource(R.string.set_night_end_hour),
-                        settings.nightEndHour,
-                        0..23,
-                        Modifier.weight(1f),
-                    ) { scope.launch { store.setNightEndHour(it) } }
-                }
-            }
-            SwitchRow(
-                title = stringResource(R.string.set_run_min_battery, settings.runMinBatteryPct),
-                checked = settings.runMinBatteryPct > 0,
-                // 关掉 = 0 = 不看电量；打开先给个 20%，要改再改下面的框
+            val batteryOn = settings.runMinBatteryPct > 0
+            SettingSwitchRow(
+                title = if (batteryOn) {
+                    stringResource(R.string.set_run_min_battery, settings.runMinBatteryPct)
+                } else {
+                    stringResource(R.string.set_run_min_battery_off)
+                },
+                checked = batteryOn,
                 onCheckedChange = { on ->
+                    // 打开先给个 20%，要改再改下面的框；关掉 = 0 = 不看电量
                     scope.launch { store.setRunMinBatteryPct(if (on) 20 else 0) }
                 },
+                help = stringResource(R.string.set_help_run_battery),
             )
-            if (settings.runMinBatteryPct > 0) {
+            if (batteryOn) {
                 intField(
                     stringResource(R.string.set_run_min_battery_pct),
                     settings.runMinBatteryPct,
@@ -346,12 +354,16 @@ fun SettingsScreen(
             }
         }
 
-        // 4. 检测速度：常用三项 + 收起的数字参数
-        SectionCard(title = stringResource(R.string.set_section_detection_speed)) {
-            SwitchRow(
+        // 3. 检测时机：快检 + 写完就搬；高级参数默认收起
+        SettingsCard(
+            title = stringResource(R.string.set_section_detection_timing),
+            help = stringResource(R.string.set_help_detection),
+        ) {
+            SettingSwitchRow(
                 title = stringResource(R.string.set_fast_while_active),
                 checked = settings.fastWhileActive,
                 onCheckedChange = { scope.launch { store.setFastWhileActive(it) } },
+                help = stringResource(R.string.set_help_fast_while_active),
                 subtitle = stringResource(R.string.set_fast_while_active_desc),
             )
             if (settings.fastWhileActive) {
@@ -362,23 +374,11 @@ fun SettingsScreen(
                 ) { scope.launch { store.setFastIntervalSec(it) } }
             }
 
-            SwitchRow(
-                title = stringResource(R.string.set_screen_off_pause),
-                checked = settings.screenOffPause,
-                onCheckedChange = { scope.launch { store.setScreenOffPause(it) } },
-                subtitle = stringResource(
-                    if (settings.screenOffPause) {
-                        R.string.set_screen_off_pause_on_desc
-                    } else {
-                        R.string.set_screen_off_pause_off_desc
-                    },
-                ),
-            )
-
-            SwitchRow(
+            SettingSwitchRow(
                 title = stringResource(R.string.set_settle_detect),
                 checked = settings.settleDetect,
                 onCheckedChange = { scope.launch { store.setSettleDetect(it) } },
+                help = stringResource(R.string.set_help_settle_detect),
                 subtitle = stringResource(R.string.set_settle_detect_desc),
             )
             if (settings.settleDetect) {
@@ -401,6 +401,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                 )
+                HelpDot(stringResource(R.string.set_help_run_params))
                 Icon(
                     imageVector = if (showRunParams) {
                         Icons.Filled.KeyboardArrowUp
@@ -456,29 +457,106 @@ fun SettingsScreen(
             }
         }
 
-        // 5. 开关
-        SectionCard(title = stringResource(R.string.set_section_switches)) {
-            SwitchRow(
-                title = stringResource(R.string.set_low_battery_pause),
-                checked = settings.lowBatteryPause,
-                onCheckedChange = { scope.launch { store.setLowBatteryPause(it) } },
-            )
-            SwitchRow(
-                title = stringResource(R.string.set_fast_drain),
-                checked = settings.fastDrain,
-                onCheckedChange = { scope.launch { store.setFastDrain(it) } },
-            )
-            SwitchRow(
-                title = stringResource(R.string.set_notify_enabled),
-                checked = settings.notifyEnabled,
-                onCheckedChange = { scope.launch { store.setNotifyEnabled(it) } },
-            )
+        // 4. 复制记录：点开列表，勾选后只清选中的
+        SettingsCard(
+            title = stringResource(R.string.set_section_copy_history),
+            help = stringResource(R.string.set_help_copy_history),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.set_copy_history_count, copiedCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(onClick = { showCopySheet = true }) {
+                    Text(stringResource(R.string.set_copy_history_view))
+                }
+            }
         }
 
-        // 6. 外观
-        SectionCard(title = stringResource(R.string.set_section_appearance)) {
-            Text(stringResource(R.string.set_theme), style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(2.dp))
+        // 5. 设置管理：规则 + 各项设置一起备份
+        SettingsCard(
+            title = stringResource(R.string.set_section_backup),
+            help = stringResource(R.string.set_help_backup),
+        ) {
+            Text(
+                stringResource(R.string.set_rules_count, rulesCount),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.set_backup_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onExportBackup, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.set_export_backup))
+                }
+                OutlinedButton(
+                    onClick = {
+                        importFailed = false
+                        importLauncher.launch(arrayOf("text/plain"))
+                    },
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(R.string.set_import_backup)) }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.set_rules_import_paused_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (importFailed) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.set_rules_import_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        // 6. 外观与语言：语言、主题、动态取色合并成一张卡
+        SettingsCard(
+            title = stringResource(R.string.set_section_appearance_language),
+            help = stringResource(R.string.set_help_appearance),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.set_language), style = MaterialTheme.typography.bodyLarge)
+                HelpDot(stringResource(R.string.set_help_language))
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FilterChip(
+                    selected = settings.language == AppLocale.SYSTEM,
+                    onClick = { pickLanguage(AppLocale.SYSTEM) },
+                    label = { Text(stringResource(R.string.set_language_system)) },
+                )
+                FilterChip(
+                    selected = settings.language == AppLocale.CHINESE,
+                    onClick = { pickLanguage(AppLocale.CHINESE) },
+                    label = { Text(stringResource(R.string.set_language_chinese)) },
+                )
+                FilterChip(
+                    selected = settings.language == AppLocale.ENGLISH,
+                    onClick = { pickLanguage(AppLocale.ENGLISH) },
+                    label = { Text(stringResource(R.string.set_language_english)) },
+                )
+            }
+            Row(
+                Modifier.padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.set_theme), style = MaterialTheme.typography.bodyLarge)
+                HelpDot(stringResource(R.string.set_help_theme))
+            }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -499,65 +577,20 @@ fun SettingsScreen(
                     label = { Text(stringResource(R.string.set_theme_dark)) },
                 )
             }
-            SwitchRow(
+            SettingSwitchRow(
                 title = stringResource(R.string.set_dynamic_color),
                 checked = settings.dynamicColor,
                 onCheckedChange = { scope.launch { store.setDynamicColor(it) } },
+                help = stringResource(R.string.set_help_dynamic_color),
                 subtitle = stringResource(R.string.set_dynamic_color_desc),
             )
         }
 
-        // 7. 复制记录：复制模式的"这张图复制过没有"账本
-        SectionCard(title = stringResource(R.string.set_section_copy_history)) {
-            Text(
-                stringResource(R.string.set_copy_history_desc, copiedCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { askClearCopied = true },
-                enabled = copiedCount > 0,
-            ) { Text(stringResource(R.string.set_clear_copy_history_button, copiedCount)) }
-        }
-
-        // 8. 规则管理：导入/导出走系统文件选择器，导入的一律先暂停
-        SectionCard(title = stringResource(R.string.set_section_rules)) {
-            Text(
-                stringResource(R.string.set_rules_count, rulesCount),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onExportRules, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.set_export_rules))
-                }
-                OutlinedButton(
-                    onClick = {
-                        importFailed = false
-                        importLauncher.launch(arrayOf("text/plain"))
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.set_import_rules)) }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                stringResource(R.string.set_rules_import_paused_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (importFailed) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.set_rules_import_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-
-        // 9. 自检：只有一行按钮，详情由外面的弹窗负责
-        SectionCard(title = stringResource(R.string.set_section_self_check)) {
+        // 7. 自检：只有一行按钮，详情由外面的弹窗负责
+        SettingsCard(
+            title = stringResource(R.string.set_section_self_check),
+            help = stringResource(R.string.set_help_self_check),
+        ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = onSelfCheck) {
                     Text(stringResource(R.string.set_run_self_check))
@@ -575,8 +608,11 @@ fun SettingsScreen(
             }
         }
 
-        // 10. 关于
-        SectionCard(title = stringResource(R.string.set_section_about)) {
+        // 8. 关于
+        SettingsCard(
+            title = stringResource(R.string.set_section_about),
+            help = stringResource(R.string.set_help_about),
+        ) {
             Text(
                 stringResource(R.string.set_about_version, versionName),
                 style = MaterialTheme.typography.bodyMedium,
@@ -591,55 +627,80 @@ fun SettingsScreen(
                     .padding(vertical = 2.dp),
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = {
-                    checkingUpdate = true
-                    downloadError = null
-                    scope.launch {
-                        val info = withContext(Dispatchers.IO) {
-                            runCatching { UpdateChecker.fetchLatest() }.getOrNull()
-                        }
-                        checkingUpdate = false
-                        updateDialog = when {
-                            info == null -> UpdateDialog(
-                                context.getString(R.string.set_update_failed_title),
-                                context.getString(R.string.set_update_failed_body),
-                                null,
-                            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(
+                    onClick = {
+                        checkingUpdate = true
+                        downloadError = null
+                        scope.launch {
+                            val info = withContext(Dispatchers.IO) {
+                                runCatching { UpdateChecker.fetchLatest() }.getOrNull()
+                            }
+                            checkingUpdate = false
+                            updateDialog = when {
+                                info == null -> UpdateDialog(
+                                    context.getString(R.string.set_update_failed_title),
+                                    context.getString(R.string.set_update_failed_body),
+                                    null,
+                                )
 
-                            UpdateChecker.isNewer(versionName, info.version) -> UpdateDialog(
-                                title = context.getString(R.string.set_update_available_title, info.version),
-                                body = info.notes.ifBlank {
-                                    context.getString(R.string.set_update_notes_fallback)
-                                },
-                                pageUrl = info.pageUrl.takeIf { it.isNotBlank() },
-                                apkUrl = info.apkUrl,
-                                version = info.version,
-                            )
+                                UpdateChecker.isNewer(versionName, info.version) -> UpdateDialog(
+                                    title = context.getString(
+                                        R.string.set_update_available_title,
+                                        info.version,
+                                    ),
+                                    body = info.notes.ifBlank {
+                                        context.getString(R.string.set_update_notes_fallback)
+                                    },
+                                    pageUrl = info.pageUrl.takeIf { it.isNotBlank() },
+                                    apkUrl = info.apkUrl,
+                                    version = info.version,
+                                )
 
-                            else -> UpdateDialog(
-                                context.getString(R.string.set_update_latest_title),
-                                context.getString(R.string.set_update_latest_body, versionName, info.version),
-                                null,
-                            )
+                                else -> UpdateDialog(
+                                    context.getString(R.string.set_update_latest_title),
+                                    context.getString(
+                                        R.string.set_update_latest_body,
+                                        versionName,
+                                        info.version,
+                                    ),
+                                    null,
+                                )
+                            }
                         }
-                    }
-                },
-                enabled = !checkingUpdate,
-            ) {
-                Text(
-                    if (checkingUpdate) {
-                        stringResource(R.string.set_checking_update)
-                    } else {
-                        stringResource(R.string.set_check_update)
                     },
-                )
+                    enabled = !checkingUpdate,
+                ) {
+                    Text(
+                        if (checkingUpdate) {
+                            stringResource(R.string.set_checking_update)
+                        } else {
+                            stringResource(R.string.set_check_update)
+                        },
+                    )
+                }
+                HelpDot(stringResource(R.string.set_help_check_update))
             }
             Spacer(Modifier.height(6.dp))
             Text(
                 stringResource(R.string.set_privacy_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    if (showCopySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCopySheet = false },
+            sheetState = copySheetState,
+        ) {
+            CopyHistorySheet(
+                records = copiedItems.take(500),
+                total = copiedCount,
+                onClearSelected = onClearCopiedSelected,
+                onClearAll = { askClearCopied = true },
+                onClose = { showCopySheet = false },
             )
         }
     }
@@ -652,6 +713,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     askClearCopied = false
+                    showCopySheet = false
                     onClearCopied()
                 }) { Text(stringResource(R.string.set_clear_confirm)) }
             },
@@ -746,6 +808,190 @@ fun SettingsScreen(
                 }
             },
         )
+    }
+}
+
+/** 设置卡片：和 SectionCard 同款外观，标题行右侧多一个帮助问号。 */
+@Composable
+private fun SettingsCard(
+    title: String,
+    help: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (help != null) HelpDot(help)
+            }
+            Spacer(Modifier.height(10.dp))
+            content()
+        }
+    }
+}
+
+/** 一行「标题 + 开关」；标题旁带帮助问号，说明文字在下面。 */
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    help: String,
+    subtitle: String? = null,
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                HelpDot(help)
+            }
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * 复制记录列表：勾选后只清掉选中的；「全部清空」仍走外面的确认弹窗。
+ */
+@Composable
+private fun CopyHistorySheet(
+    records: List<CopiedEntity>,
+    total: Int,
+    onClearSelected: (List<String>) -> Unit,
+    onClearAll: () -> Unit,
+    onClose: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(emptySet<String>()) }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 560.dp)
+            .padding(horizontal = 16.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.set_section_copy_history),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            HelpDot(stringResource(R.string.set_help_copy_history))
+            Spacer(Modifier.weight(1f))
+            Text(
+                stringResource(R.string.set_copy_history_count, total),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            stringResource(R.string.set_copy_sheet_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+
+        if (records.isEmpty()) {
+            Box(
+                Modifier.fillMaxWidth().height(160.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(R.string.set_copy_history_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                Modifier.fillMaxWidth().weight(1f, fill = false).padding(top = 4.dp),
+            ) {
+                items(records, key = { it.fingerprint }) { item ->
+                    val checked = item.fingerprint in selected
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selected = if (checked) {
+                                    selected - item.fingerprint
+                                } else {
+                                    selected + item.fingerprint
+                                }
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = {
+                                selected = if (checked) {
+                                    selected - item.fingerprint
+                                } else {
+                                    selected + item.fingerprint
+                                }
+                            },
+                        )
+                        FileThumbnail(path = item.dstPath, size = 44.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            item.dstPath ?: stringResource(R.string.set_copy_unknown_path),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    onClearSelected(selected.toList())
+                    selected = emptySet()
+                    onClose()
+                },
+                enabled = selected.isNotEmpty(),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.set_clear_selected_count, selected.size))
+            }
+            OutlinedButton(
+                onClick = onClearAll,
+                enabled = total > 0,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.set_clear_all))
+            }
+        }
     }
 }
 

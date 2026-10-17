@@ -138,6 +138,13 @@ interface CopiedDao {
     @Query("SELECT COUNT(*) FROM copied")
     suspend fun total(): Int
 
+    /** 复制记录列表（设置页多选清除用），最近的在前。 */
+    @Query("SELECT * FROM copied ORDER BY firstSeenAt DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<CopiedEntity>
+
+    @Query("DELETE FROM copied WHERE fingerprint IN (:fingerprints)")
+    suspend fun deleteSelected(fingerprints: List<String>): Int
+
     @Query("DELETE FROM copied")
     suspend fun clearAll(): Int
 }

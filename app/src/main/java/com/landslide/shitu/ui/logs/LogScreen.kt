@@ -1,10 +1,7 @@
 package com.landslide.shitu.ui.logs
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.util.LruCache
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,19 +13,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -41,14 +40,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -59,13 +56,13 @@ import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.RuleEntity
+import com.landslide.shitu.ui.components.FileThumbnail
+import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.logTone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US)
 
@@ -90,6 +87,9 @@ fun LogScreen(
     var askClear by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 点搜索框时弹出的路径建议：规则源/目标目录 + 它们的父目录（去重后最多 20 条）
+    var showPathSuggestions by remember { mutableStateOf(false) }
+    val pathSuggestions = remember(rules) { buildPathSuggestions(rules) }
 
     val activeFilters =
         (if (resultFilter != null) 1 else 0) + (if (ruleFilter != null) 1 else 0)
@@ -149,6 +149,7 @@ fun LogScreen(
                     },
                 )
             }
+            HelpDot(stringResource(R.string.logs_help_filter))
             TextButton(onClick = onExport) { Text(stringResource(R.string.logs_export)) }
             TextButton(
                 onClick = { askClear = true },
@@ -156,13 +157,59 @@ fun LogScreen(
             ) { Text(stringResource(R.string.logs_clear)) }
         }
 
-        OutlinedTextField(
-            value = keyword,
-            onValueChange = { keyword = it },
-            label = { Text(stringResource(R.string.logs_search_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                // 在 Initial 阶段旁听一次按下：只弹建议，不抢输入框自己的光标定位
+                Modifier
+                    .weight(1f)
+                    .pointerInput(pathSuggestions) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            if (pathSuggestions.isNotEmpty()) showPathSuggestions = true
+                        }
+                    },
+            ) {
+                OutlinedTextField(
+                    value = keyword,
+                    onValueChange = {
+                        keyword = it
+                        // 手动输入时收起建议，别让菜单挡着日志列表
+                        showPathSuggestions = false
+                    },
+                    label = { Text(stringResource(R.string.logs_search_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // 锚在搜索框下方；点一条就直接填进搜索框。
+                // 注意：DropdownMenu 里不能套 verticalScroll（会被测成无限高度直接崩），所以只取前 8 条。
+                DropdownMenu(
+                    expanded = showPathSuggestions && pathSuggestions.isNotEmpty(),
+                    onDismissRequest = { showPathSuggestions = false },
+                    modifier = Modifier.widthIn(min = 280.dp, max = 380.dp),
+                ) {
+                    pathSuggestions.forEach { path ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    path,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            onClick = {
+                                keyword = path
+                                showPathSuggestions = false
+                            },
+                        )
+                    }
+                }
+            }
+            HelpDot(stringResource(R.string.logs_help_search))
+        }
 
         // 有筛选时给一行小字兜底：看得出现在筛的是哪几条，随时能一键清掉
         if (activeFilters > 0) {
@@ -337,7 +384,7 @@ private fun LogRow(l: LogEntity, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxWidth()) {
         // 缩略图固定在左边 48dp，读不到也只画占位块，文字排版不跟着跳
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
-            LogThumbnail(l.dstPath)
+            FileThumbnail(path = l.dstPath)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -390,96 +437,26 @@ private fun LogRow(l: LogEntity, modifier: Modifier = Modifier) {
     }
 }
 
-/** 48dp 缩略图：只对图片扩展名尝试解码；失败/无权限/非图片时画淡色占位块 + 图标。 */
-@Composable
-private fun LogThumbnail(dstPath: String?) {
-    val imagePath = dstPath?.takeIf(::isImagePath)
-    // 缓存命中就在组合时同步取；未命中则放进 IO 线程按 inSampleSize 解码
-    val bitmap by produceState<Bitmap?>(
-        initialValue = imagePath?.let { ThumbnailCache.get(it) },
-        key1 = imagePath,
-    ) {
-        // key 变化（或从图片变成非图片）时先回到缓存里对应的那张，避免残留上一行
-        val path = imagePath
-        value = path?.let { ThumbnailCache.get(it) }
-        if (path != null && value == null) {
-            val key = path
-            value = withContext(Dispatchers.IO) {
-                ThumbnailCache.get(key) ?: decodeThumbnail(key)?.also {
-                    ThumbnailCache.put(key, it)
-                }
-            }
-        }
+/**
+ * 搜索框的路径建议：按规则顺序取每条规则的源目录与目标目录，再各自补上所有父目录
+ * （例如 /sdcard/DCIM/杂图 还会给出 /sdcard/DCIM、/sdcard）；同一路径只留一次，
+ * 保持规则顺序，最多 [limit] 条。
+ */
+private fun buildPathSuggestions(rules: List<RuleEntity>, limit: Int = 8): List<String> {
+    val out = LinkedHashSet<String>()
+    for (rule in rules) {
+        out.addPathWithParents(rule.srcPath)
+        out.addPathWithParents(rule.dstPath)
+        if (out.size >= limit) break
     }
-    Box(
-        Modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        val loaded = bitmap
-        if (loaded != null) {
-            Image(
-                bitmap = loaded.asImageBitmap(),
-                contentDescription = stringResource(R.string.logs_thumb_desc),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Icon(
-                Icons.Filled.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
+    return out.take(limit)
 }
 
-private val IMAGE_EXTENSIONS =
-    setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif")
-
-/** 扩展名判断不区分大小写（jpg / JPEG / Heic 都算图片）。 */
-private fun isImagePath(path: String): Boolean =
-    path.substringAfterLast('.', "").lowercase(Locale.ROOT) in IMAGE_EXTENSIONS
-
-/** 缩略图目标边长：48dp 在 3x 屏约 144px，解码到 144~288px 已经够用。 */
-private const val THUMB_TARGET_PX = 144
-
-/**
- * 用 BitmapFactory 解码缩略图：先只读尺寸算 inSampleSize，再按采样解码，
- * 不会把整张原图读进内存；文件不存在/无权限时返回 null，由界面画占位块。
- */
-private fun decodeThumbnail(path: String): Bitmap? = runCatching {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(path, bounds)
-    val longest = maxOf(bounds.outWidth, bounds.outHeight)
-    if (longest <= 0) return@runCatching null
-    var sample = 1
-    while (longest / (sample * 2) >= THUMB_TARGET_PX) sample *= 2
-    val options = BitmapFactory.Options().apply {
-        inSampleSize = sample
-        inPreferredConfig = Bitmap.Config.ARGB_8888
-    }
-    BitmapFactory.decodeFile(path, options)
-}.getOrNull()
-
-/**
- * 进程内单例缩略图缓存（最多 8 MB），滚动时同一路径不反复解码。
- * 淘汰时不主动 recycle：Compose 可能还在画这一帧，交给 GC 更安全。
- */
-private object ThumbnailCache {
-    private const val MAX_BYTES = 8 * 1024 * 1024
-
-    private val cache = object : LruCache<String, Bitmap>(MAX_BYTES) {
-        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
-    }
-
-    fun get(path: String): Bitmap? = cache.get(path)
-
-    fun put(path: String, bitmap: Bitmap) {
-        // 单张就超预算的图不塞进去，免得刚放进去就被挤掉
-        if (bitmap.byteCount <= MAX_BYTES) cache.put(path, bitmap)
+/** 把一个绝对路径和它的父目录加进集合：/sdcard/DCIM/a → /sdcard/DCIM/a、/sdcard/DCIM、/sdcard。 */
+private fun MutableCollection<String>.addPathWithParents(path: String) {
+    var current = path.trim().trimEnd('/')
+    while (current.isNotEmpty() && current != "/") {
+        add(current)
+        current = current.substringBeforeLast('/', "").trimEnd('/')
     }
 }

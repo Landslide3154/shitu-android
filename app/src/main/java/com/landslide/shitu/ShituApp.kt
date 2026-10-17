@@ -18,7 +18,7 @@ import com.landslide.shitu.core.RunWindow
 import com.landslide.shitu.core.ScanFilter
 import com.landslide.shitu.data.LogExporter
 import com.landslide.shitu.data.RoomContentLedger
-import com.landslide.shitu.data.RuleIo
+import com.landslide.shitu.data.BackupIo
 import com.landslide.shitu.data.RuleRepository
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
@@ -224,14 +224,18 @@ class ShituApp : Application() {
      */
     fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> {
         val out = ArrayList<String>(4)
-        if (s.runOnlyCharging && !isCharging()) out += "要插上充电器"
-        if (s.runOnlyScreenOff && isScreenUsable()) out += "要等熄屏"
+        val charging = isCharging()
+        if (s.runOnlyCharging && !charging) out += "要插上充电器"
+        // 充电优先：插着电时不再受「电量低于 X% 不搬」限制
+        if (!charging && s.runMinBatteryPct > 0) {
+            val pct = batteryPct()
+            if (pct in 0 until s.runMinBatteryPct) out += "电量低于 ${s.runMinBatteryPct}%"
+        }
+        val screenOn = isScreenUsable()
+        if (s.runOnlyScreenOn && !screenOn) out += "要等亮屏"
+        if (s.runOnlyScreenOff && screenOn) out += "要等熄屏"
         if (s.runOnlyNight && !RunWindow.inNightRange(s.nightStartHour, s.nightEndHour, nowHour)) {
             out += "只在夜间 ${s.nightStartHour}:00–${s.nightEndHour}:00"
-        }
-        if (s.runMinBatteryPct > 0) {
-            val pct = batteryPct()
-            if (pct in 0 until s.runMinBatteryPct) out += "电量要高于 ${s.runMinBatteryPct}%"
         }
         return out
     }
@@ -345,11 +349,11 @@ class ShituApp : Application() {
         cal.timeInMillis
     }.getOrDefault(System.currentTimeMillis() - 7L * 24 * 3600_000L)
 
-    /** 导出全部规则到 /sdcard/Download（拿不到路径时退回 App 自己的外部目录）。 */
-    suspend fun exportRules(): String {
-        val text = RuleIo.encode(repo.allRules())
+    /** 导出规则 + 各项设置到 /sdcard/Download（拿不到路径时退回 App 自己的外部目录）。 */
+    suspend fun exportBackup(): String {
+        val text = BackupIo.encode(repo.allRules(), currentSettings())
         val dir = getExternalFilesDir(null) ?: filesDir
-        val file = File(dir, RuleIo.fileName())
+        val file = File(dir, BackupIo.fileName())
         file.writeText(text)
         val target = "/sdcard/Download/${file.name}"
         val ok = runCatching {
@@ -359,10 +363,12 @@ class ShituApp : Application() {
         return if (ok) target else file.absolutePath
     }
 
-    /** 导入规则文本；返回导入条数。导入的一律是暂停状态、id 归零。 */
-    suspend fun importRules(text: String): Int {
+    /** 导入备份：规则一律建成暂停状态；文件里带设置就一并恢复。返回导入的规则条数。 */
+    suspend fun importBackup(text: String): Int {
+        val backup = BackupIo.decode(text)
+        backup.settings?.let { runCatching { settings.apply(it) } }
         var n = 0
-        for (r in RuleIo.decode(text)) {
+        for (r in backup.rules) {
             repo.insertRule(r)
             n++
         }

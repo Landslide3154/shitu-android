@@ -79,6 +79,7 @@
     <string name="rules_local_mode_body">相册、下载、Pictures 这些普通目录照常搬；Android/data 里 App 私有的图仍需要 Shizuku。点整块可以自检。</string>
     <string name="rules_total_moved_label">累计已搬</string>
     <string name="rules_total_moved_unit">张</string>
+    <string name="rules_help_stats">「累计已搬」是所有规则搬过的图片总数；下面一行是本周新增与失败数，点开还能看来源最多的 App。</string>
     <string name="rules_week_moved">本周 +%1$d 张</string>
     <string name="rules_week_failed">失败 %1$d</string>
     <string name="rules_week_dialog_title">本周统计</string>
@@ -89,6 +90,7 @@
     <string name="rules_week_close">关闭</string>
     <string name="rules_compact">简略</string>
     <string name="rules_detailed">详细</string>
+    <string name="rules_help_view">简略只显示规则名和开关，一屏能看更多；详细还能看到路径、间隔和搬运记录。两种模式点卡片都能进编辑。</string>
     <string name="rules_empty_title">还没有规则</string>
     <string name="rules_empty_body">源目录从 /sdcard 往下点，选到要清空的图片文件夹（例如 Android/data/com.qidian.QDReader/files）；目标目录默认 /sdcard/DCIM。第一次建议先用「复制」模式试一天。</string>
     <string name="rules_empty_cta">新建第一条规则</string>
