@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_icon as M  # noqa: E402
 
 RES = os.path.join(M.ROOT, "app", "src", "main", "res")
-BRAND = (0x4C, 0xAF, 0x50, 255)
+BRAND = (0xF7, 0xF3, 0xEC, 255)  # 浅色底板（绿色卡片和投影都在前景层里）
 
 
 def composite(px):
