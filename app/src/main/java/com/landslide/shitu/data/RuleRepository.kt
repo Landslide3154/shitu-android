@@ -75,6 +75,9 @@ class RuleRepository(private val db: AppDatabase) {
 
     suspend fun deleteItem(id: Long) = itemDao.delete(id)
 
+    /** 最近 7 天失败次数（统计卡用）。 */
+    suspend fun countFailedSince(since: Long): Int = itemDao.countFailedSince(since)
+
     // ---------- 日志 ----------
 
     suspend fun log(

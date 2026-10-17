@@ -88,8 +88,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
+import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleTemplate
 import com.landslide.shitu.data.db.Labels
+import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.components.BannerCard
@@ -103,6 +105,8 @@ import com.landslide.shitu.ui.status.shizukuAdvice
 import com.landslide.shitu.ui.status.shizukuTitle
 import com.landslide.shitu.ui.status.shizukuTone
 import com.landslide.shitu.ui.theme.Tone
+import com.landslide.shitu.ui.theme.color
+import com.landslide.shitu.ui.theme.container
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -128,6 +132,8 @@ fun RuleListScreen(
     /** 已获得「所有文件访问」：没有 Shizuku 时也能搬普通目录 */
     localReady: Boolean,
     movedTotal: Long,
+    /** 本周统计（未接线时为 null，顶部整行不显示） */
+    stats: ShituApp.Stats? = null,
     onSelfCheck: () -> Unit,
     onRequestPermission: () -> Unit,
     /** 打开 Shizuku 应用（没装则打开官网），给「未运行 / 未安装」状态一个出口 */
@@ -160,6 +166,7 @@ fun RuleListScreen(
     var pendingDelete by remember { mutableStateOf<RuleEntity?>(null) }
     var batchMenu by remember { mutableStateOf(false) }
     var askBatchDelete by remember { mutableStateOf(false) }
+    var showWeekStats by remember { mutableStateOf(false) }
     LaunchedEffect(rules) {
         selected = selected intersect rules.map { it.id }.toSet()
     }
@@ -294,6 +301,10 @@ fun RuleListScreen(
                 TextButton(onClick = { askBatchDelete = false }) { Text(stringResource(R.string.rules_cancel)) }
             },
         )
+    }
+
+    if (showWeekStats) {
+        stats?.let { WeekStatsDialog(stats = it, onDismiss = { showWeekStats = false }) }
     }
 
     Scaffold(
@@ -476,6 +487,36 @@ fun RuleListScreen(
                         onClick = { onCompactChange(false) },
                         label = { Text(stringResource(R.string.rules_detailed)) },
                     )
+                }
+                // 本周统计：只有拿到数据才显示；null 时整行不占位，点了看 Top 3 来源 App
+                stats?.let { s ->
+                    val movedText = stringResource(R.string.rules_week_moved, s.weekMoved)
+                    val failedText = if (s.weekFailed > 0) {
+                        stringResource(R.string.rules_week_failed, s.weekFailed)
+                    } else {
+                        null
+                    }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showWeekStats = true }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            if (failedText == null) movedText else "$movedText · $failedText",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
                 }
             }
             HorizontalDivider()
@@ -701,6 +742,9 @@ private fun RuleCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
                     )
+                    // 简略模式也保留模式颜色：小标签贴在状态胶囊左边
+                    ModeTag(rule.mode)
+                    Spacer(Modifier.width(6.dp))
                     StatusPill(stringResource(ruleStatusText(rule)), tone)
                     Spacer(Modifier.width(10.dp))
                     Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
@@ -782,17 +826,24 @@ private fun RuleCard(
             } else {
                 ""
             }
-            Text(
-                stringResource(
-                    R.string.rules_card_meta,
+            // 模式单独成胶囊（移动=绿、复制=蓝），后面跟间隔/后缀
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StatusPill(
                     Labels.mode(context, rule.mode),
-                    rule.intervalMinutes,
-                    suffix,
-                    renameSuffix,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+                    modeTone(rule.mode),
+                )
+                Text(
+                    stringResource(
+                        R.string.rules_card_meta_detail,
+                        rule.intervalMinutes,
+                        suffix,
+                        renameSuffix,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
             rule.pauseReason?.let {
                 Row(
                     Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -847,6 +898,88 @@ private fun RuleCard(
             }
         }
     }
+}
+
+/** 模式配色：移动=绿、复制=蓝（与日志里的 COPIED 一致）。 */
+private fun modeTone(mode: Mode): Tone = if (mode == Mode.COPY) Tone.COPY else Tone.OK
+
+/** 很小的模式标签：移动=绿、复制=蓝；比状态胶囊更轻，放简略模式行里不抢空间。 */
+@Composable
+private fun ModeTag(mode: Mode) {
+    val tone = modeTone(mode)
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(tone.container())
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            Labels.mode(LocalContext.current, mode),
+            style = MaterialTheme.typography.labelSmall,
+            color = tone.color(),
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 本周统计弹窗：已搬 / 失败 + Top 3 来源 App；没有数据就直说「本周还没搬过」。 */
+@Composable
+private fun WeekStatsDialog(stats: ShituApp.Stats, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rules_week_dialog_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(
+                        R.string.rules_week_dialog_summary,
+                        stats.weekMoved,
+                        stats.weekFailed,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (stats.topApps.isEmpty()) {
+                    Text(
+                        stringResource(R.string.rules_week_dialog_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.rules_week_top_apps),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
+                    )
+                    stats.topApps.forEach { (app, count) ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                app,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                stringResource(R.string.rules_week_top_item, count),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.rules_week_close)) }
+        },
+    )
 }
 
 /** 卡片背后那层：左滑露出来的红底「删除」，点它才真的进删除确认 */

@@ -63,6 +63,12 @@
     <string name="app_copy_result">复制结果</string>
     <string name="app_close">关闭</string>
 
+    <!-- 规则导入导出 -->
+    <string name="app_rules_exported">规则已导出到 %1$s</string>
+    <string name="app_rules_export_failed">导出失败：%1$s</string>
+    <string name="app_rules_imported">已导入 %1$d 条规则（暂停状态，确认后再开）</string>
+    <string name="app_rules_import_empty">那个文件里没有找到规则</string>
+
     <!-- 电池优化 -->
     <string name="app_battery_title">让它一直在后台搬</string>
     <string name="app_battery_text">请把「拾图」加入电池优化白名单，否则 HyperOS 可能在息屏后把它冻结。另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。</string>

@@ -2,7 +2,8 @@ package com.landslide.shitu.ui.rules
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
+import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleConflictChecker
 import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
@@ -46,9 +50,21 @@ import com.landslide.shitu.ui.components.BannerCard
 import com.landslide.shitu.ui.components.DirPickerDialog
 import com.landslide.shitu.ui.components.SectionCard
 import com.landslide.shitu.ui.theme.Tone
+import com.landslide.shitu.ui.theme.color
+import java.util.Locale
+import kotlinx.coroutines.launch
 
-/** 规则编辑（规格 §10 页面 2）。 */
-@OptIn(ExperimentalMaterial3Api::class)
+/** 预览里的体积：统一按 MB 显示，和界面上「约 X MB」的说法一致。 */
+private fun previewSize(bytes: Long): String =
+    String.format(Locale.US, "%.1f MB", bytes / 1_048_576.0)
+
+/**
+ * 规则编辑（规格 §10 页面 2）。
+ *
+ * 一张卡只放一件事：名称 / 源目录 / 目标目录 / 移动模式 / 频率 / 文件名。
+ * 卡片里只留一句短说明，长解释交给对话框。
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RuleEditScreen(
     initial: RuleEntity,
@@ -62,6 +78,8 @@ fun RuleEditScreen(
     /** 把当前草稿同步给上层：返回键/切标签页时要问"存不存" */
     onDraftChange: (RuleEntity) -> Unit = {},
     onDirtyChange: (Boolean) -> Unit = {},
+    /** 试运行：只数「会搬多少张」，不真的动文件（由上层接到 ShituApp.previewRule） */
+    onPreview: suspend (RuleEntity) -> ShituApp.PreviewResult = { ShituApp.PreviewResult() },
 ) {
     var rule by remember { mutableStateOf(initial) }
     var picking by remember { mutableStateOf<String?>(null) }
@@ -73,6 +91,12 @@ fun RuleEditScreen(
     // 保存时缺什么就提示什么（新建的规则一开始三项都是空的）
     var missing by remember { mutableStateOf<List<String>>(emptyList()) }
 
+    // 试运行：preview 非空 = 结果对话框开着；previewBeforeSave = 这次预览是保存流程里的确认
+    var previewing by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<ShituApp.PreviewResult?>(null) }
+    var previewBeforeSave by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
     val isNew = initial.id == 0L
 
     // 下面几处要在 onClick 这类非 Composable 作用域里用，先在这里把资源文案取好
@@ -99,6 +123,56 @@ fun RuleEditScreen(
     // 不会再出现"没勾子目录却提醒子目录的事"，也不会把别的规则的提醒搬进来
     val conflicts = remember(rule, otherRules) { RuleConflictChecker.check(rule, otherRules) }
 
+    /** 保存前必须齐的三项；试运行只要源和目标（名称可以最后再起）。 */
+    fun gaps(needName: Boolean): List<String> = buildList {
+        if (needName && rule.name.isBlank()) add(fieldRuleName)
+        if (rule.srcPath.isBlank()) add(fieldSrc)
+        if (rule.dstPath.isBlank()) add(fieldDst)
+    }
+
+    /** 跑预览；[beforeSave] = 保存流程里的自动预览。 */
+    fun startPreview(beforeSave: Boolean) {
+        if (previewing) return
+        val gapsNow = gaps(needName = beforeSave)
+        if (gapsNow.isNotEmpty()) {
+            missing = gapsNow
+            return
+        }
+        previewing = true
+        previewBeforeSave = beforeSave
+        scope.launch {
+            preview = runCatching { onPreview(rule) }
+                .getOrElse { ShituApp.PreviewResult(error = it.message ?: it.toString()) }
+            previewing = false
+        }
+    }
+
+    /** 预览之后（或编辑老规则时）继续原来的确认链：根目录 → 目标在源内 → 保存。 */
+    fun continueSave() {
+        when {
+            srcIsRoot -> confirmRoot = true
+            // 只有"勾了包含子目录 + 目标在源里面"才需要确认：
+            // 不勾子目录时，子文件夹（含目标目录）根本不会被扫描，是安全的
+            dstInsideSrc && rule.includeSubdirs -> confirmNested = true
+            else -> onSave(rule)
+        }
+    }
+
+    fun onSaveClick() {
+        if (previewing) return
+        // 新建规则先试运行一次，让用户知道大概会搬多少张再决定（编辑老规则不强制）
+        if (isNew) {
+            startPreview(beforeSave = true)
+            return
+        }
+        val gapsNow = gaps(needName = true)
+        if (gapsNow.isNotEmpty()) {
+            missing = gapsNow
+            return
+        }
+        continueSave()
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -123,39 +197,45 @@ fun RuleEditScreen(
             )
         }
 
-        SectionCard(title = stringResource(R.string.edit_section_rule_src)) {
+        // 1. 规则名称
+        SectionCard(title = stringResource(R.string.edit_label_name)) {
             OutlinedTextField(
                 value = rule.name,
                 onValueChange = { rule = rule.copy(name = it) },
-                label = { Text(stringResource(R.string.edit_label_name)) },
                 placeholder = { Text(stringResource(R.string.edit_placeholder_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Text(
+                stringResource(R.string.edit_name_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+        }
 
+        // 2. 源目录：目录 + 子目录/深度 + 老图/小图过滤
+        SectionCard(title = stringResource(R.string.edit_label_src)) {
             OutlinedTextField(
                 value = rule.srcPath,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(stringResource(R.string.edit_label_src)) },
                 placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
-                trailingIcon = { TextButton(onClick = { picking = "src" }) { Text(stringResource(R.string.edit_pick)) } },
-                supportingText = {
-                    Text(
-                        when {
-                            srcTrim.isBlank() ->
-                                stringResource(R.string.edit_src_empty_hint)
-                            srcIsRoot -> stringResource(R.string.edit_src_root_hint)
-                            srcIsAllAppData ->
-                                stringResource(R.string.edit_src_all_app_data_hint)
-                            else -> stringResource(R.string.edit_src_hint)
-                        },
-                        color = if (srcIsRoot || srcIsAllAppData) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        },
-                    )
+                trailingIcon = {
+                    TextButton(onClick = { picking = "src" }) { Text(stringResource(R.string.edit_pick)) }
+                },
+                supportingText = if (srcIsRoot || srcIsAllAppData) {
+                    {
+                        Text(
+                            stringResource(
+                                if (srcIsRoot) R.string.edit_src_root_hint
+                                else R.string.edit_src_all_app_data_hint,
+                            ),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    null
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -167,147 +247,181 @@ fun RuleEditScreen(
                 )
                 Text(stringResource(R.string.edit_include_subdirs))
             }
-            Text(
-                if (rule.includeSubdirs) {
-                    stringResource(R.string.edit_subdirs_on_hint) +
-                        if (dstInsideSrc) stringResource(R.string.edit_subdirs_dst_inside) else ""
-                } else {
-                    stringResource(R.string.edit_subdirs_off_hint)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (rule.includeSubdirs && dstInsideSrc) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
 
-            OutlinedTextField(
-                value = rule.maxDepth?.toString() ?: "",
-                onValueChange = { t ->
-                    val digits = t.filter { it.isDigit() }.take(2)
-                    rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
-                },
-                label = { Text(stringResource(R.string.edit_label_max_depth)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = rule.maxDepth?.toString() ?: "",
+                    onValueChange = { t ->
+                        val digits = t.filter { it.isDigit() }.take(2)
+                        rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
+                    },
+                    label = { Text(stringResource(R.string.edit_label_max_depth)) },
+                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = if (rule.minAgeDays > 0) rule.minAgeDays.toString() else "",
+                    onValueChange = { t ->
+                        val digits = t.filter { it.isDigit() }.take(3)
+                        rule = rule.copy(minAgeDays = digits.toIntOrNull() ?: 0)
+                    },
+                    label = { Text(stringResource(R.string.edit_label_days)) },
+                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = if (rule.minSizeKb > 0) rule.minSizeKb.toString() else "",
+                    onValueChange = { t ->
+                        val digits = t.filter { it.isDigit() }.take(5)
+                        rule = rule.copy(minSizeKb = digits.toIntOrNull() ?: 0)
+                    },
+                    label = { Text(stringResource(R.string.edit_label_size_kb)) },
+                    placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                stringResource(R.string.edit_filter_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
             )
         }
 
-        SectionCard(title = stringResource(R.string.edit_section_dst_mode)) {
+        // 3. 目标目录：目录 + 按 App 名建子目录
+        SectionCard(title = stringResource(R.string.edit_label_dst)) {
             OutlinedTextField(
                 value = rule.dstPath,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(stringResource(R.string.edit_label_dst)) },
                 placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
-                trailingIcon = { TextButton(onClick = { picking = "dst" }) { Text(stringResource(R.string.edit_pick)) } },
-                supportingText = { Text(stringResource(R.string.edit_dst_hint)) },
+                trailingIcon = {
+                    TextButton(onClick = { picking = "dst" }) { Text(stringResource(R.string.edit_pick)) }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.edit_dst_subdir_app))
+                    Text(
+                        stringResource(R.string.edit_dst_subdir_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = rule.dstSubdirApp,
+                    onCheckedChange = { rule = rule.copy(dstSubdirApp = it) },
+                )
+            }
+        }
+
+        // 4. 移动模式
+        SectionCard(title = stringResource(R.string.edit_section_mode)) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Mode.entries.forEachIndexed { i, m ->
                     SegmentedButton(
                         selected = rule.mode == m,
                         onClick = { rule = rule.copy(mode = m) },
                         shape = SegmentedButtonDefaults.itemShape(i, Mode.entries.size),
-                    ) { Text(if (m == Mode.MOVE) stringResource(R.string.edit_mode_move) else stringResource(R.string.edit_mode_copy)) }
+                    ) {
+                        Text(
+                            stringResource(
+                                if (m == Mode.MOVE) R.string.edit_mode_move else R.string.edit_mode_copy,
+                            ),
+                        )
+                    }
                 }
             }
             Text(
-                if (rule.mode == Mode.MOVE) stringResource(R.string.edit_mode_move_hint)
-                else stringResource(R.string.edit_mode_copy_hint),
+                stringResource(
+                    if (rule.mode == Mode.MOVE) R.string.edit_mode_move_hint
+                    else R.string.edit_mode_copy_hint,
+                ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
+                color = if (rule.mode == Mode.MOVE) Tone.OK.color() else Tone.COPY.color(),
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp),
             )
         }
 
-        SectionCard(title = stringResource(R.string.edit_section_freq_name)) {
-            Text(stringResource(R.string.edit_interval, rule.intervalMinutes), style = MaterialTheme.typography.bodyLarge)
+        // 5. 频率
+        SectionCard(title = stringResource(R.string.edit_section_freq)) {
+            Text(
+                stringResource(R.string.edit_interval, rule.intervalMinutes),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Slider(
                 value = rule.intervalMinutes.toFloat(),
                 onValueChange = { rule = rule.copy(intervalMinutes = it.toInt().coerceIn(1, 30)) },
                 valueRange = 1f..30f,
                 steps = 28,
             )
+        }
 
-            OutlinedTextField(
-                value = rule.extensions,
-                onValueChange = { rule = rule.copy(extensions = it) },
-                label = { Text(stringResource(R.string.edit_label_extensions)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // 文件名后缀：可自定义（原来的「加来源 App 后缀」开关改成这里填）
+        // 6. 文件名：后缀 → 按内容命名 → 扩展名白名单
+        SectionCard(title = stringResource(R.string.edit_section_file)) {
             OutlinedTextField(
                 value = rule.suffix,
                 onValueChange = { rule = rule.copy(suffix = it) },
                 label = { Text(stringResource(R.string.edit_label_suffix)) },
-                singleLine = true,
-                supportingText = {
-                    Text(stringResource(R.string.edit_suffix_hint))
-                },
                 placeholder = { Text(stringResource(R.string.edit_suffix_placeholder)) },
+                singleLine = true,
+                supportingText = { Text(stringResource(R.string.edit_suffix_hint)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(6.dp))
-
-            // 按内容命名：和上面的后缀叠加使用（后缀管"来源"，这里管"主体"）
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = rule.contentRename,
                     onCheckedChange = { rule = rule.copy(contentRename = it) },
                 )
                 Text(stringResource(R.string.edit_content_rename))
             }
-            Text(
-                if (rule.contentRename) {
-                    stringResource(
-                        R.string.edit_content_rename_on_hint,
-                        if (rule.suffix.isBlank()) "" else stringResource(R.string.edit_content_rename_suffix_example),
-                    )
-                } else {
-                    stringResource(R.string.edit_content_rename_off_hint)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+            Spacer(Modifier.height(4.dp))
+            OutlinedTextField(
+                value = rule.extensions,
+                onValueChange = { rule = rule.copy(extensions = it) },
+                label = { Text(stringResource(R.string.edit_label_extensions)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+        // 底部按钮：窄屏放不下会自动换行
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.End),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            TextButton(
+                onClick = { startPreview(beforeSave = false) },
+                enabled = !previewing,
+            ) {
+                Text(
+                    stringResource(
+                        if (previewing) R.string.edit_preview_running else R.string.edit_preview_title,
+                    ),
+                )
+            }
             TextButton(
                 onClick = {
                     templateName = rule.name.ifBlank { defaultTemplateName }
                     askTemplateName = true
                 },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
             ) { Text(stringResource(R.string.edit_save_as_template)) }
             TextButton(onClick = onCancel) { Text(stringResource(R.string.edit_cancel)) }
             Button(
-                onClick = {
-                    // 名称/源目录/目标目录三样必须齐；缺了就弹提示，不偷偷替用户填「新规则」
-                    val gaps = buildList {
-                        if (rule.name.isBlank()) add(fieldRuleName)
-                        if (rule.srcPath.isBlank()) add(fieldSrc)
-                        if (rule.dstPath.isBlank()) add(fieldDst)
-                    }
-                    when {
-                        gaps.isNotEmpty() -> missing = gaps
-                        srcIsRoot -> confirmRoot = true
-                        // 只有"勾了包含子目录 + 目标在源里面"才需要确认：
-                        // 不勾子目录时，子文件夹（含目标目录）根本不会被扫描，是安全的
-                        dstInsideSrc && rule.includeSubdirs -> confirmNested = true
-                        else -> onSave(rule)
-                    }
-                },
+                onClick = { onSaveClick() },
+                enabled = !previewing,
             ) { Text(stringResource(R.string.edit_save_and_start)) }
         }
     }
@@ -349,7 +463,89 @@ fun RuleEditScreen(
                     onSaveAsTemplate(rule, templateName.trim().ifBlank { rule.name.ifBlank { defaultTemplateName } })
                 }) { Text(stringResource(R.string.edit_template_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { askTemplateName = false }) { Text(stringResource(R.string.edit_cancel)) } },
+            dismissButton = {
+                TextButton(onClick = { askTemplateName = false }) { Text(stringResource(R.string.edit_cancel)) }
+            },
+        )
+    }
+
+    // 试运行结果：普通预览只报数；保存流程里的预览多一个「确认保存」和「取消」
+    preview?.let { p ->
+        val limited = if (p.limited) stringResource(R.string.edit_preview_limited) else ""
+        val previewError = p.error
+        AlertDialog(
+            onDismissRequest = {
+                preview = null
+                previewBeforeSave = false
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (previewBeforeSave) R.string.edit_preview_save_title
+                        else R.string.edit_preview_title,
+                    ),
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (previewError != null) {
+                        Text(
+                            stringResource(R.string.edit_preview_failed),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(previewError)
+                    } else if (previewBeforeSave) {
+                        Text(
+                            stringResource(
+                                R.string.edit_preview_save_body,
+                                p.candidates,
+                                previewSize(p.bytes),
+                            ) + limited,
+                        )
+                        if (p.existingTarget > 0) {
+                            Text(stringResource(R.string.edit_preview_existing, p.existingTarget))
+                        }
+                    } else {
+                        Text(
+                            stringResource(
+                                R.string.edit_preview_body,
+                                p.candidates,
+                                previewSize(p.bytes),
+                                p.existingTarget,
+                            ) + limited,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (previewBeforeSave) {
+                    TextButton(onClick = {
+                        preview = null
+                        previewBeforeSave = false
+                        continueSave()
+                    }) {
+                        Text(
+                            stringResource(
+                                // 预览失败或 0 张只做提示，不拦保存
+                                if (previewError != null || p.candidates == 0) R.string.edit_preview_save_anyway
+                                else R.string.edit_preview_save,
+                            ),
+                        )
+                    }
+                } else {
+                    TextButton(onClick = { preview = null }) { Text(stringResource(R.string.edit_got_it)) }
+                }
+            },
+            dismissButton = if (previewBeforeSave) {
+                {
+                    TextButton(onClick = {
+                        preview = null
+                        previewBeforeSave = false
+                    }) { Text(stringResource(R.string.edit_cancel)) }
+                }
+            } else {
+                null
+            },
         )
     }
 

@@ -48,6 +48,17 @@ data class Settings(
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
     val lastSelfCheckAt: Long? = null,
+    /** 界面语言：0 跟随系统 / 1 中文 / 2 English（见 AppLocale；真正生效靠 SharedPreferences 同步读取） */
+    val language: Int = AppLocale.SYSTEM,
+    // —— 运行条件（多选；默认全关 = 和以前一样，随时都能搬） ——
+    val runOnlyCharging: Boolean = false,
+    val runOnlyScreenOff: Boolean = false,
+    /** 只在夜间搬运；时段默认 22:00–07:00（跨午夜用 hourInNightRange 判断） */
+    val runOnlyNight: Boolean = false,
+    val nightStartHour: Int = 22,
+    val nightEndHour: Int = 7,
+    /** 电量高于这个百分比才搬；0 = 不看电量 */
+    val runMinBatteryPct: Int = 0,
 )
 
 class SettingsStore(private val context: Context) {
@@ -78,6 +89,13 @@ class SettingsStore(private val context: Context) {
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
+        val LANGUAGE = intPreferencesKey("language")
+        val RUN_ONLY_CHARGING = booleanPreferencesKey("run_only_charging")
+        val RUN_ONLY_SCREEN_OFF = booleanPreferencesKey("run_only_screen_off")
+        val RUN_ONLY_NIGHT = booleanPreferencesKey("run_only_night")
+        val NIGHT_START_HOUR = intPreferencesKey("night_start_hour")
+        val NIGHT_END_HOUR = intPreferencesKey("night_end_hour")
+        val RUN_MIN_BATTERY_PCT = intPreferencesKey("run_min_battery_pct")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -107,6 +125,13 @@ class SettingsStore(private val context: Context) {
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
+            language = p[K.LANGUAGE] ?: AppLocale.SYSTEM,
+            runOnlyCharging = p[K.RUN_ONLY_CHARGING] ?: false,
+            runOnlyScreenOff = p[K.RUN_ONLY_SCREEN_OFF] ?: false,
+            runOnlyNight = p[K.RUN_ONLY_NIGHT] ?: false,
+            nightStartHour = p[K.NIGHT_START_HOUR] ?: 22,
+            nightEndHour = p[K.NIGHT_END_HOUR] ?: 7,
+            runMinBatteryPct = p[K.RUN_MIN_BATTERY_PCT] ?: 0,
         )
     }
 
@@ -133,6 +158,18 @@ class SettingsStore(private val context: Context) {
     suspend fun setDynamicColor(v: Boolean) = put(K.DYNAMIC_COLOR, v)
     suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
+    suspend fun setRunOnlyCharging(v: Boolean) = put(K.RUN_ONLY_CHARGING, v)
+    suspend fun setRunOnlyScreenOff(v: Boolean) = put(K.RUN_ONLY_SCREEN_OFF, v)
+    suspend fun setRunOnlyNight(v: Boolean) = put(K.RUN_ONLY_NIGHT, v)
+    suspend fun setNightStartHour(v: Int) = put(K.NIGHT_START_HOUR, v)
+    suspend fun setNightEndHour(v: Int) = put(K.NIGHT_END_HOUR, v)
+    suspend fun setRunMinBatteryPct(v: Int) = put(K.RUN_MIN_BATTERY_PCT, v)
+
+    /** 语言要能被 `attachBaseContext` 同步读到，所以额外落一份 SharedPreferences（DataStore 是异步的）。 */
+    suspend fun setLanguage(v: Int) {
+        put(K.LANGUAGE, v)
+        AppLocale.set(context, v)
+    }
 
     suspend fun setLastSelfCheck(text: String) = context.dataStore.edit {
         it[K.SELF_CHECK] = text

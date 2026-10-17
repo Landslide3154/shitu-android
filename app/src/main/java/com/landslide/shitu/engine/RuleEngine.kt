@@ -48,6 +48,22 @@ class RuleEngine(
          */
         fun isInside(path: String, dir: String): Boolean =
             dir.isNotEmpty() && (path == dir || path.startsWith("$dir/"))
+
+        /**
+         * 目标子目录名：App 显示名可能带 `/`、`:`、换行之类非法字符，直接拼进路径会建出奇怪的目录或失败。
+         * 统一替换成 `_`，并按 code point 截断（避免把 emoji 的代理对切成半个字符）。
+         */
+        fun safeDirName(label: String): String {
+            // 先去掉首尾空白（App 名里偶尔带换行/制表符），再替换中间的非法字符；
+            // 如果先替换，首尾的制表符会变成 "_"，trim 掉不掉。
+            val trimmed = label.trim()
+            if (trimmed.isEmpty()) return "app"
+            val cleaned = trimmed.map { ch ->
+                if (ch.code < 0x20 || ch in "/\\:*?\"<>|") '_' else ch
+            }.joinToString("")
+            if (cleaned.codePointCount(0, cleaned.length) <= 40) return cleaned
+            return cleaned.substring(0, cleaned.offsetByCodePoints(0, 40))
+        }
     }
 
     var lastState: RuleState = RuleState.IDLE
@@ -84,9 +100,9 @@ class RuleEngine(
      * 3) 过了固定稳定期 **或者** 用"大小不再变化"确认写完了。
      */
     private fun isCandidate(filter: ScanFilter, f: RemoteFile, dstRoot: String): Boolean {
-        if (!filter.matches(f)) return false
-        if (isInside(f.path, dstRoot)) return false
         val t = now()
+        if (!filter.matches(f, t)) return false
+        if (isInside(f.path, dstRoot)) return false
         if (filter.isStable(f, t)) return true
         return settings.settleDetect &&
             stability?.settled(f.path, f.size, f.mtimeMillis, t) == true
@@ -95,7 +111,12 @@ class RuleEngine(
     suspend fun runOnce(rule: RuleEntity, guard: LoopGuard, recorder: Recorder? = null): RunResult {
         val t0 = now()
         val led = ledger
-        val filter = ScanFilter(rule.extensions.split(',').toSet(), settings.stableSec)
+        val filter = ScanFilter(
+            extensions = rule.extensions.split(',').toSet(),
+            stableSeconds = settings.stableSec,
+            maxAgeDays = rule.minAgeDays,
+            minSizeKb = rule.minSizeKb,
+        )
         val limiter = RateLimiter(settings.maxPerRun, settings.maxPerMinute, settings.maxRunSec * 1000L)
         val executor = TransferExecutor(bridge, namePolicy)
         val srcRoot = rule.srcPath.trimEnd('/')
@@ -143,10 +164,14 @@ class RuleEngine(
             if (!limiter.tryAcquire(now())) break
             val fileStart = now()
 
-            val tag = com.landslide.shitu.core.AppLabel.expandSuffix(
-                rule.suffix,
-                sourceAppLabel(src.path, rule.name),
-            )
+            val appLabel = sourceAppLabel(src.path, rule.name)
+            val tag = com.landslide.shitu.core.AppLabel.expandSuffix(rule.suffix, appLabel)
+            // 「目标按 App 分子目录」：DCIM/起点读书/…；App 名取不到就退回原目标目录
+            val dstDir = if (rule.dstSubdirApp && appLabel.isNotBlank()) {
+                rule.dstPath.trimEnd('/') + "/" + safeDirName(appLabel)
+            } else {
+                rule.dstPath
+            }
             // 复制模式要按内容查重、开了「按内容命名」也要用，故这两种情况都算一次内容指纹；
             // 算不出来（极少数）就退回原名 / 不做查重，绝不因此不搬。
             val needFingerprint = rule.contentRename || (rule.mode == Mode.COPY && led != null)
@@ -179,7 +204,7 @@ class RuleEngine(
             val item = executor.transfer(
                 src = src,
                 srcPath = src.path,
-                dstDir = rule.dstPath,
+                dstDir = dstDir,
                 suffixTag = tag,
                 mode = rule.mode,
                 ruleId = rule.id,

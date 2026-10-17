@@ -47,14 +47,19 @@ The only difference: without Shizuku, pictures inside `Android/data` can't be re
 
 ## The four screens
 
-- **Rules**: one card per rule. The switch enables/disables it; "Run now" moves once immediately; long-press for "duplicate / undo / delete".
-  `+` creates a rule, or applies a template you saved earlier.
-- **Logs**: what happened, when, and why it failed. **Filter** (top right) narrows by result or rule; **Export** saves a CSV.
-  Files skipped as duplicates don't clutter the log — they're only counted.
-- **Settings**: storage access, detection speed, appearance, self-check, check for updates.
-- **Edit rule**: name, source/target folders, move or copy, interval, file-name suffix, renaming by content.
+- **Rules**: one card per rule; **move is green, copy is blue**. The switch enables/disables it; "Run now" moves once immediately;
+  long-press for "duplicate / undo / delete". "This week +N" at the top opens a small summary.
+- **Logs**: each entry shows a **thumbnail**, what happened, when, and why it failed. **Filter** (top right) narrows by result
+  or rule; **Export** saves a CSV. Files skipped as duplicates don't clutter the log — they're only counted.
+- **Settings**: **Language** (System / 中文 / English) at the top; run conditions (charging / screen off / night / battery);
+  detection speed; appearance; copy records; rule import/export; self-check; check for updates.
+- **Edit rule**: six clear cards — name, source folder, target folder, mode, interval, file names. You can limit to
+  "recent N days", "at least N KB", add one subfolder per app, and **preview** how many files would move before saving.
 
 ## FAQ
+
+**How do I switch the interface language?**
+Settings → Language → English (or 中文 / System). No need to change the system language.
 
 **Nothing is being moved.**
 Tap the status card to run a self-check and see which item is red; then check the failure reason in Logs.

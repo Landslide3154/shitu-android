@@ -14,8 +14,11 @@ import com.landslide.shitu.core.DirProbe
 import com.landslide.shitu.core.FileStability
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
+import com.landslide.shitu.core.RunWindow
+import com.landslide.shitu.core.ScanFilter
 import com.landslide.shitu.data.LogExporter
 import com.landslide.shitu.data.RoomContentLedger
+import com.landslide.shitu.data.RuleIo
 import com.landslide.shitu.data.RuleRepository
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.data.SettingsStore
@@ -213,6 +216,159 @@ class ShituApp : Application() {
 
     suspend fun currentSettings(): Settings = settings.settings.first()
 
+    // ---------- 运行条件（设置里多选；默认全关 = 随时都搬） ----------
+
+    /**
+     * 当前有哪些条件没满足。空列表 = 可以跑。
+     * 手动触发（打开 App、点「立即运行」）走 force 分支，不受这里限制。
+     */
+    fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> {
+        val out = ArrayList<String>(4)
+        if (s.runOnlyCharging && !isCharging()) out += "要插上充电器"
+        if (s.runOnlyScreenOff && isScreenUsable()) out += "要等熄屏"
+        if (s.runOnlyNight && !RunWindow.inNightRange(s.nightStartHour, s.nightEndHour, nowHour)) {
+            out += "只在夜间 ${s.nightStartHour}:00–${s.nightEndHour}:00"
+        }
+        if (s.runMinBatteryPct > 0) {
+            val pct = batteryPct()
+            if (pct in 0 until s.runMinBatteryPct) out += "电量要高于 ${s.runMinBatteryPct}%"
+        }
+        return out
+    }
+
+    private fun currentHour(): Int =
+        java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+
+    fun isCharging(): Boolean = runCatching {
+        getSystemService(BatteryManager::class.java)?.isCharging == true
+    }.getOrDefault(false)
+
+    fun batteryPct(): Int = runCatching {
+        getSystemService(BatteryManager::class.java)
+            ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+    }.getOrDefault(-1)
+
+    // ---------- 试运行预览 / 统计 / 规则导入导出 ----------
+
+    data class PreviewResult(
+        val candidates: Int = 0,
+        val bytes: Long = 0,
+        val existingTarget: Int = 0,
+        val limited: Boolean = false,
+        val error: String? = null,
+    )
+
+    /**
+     * 保存前先看一眼「这条规则大概会搬多少张」。
+     * 只做列举与过滤，不算内容指纹（不然几万张图要算很久）；目标重名只按原文件名粗查。
+     */
+    suspend fun previewRule(rule: RuleEntity, maxList: Int = 2_000, maxCheck: Int = 200): PreviewResult {
+        val cfg = currentSettings()
+        val filter = ScanFilter(
+            extensions = rule.extensions.split(',').toSet(),
+            stableSeconds = cfg.stableSec,
+            maxAgeDays = rule.minAgeDays,
+            minSizeKb = rule.minSizeKb,
+        )
+        val srcRoot = rule.srcPath.trimEnd('/')
+        val dstRoot = rule.dstPath.trimEnd('/')
+        var candidates = 0
+        var bytes = 0L
+        var existing = 0
+        var checked = 0
+        var after: String? = null
+        val deadline = System.currentTimeMillis() + cfg.scanBudgetSec * 1000L
+        try {
+            do {
+                val page = fileBridge.list(srcRoot, rule.includeSubdirs, rule.maxDepth ?: 0, 200, after)
+                if (page.isEmpty()) break
+                after = page.last().path
+                val t = System.currentTimeMillis()
+                for (f in page) {
+                    if (!filter.matches(f, t) || RuleEngine.isInside(f.path, dstRoot)) continue
+                    candidates++
+                    bytes += f.size
+                    if (checked < maxCheck) {
+                        checked++
+                        if (runCatching { fileBridge.exists("$dstRoot/${f.name}") }.getOrDefault(false)) {
+                            existing++
+                        }
+                    }
+                }
+            } while (page.size == 200 && candidates < maxList && System.currentTimeMillis() < deadline)
+        } catch (t: Throwable) {
+            return PreviewResult(error = "扫描失败：${t.message}")
+        }
+        return PreviewResult(
+            candidates = candidates,
+            bytes = bytes,
+            existingTarget = existing,
+            limited = candidates >= maxList,
+        )
+    }
+
+    data class Stats(
+        val weekMoved: Int = 0,
+        val weekFailed: Int = 0,
+        val weekBytes: Long = 0,
+        val topApps: List<Pair<String, Int>> = emptyList(),
+    )
+
+    /** 本周（周一起算）的搬运统计（按内容来源目录粗分组，够看个大概）。 */
+    suspend fun stats(): Stats {
+        val since = weekStartMillis()
+        val done = runCatching { repo.recentDone(2_000) }.getOrDefault(emptyList())
+            .filter { (it.processedAt ?: 0) >= since }
+        val apps = done.groupingBy { sourceAppLabel(it.srcPath, "") .ifBlank { "其它" } }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(3)
+            .map { it.key to it.value }
+        return Stats(
+            weekMoved = done.size,
+            weekFailed = runCatching { repo.countFailedSince(since) }.getOrDefault(0),
+            weekBytes = done.sumOf { it.srcSize },
+            topApps = apps,
+        )
+    }
+
+    /** 本周一 00:00（本地时区）的时间戳；算不出来就退回「最近 7 天」。 */
+    private fun weekStartMillis(): Long = runCatching {
+        val cal = java.util.Calendar.getInstance()
+        cal.firstDayOfWeek = java.util.Calendar.MONDAY
+        cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        cal.timeInMillis
+    }.getOrDefault(System.currentTimeMillis() - 7L * 24 * 3600_000L)
+
+    /** 导出全部规则到 /sdcard/Download（拿不到路径时退回 App 自己的外部目录）。 */
+    suspend fun exportRules(): String {
+        val text = RuleIo.encode(repo.allRules())
+        val dir = getExternalFilesDir(null) ?: filesDir
+        val file = File(dir, RuleIo.fileName())
+        file.writeText(text)
+        val target = "/sdcard/Download/${file.name}"
+        val ok = runCatching {
+            fileBridge.mkdirs("/sdcard/Download")
+            fileBridge.move(file.absolutePath, target)
+        }.getOrDefault(false)
+        return if (ok) target else file.absolutePath
+    }
+
+    /** 导入规则文本；返回导入条数。导入的一律是暂停状态、id 归零。 */
+    suspend fun importRules(text: String): Int {
+        var n = 0
+        for (r in RuleIo.decode(text)) {
+            repo.insertRule(r)
+            n++
+        }
+        return n
+    }
+
     /** 供 WatchService / Worker 调用：跑所有"到期且启用"的规则。 */
     suspend fun runDueRules(force: Boolean = false): RunSummary = runMutex.withLock {
         val s = currentSettings()
@@ -220,6 +376,15 @@ class ShituApp : Application() {
         // 熄屏/锁屏暂停：手动触发（打开 App、「立即扫一次」）不受影响，亮屏解锁后自动继续
         if (!force && s.screenOffPause && !isScreenUsable()) {
             return@withLock RunSummary(message = "熄屏暂停中（亮屏解锁后自动继续）")
+        }
+        // 用户勾选的「只在充电 / 熄屏 / 夜间 / 电量够高时搬」：手动触发不受限
+        if (!force) {
+            val unmet = unmetConditions(s)
+            if (unmet.isNotEmpty()) {
+                val msg = "等运行条件：" + unmet.joinToString("、")
+                lastMessage = msg
+                return@withLock RunSummary(message = msg)
+            }
         }
 
         if (!ensureChannel()) {
@@ -285,6 +450,7 @@ class ShituApp : Application() {
         val s = currentSettings()
         if (!s.fastWhileActive) return@withLock RunSummary()
         if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary()
+        if (unmetConditions(s).isNotEmpty()) return@withLock RunSummary()
         if (!ensureChannel()) return@withLock RunSummary()
 
         val now = System.currentTimeMillis()

@@ -30,4 +30,5 @@
     <string name="logs_cancel">取消</string>
     <string name="logs_src">源\u0020\u0020%1$s</string>
     <string name="logs_dst">目标\u0020\u0020%1$s</string>
+    <string name="logs_thumb_desc">图片预览</string>
 </resources>

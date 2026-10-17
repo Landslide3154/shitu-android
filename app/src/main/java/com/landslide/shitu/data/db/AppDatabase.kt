@@ -25,7 +25,7 @@ class Converters {
 
 @Database(
     entities = [RuleEntity::class, ItemEntity::class, LogEntity::class, CopiedEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -61,9 +61,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** 4 → 5：规则表加「目标按 App 分子目录」「最近 N 天」「大于 N KB」三个可选条件（老规则一律 0/关）。 */
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE rules ADD COLUMN dstSubdirApp INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE rules ADD COLUMN minAgeDays INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE rules ADD COLUMN minSizeKb INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
     }

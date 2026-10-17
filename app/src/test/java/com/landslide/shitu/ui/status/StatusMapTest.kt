@@ -148,7 +148,7 @@ class StatusMapTest {
     @Test
     fun `日志结果映射到颜色语义`() {
         assertEquals(Tone.OK, logTone(LogResult.MOVED))
-        assertEquals(Tone.OK, logTone(LogResult.COPIED))
+        assertEquals(Tone.COPY, logTone(LogResult.COPIED))
         assertEquals(Tone.WARN, logTone(LogResult.SKIPPED))
         assertEquals(Tone.ERROR, logTone(LogResult.FAILED))
         assertEquals(Tone.BUSY, logTone(LogResult.UNDONE))

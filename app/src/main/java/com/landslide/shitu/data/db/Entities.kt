@@ -23,6 +23,12 @@ data class RuleEntity(
      * Kotlin 默认 true 只作用于**新建**的规则；老数据由数据库迁移写成 0（关闭），不会突然被改名。
      */
     @ColumnInfo(defaultValue = "0") val contentRename: Boolean = true,
+    /** 目标目录下再按来源 App 名建一层子目录（`DCIM/起点读书/…`），不同 App 的图不混在一起。 */
+    @ColumnInfo(defaultValue = "0") val dstSubdirApp: Boolean = false,
+    /** 只搬「修改时间在最近 N 天内」的图；0 = 不限（用来忽略历史老图）。 */
+    @ColumnInfo(defaultValue = "0") val minAgeDays: Int = 0,
+    /** 只搬「大于 N KB」的图，用来跳过缩略图 / 表情包；0 = 不限。 */
+    @ColumnInfo(defaultValue = "0") val minSizeKb: Int = 0,
     val enabled: Boolean = true,
     val state: RuleState = RuleState.IDLE,
     val pauseReason: String? = null,

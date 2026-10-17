@@ -94,6 +94,8 @@ fun ShituRoot(app: ShituApp) {
     var rules by remember { mutableStateOf<List<RuleEntity>>(emptyList()) }
     var logs by remember { mutableStateOf<List<LogEntity>>(emptyList()) }
     var copiedCount by remember { mutableStateOf(0) }
+    /** 本周统计；拿不到就不显示统计行，不占位 */
+    var stats by remember { mutableStateOf<ShituApp.Stats?>(null) }
     var state by remember { mutableStateOf(app.bridge.state()) }
     var channel by remember { mutableStateOf(app.channel()) }
     var health by remember { mutableStateOf<List<HealthChecker.Item>?>(null) }
@@ -105,6 +107,7 @@ fun ShituRoot(app: ShituApp) {
         rules = app.repo.allRules()
         logs = app.repo.recentLogs(500)
         copiedCount = app.ledger.count()
+        stats = runCatching { app.stats() }.getOrNull()
         state = app.bridge.state()
         channel = app.channel()
     }
@@ -252,6 +255,7 @@ fun ShituRoot(app: ShituApp) {
                     rules = rules,
                     state = state,
                     localReady = channel == ShituApp.Channel.LOCAL,
+                    stats = stats,
                     movedTotal = rules.sumOf { it.totalMoved },
                     onSelfCheck = { selfCheck() },
                     onRequestPermission = { app.bridge.requestPermission() },
@@ -529,6 +533,38 @@ fun ShituRoot(app: ShituApp) {
                             snackbar.showSnackbar(context.getString(R.string.app_copy_records_cleared, n, items))
                         }
                     },
+                    rulesCount = rules.size,
+                    onExportRules = {
+                        scope.launch {
+                            val res = runCatching { app.exportRules() }
+                            refresh()
+                            res.onSuccess { path ->
+                                snackbar.showSnackbar(
+                                    context.getString(R.string.app_rules_exported, path),
+                                )
+                            }.onFailure { e ->
+                                snackbar.showSnackbar(
+                                    context.getString(
+                                        R.string.app_rules_export_failed,
+                                        e.message ?: "?",
+                                    ),
+                                )
+                            }
+                        }
+                    },
+                    onImportRules = { text ->
+                        scope.launch {
+                            val n = runCatching { app.importRules(text) }.getOrDefault(0)
+                            refresh()
+                            snackbar.showSnackbar(
+                                if (n > 0) {
+                                    context.getString(R.string.app_rules_imported, n)
+                                } else {
+                                    context.getString(R.string.app_rules_import_empty)
+                                },
+                            )
+                        }
+                    },
                 )
                     }
                 }
@@ -560,6 +596,7 @@ fun ShituRoot(app: ShituApp) {
                                     draft = r
                                     saveDraft()
                                 },
+                                onPreview = { rule -> app.previewRule(rule) },
                                 // 取消 = 放弃本次修改，直接回规则列表
                                 onCancel = { closeEditor(null) },
                             )

@@ -77,7 +77,8 @@ fun canResume(rule: RuleEntity): Boolean =
 // ---------- 日志 ----------
 
 fun logTone(result: LogResult): Tone = when (result) {
-    LogResult.MOVED, LogResult.COPIED -> Tone.OK
+    LogResult.MOVED -> Tone.OK
+    LogResult.COPIED -> Tone.COPY
     LogResult.SKIPPED -> Tone.WARN
     LogResult.FAILED -> Tone.ERROR
     LogResult.UNDONE -> Tone.BUSY

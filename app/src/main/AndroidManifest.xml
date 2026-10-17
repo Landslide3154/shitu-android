@@ -23,6 +23,15 @@
     <!-- 另一个功能联网要用（与本地文件通道无关） -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- 应用内更新：下载完 APK 后交给系统安装器（不静默安装） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- 日志缩略图：读相册里能看到的图（Android 13+ 用 READ_MEDIA_IMAGES，旧版本退回 READ_EXTERNAL_STORAGE） -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <application
         android:name=".ShituApp"
         android:allowBackup="false"
@@ -79,6 +88,17 @@
             android:exported="true"
             android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!-- 应用内更新：把 cacheDir/update 里的 APK 交给系统安装器 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

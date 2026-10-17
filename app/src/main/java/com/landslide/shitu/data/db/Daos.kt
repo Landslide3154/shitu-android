@@ -85,6 +85,10 @@ interface ItemDao {
     @Query("SELECT * FROM items WHERE ruleId = :ruleId")
     suspend fun allForRule(ruleId: Long): List<ItemEntity>
 
+    /** 最近 7 天失败次数（统计卡用）。 */
+    @Query("SELECT COUNT(*) FROM items WHERE status = 'FAILED' AND processedAt >= :since")
+    suspend fun countFailedSince(since: Long): Int
+
     @Query("DELETE FROM items WHERE id = :id")
     suspend fun delete(id: Long)
 

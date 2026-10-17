@@ -1,8 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 设置页中文资源；英文见 values/strings_settings.xml -->
+
+    <!-- 1. 语言 -->
+    <string name="set_section_language">语言</string>
+    <string name="set_language_system">跟随系统</string>
+    <string name="set_language_chinese">中文</string>
+    <string name="set_language_english">English</string>
+
+    <!-- 2. 存储访问 -->
+    <string name="set_section_storage_access">存储访问</string>
+    <string name="set_storage_granted_desc">已开：普通目录不用 Shizuku；Android/data 仍要 Shizuku。</string>
+    <string name="set_storage_not_granted_desc">没开：打开后普通目录之间不用 Shizuku 也能搬；Android/data 仍要 Shizuku。</string>
+    <string name="set_storage_granted">已授权</string>
+    <string name="set_storage_open">去打开「所有文件访问」</string>
+
+    <!-- 3. 运行条件 -->
+    <string name="set_section_run_conditions">运行条件</string>
+    <string name="set_run_conditions_desc">全关 = 任何时候都能搬。</string>
+    <string name="set_run_only_charging">只在充电时搬</string>
+    <string name="set_run_only_screen_off">只在熄屏时搬</string>
+    <string name="set_run_only_night">只在夜间搬</string>
+    <string name="set_night_start_hour">开始</string>
+    <string name="set_night_end_hour">结束</string>
+    <string name="set_run_min_battery">电量高于 %1$d%% 才搬（0 = 不看电量）</string>
+    <string name="set_run_min_battery_pct">电量阈值</string>
+
+    <!-- 4. 检测速度 -->
+    <string name="set_section_detection_speed">检测速度</string>
+    <string name="set_fast_while_active">正在用手机时加快检测</string>
+    <string name="set_fast_interval_sec">检测间隔（秒）</string>
+    <string name="set_fast_while_active_desc">亮屏时每几秒看一眼源目录。</string>
+    <string name="set_screen_off_pause">熄屏后暂停扫描</string>
+    <string name="set_screen_off_pause_on_desc">熄屏就停，解锁后自动继续。</string>
+    <string name="set_screen_off_pause_off_desc">熄屏后按每条规则的间隔继续。</string>
+    <string name="set_settle_detect">写完就搬（不等稳定期）</string>
+    <string name="set_settle_gap_sec">写完判定窗口（秒）</string>
+    <string name="set_settle_detect_desc">大小和修改时间不再变，就立刻搬。</string>
+
+    <!-- 运行参数（默认收起） -->
     <string name="set_section_run_params">运行参数</string>
-    <string name="set_run_params_desc">一次搬多少、搬多快、失败几次停。默认值适合大多数手机，不确定就别改。</string>
+    <string name="set_run_params_desc">不确定就别改，默认值适合大多数手机。</string>
     <string name="set_scan_budget_sec">单轮扫描时间预算（秒）</string>
     <string name="set_max_per_run">单轮最多搬运（个）</string>
     <string name="set_max_per_minute">每分钟最多搬运（个）</string>
@@ -16,61 +54,65 @@
     <string name="set_log_keep_count">日志保留条数</string>
     <string name="set_field_range">%1$s（%2$d–%3$d）</string>
 
-    <string name="set_section_storage_access">存储访问</string>
-    <string name="set_storage_granted_desc">已获得「所有文件访问」权限。不装 Shizuku 也能搬普通目录里的图（Pictures、DCIM、Download、Documents 等）；Android/data 里 App 私有的图仍然需要 Shizuku。</string>
-    <string name="set_storage_not_granted_desc">没开：现在只能靠 Shizuku 搬。打开之后，即使不装 Shizuku，普通目录之间也能搬（Pictures → DCIM 这种）；Android/data 里 App 私有的图仍然需要 Shizuku。</string>
-    <string name="set_storage_granted">已授权</string>
-    <string name="set_storage_open">去打开「所有文件访问」</string>
-
-    <string name="set_section_detection_speed">检测速度</string>
-    <string name="set_fast_while_active">正在用手机时加快检测</string>
-    <string name="set_fast_interval_sec">加快检测间隔（秒）</string>
-    <string name="set_fast_while_active_desc">开着它：屏幕亮着时每隔上面这个秒数看一眼源目录有没有变化（只看目录时间，很省电），一变就立刻搬，所以下载完十几秒内就能进相册。屏幕熄灭后回到每条规则自己的间隔。</string>
-    <string name="set_screen_off_pause">熄屏后暂停扫描</string>
-    <string name="set_screen_off_pause_on_desc">开着：熄屏或锁屏时停下（省电）；亮屏解锁后会自动继续，不用手动点。</string>
-    <string name="set_screen_off_pause_off_desc">关着（默认）：熄屏后仍按每条规则自己的间隔继续搬（推荐，晚上充电时也能把没搬完的清掉）。</string>
-    <string name="set_settle_detect">写完就搬（不等满稳定期）</string>
-    <string name="set_settle_gap_sec">写完判定窗口（秒）</string>
-    <string name="set_settle_detect_desc">同一个文件两次看到的「大小 + 修改时间」都没变、间隔超过上面这个秒数，就认为它写完了，立刻搬走——不用干等「文件稳定期」。正在下载的文件每隔一会儿就变一次，不会被误判。关掉它则退回按「文件稳定期」等待。</string>
-
+    <!-- 5. 开关 -->
     <string name="set_section_switches">开关</string>
     <string name="set_low_battery_pause">低电量/省电模式暂停</string>
-    <string name="set_fast_drain">加速清空（一轮结束立刻开下一轮）</string>
-    <string name="set_notify_enabled">事件通知（暂停/失败/未就绪）</string>
+    <string name="set_fast_drain">加速清空（一轮接一轮）</string>
+    <string name="set_notify_enabled">事件通知（暂停/失败）</string>
 
+    <!-- 6. 外观 -->
     <string name="set_section_appearance">外观</string>
     <string name="set_theme">主题</string>
     <string name="set_theme_system">跟随系统</string>
     <string name="set_theme_light">浅色</string>
     <string name="set_theme_dark">深色</string>
     <string name="set_dynamic_color">动态取色（Material You）</string>
-    <string name="set_dynamic_color_desc">安卓 12 及以上：颜色跟着壁纸走，整个 App 和系统一个色调。关掉就用固定的蓝色。</string>
+    <string name="set_dynamic_color_desc">安卓 12+：颜色跟壁纸走。</string>
 
-    <string name="set_section_self_check">自检</string>
-    <string name="set_last_self_check">上次自检：%1$s</string>
-    <string name="set_no_self_check">还没做过自检。自检只用临时文件试一遍读写删，不动你的照片。</string>
-    <string name="set_run_self_check">立即自检</string>
-
+    <!-- 7. 复制记录 -->
     <string name="set_section_copy_history">复制记录</string>
-    <string name="set_copy_history_desc">复制模式的规则靠这份记录判断「这张图是不是已经复制过」，不看你后来把文件移到了哪里。现在记着 %1$d 条。</string>
+    <string name="set_copy_history_desc">复制模式靠它判断「这张图复制过没有」，现在 %1$d 条。</string>
     <string name="set_clear_copy_history_button">清空复制记录（%1$d 条）</string>
     <string name="set_clear_copy_history_title">清空复制记录？</string>
-    <string name="set_clear_copy_history_body">清空之后，以前复制过的图会被当成「没复制过」——以后遇到同样的图会再复制一份进来。复制模式的历史完成记录会一起清掉；规则本身和已经搬走的文件不受影响。</string>
+    <string name="set_clear_copy_history_body">清空后，以前复制过的图会被当成没复制过，以后遇到会再复制一份；规则和已搬走的文件不受影响。</string>
     <string name="set_clear_confirm">清空</string>
     <string name="set_cancel">取消</string>
 
+    <!-- 8. 规则管理 -->
+    <string name="set_section_rules">规则管理</string>
+    <string name="set_rules_count">共 %1$d 条规则</string>
+    <string name="set_export_rules">导出规则</string>
+    <string name="set_import_rules">导入规则</string>
+    <string name="set_rules_import_paused_hint">导入的规则默认是暂停状态。</string>
+    <string name="set_rules_import_failed">这个文件读不了，换一个试试。</string>
+
+    <!-- 9. 自检 -->
+    <string name="set_section_self_check">自检</string>
+    <string name="set_last_self_check">上次自检：%1$s</string>
+    <string name="set_self_check_earlier">上次自检：较早前</string>
+    <string name="set_no_self_check">还没自检过</string>
+    <string name="set_run_self_check">立即自检</string>
+
+    <!-- 10. 关于 -->
     <string name="set_section_about">关于</string>
     <string name="set_about_version">拾图 Shitu %1$s · GPL-3.0</string>
     <string name="set_check_update">检查更新</string>
     <string name="set_checking_update">正在检查…</string>
     <string name="set_update_failed_title">检查更新失败</string>
-    <string name="set_update_failed_body">没连上 GitHub。检查一下网络（有些网络环境访问 GitHub 不稳定），稍后再试。</string>
+    <string name="set_update_failed_body">没连上 GitHub，检查网络后再试。</string>
     <string name="set_update_available_title">有新版本 %1$s</string>
     <string name="set_update_notes_fallback">去 Releases 页面看看这次改了什么。</string>
     <string name="set_update_latest_title">已经是最新版本</string>
     <string name="set_update_latest_body">当前 %1$s，线上最新 %2$s。</string>
     <string name="set_go_download">去下载</string>
+    <string name="set_download_and_install">下载并安装</string>
+    <string name="set_downloading">正在下载…</string>
+    <string name="set_downloading_pct">正在下载 %1$d%%</string>
+    <string name="set_download_failed">下载失败：%1$s</string>
+    <string name="set_install_failed">安装包打不开：%1$s</string>
+    <string name="set_install_permission_needed">请先允许「安装未知应用」，回来再点一次。</string>
+    <string name="set_retry">重试</string>
     <string name="set_got_it">知道了</string>
     <string name="set_later">以后再说</string>
-    <string name="set_privacy_note">有 Shizuku 时借 Shizuku 的 adb 身份搬（能进 Android/data）；没有 Shizuku 时用系统给的「所有文件访问」权限搬普通目录。检查更新会联网访问 GitHub，其余功能都不联网。系统更新后若搬不动，请先跑一次自检。</string>
+    <string name="set_privacy_note">只有检查更新会联网，其余功能都不联网。</string>
 </resources>

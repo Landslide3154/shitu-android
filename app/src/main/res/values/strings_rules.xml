@@ -79,6 +79,14 @@
     <string name="rules_local_mode_body">Photos in regular folders such as Gallery, Downloads and Pictures work as usual. Images in app-private Android/data folders still need Shizuku. Tap the card to run a self-check.</string>
     <string name="rules_total_moved_label">Moved so far</string>
     <string name="rules_total_moved_unit">photos</string>
+    <string name="rules_week_moved">This week +%1$d</string>
+    <string name="rules_week_failed">%1$d failed</string>
+    <string name="rules_week_dialog_title">This week</string>
+    <string name="rules_week_dialog_summary">Moved %1$d this week · %2$d failed</string>
+    <string name="rules_week_top_apps">Top apps</string>
+    <string name="rules_week_top_item">%1$d photos</string>
+    <string name="rules_week_dialog_empty">Nothing moved this week</string>
+    <string name="rules_week_close">Close</string>
     <string name="rules_compact">Compact</string>
     <string name="rules_detailed">Detailed</string>
     <string name="rules_empty_title">No rules yet</string>
@@ -91,9 +99,9 @@
     <string name="rules_undo_moved">Undo moved photos</string>
     <string name="rules_resume">Resume</string>
     <string name="rules_suffix_none">none</string>
-    <!-- 行首的 \u0020 是刻意保留的空格（资源会裁掉行首空白）；%4$s = 这一段可选后缀 -->
+    <!-- 行首的 \u0020 是刻意保留的空格（资源会裁掉行首空白）；%3$s = 这一段可选后缀 -->
     <string name="rules_content_rename_suffix">\u0020· named by content</string>
-    <string name="rules_card_meta">Mode %1$s · every %2$d min · suffix %3$s%4$s</string>
+    <string name="rules_card_meta_detail">Every %1$d min · suffix %2$s%3$s</string>
     <string name="rules_card_stats">Last run %1$s · moved %2$d · moved %3$d total · failed %4$d</string>
     <string name="rules_run_now">Run now</string>
     <string name="rules_edit">Edit</string>

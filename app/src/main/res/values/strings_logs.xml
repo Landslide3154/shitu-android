@@ -30,4 +30,5 @@
     <string name="logs_cancel">Cancel</string>
     <string name="logs_src">Source\u0020\u0020%1$s</string>
     <string name="logs_dst">Destination\u0020\u0020%1$s</string>
+    <string name="logs_thumb_desc">Photo preview</string>
 </resources>

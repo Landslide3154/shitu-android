@@ -10,12 +10,16 @@ import androidx.compose.ui.graphics.luminance
  * 全 App 统一的状态语义：颜色 + 图标 + 文字三件套一起用。
  * 任何状态都不允许只靠一句灰字表达 —— 见 docs/superpowers/specs/2026-10-04-shitu-ui-优化-design.md
  */
-enum class Tone { OK, BUSY, WARN, ERROR, IDLE }
+enum class Tone { OK, BUSY, WARN, ERROR, IDLE, COPY }
 
 // Material3 的 ColorScheme 没有 success 色，这里自己定一组；
 // 不用主题色拼，免得 Material You 从壁纸取到红/黄时「正常」看着像「出错」。
 private val OkLight = Color(0xFF1B7F4B)
 private val OkDark = Color(0xFF6FD79B)
+
+// 「复制」用一个偏蓝的固定色，和「移动」的绿一眼区分（不受动态取色影响）。
+private val CopyLight = Color(0xFF1F5FBF)
+private val CopyDark = Color(0xFF9DC0FF)
 
 /** 当前配色是不是深色（用背景色亮度判断，跟随主题模式与动态取色）。 */
 @Composable
@@ -31,6 +35,7 @@ fun Tone.color(): Color = when (this) {
     Tone.WARN -> MaterialTheme.colorScheme.tertiary
     Tone.ERROR -> MaterialTheme.colorScheme.error
     Tone.IDLE -> MaterialTheme.colorScheme.outline
+    Tone.COPY -> if (isDarkScheme()) CopyDark else CopyLight
 }
 
 /** 状态底色：卡片、胶囊背景（叠在页面底色上的一层淡色）。 */
