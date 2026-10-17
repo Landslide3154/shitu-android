@@ -54,6 +54,9 @@ class WatchService : Service() {
 
     @Volatile private var screenUsable = false
 
+    /** 上一次发出去的通知正文：内容没变就不重复 startForeground（快节奏分支每几秒会刷新一次）。 */
+    @Volatile private var lastNotified: String? = null
+
     /** 屏幕开关/解锁：只在服务存活期间用运行时注册（清单里注册收不到这类广播）。 */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -83,11 +86,13 @@ class WatchService : Service() {
         super.onCreate()
         app = application as ShituApp
         app.notifier.ensureChannels()
+        // 启动时写真实状态：以前这里固定写「正在启动…」，但屏幕亮着时走快节奏分支、
+        // 只有搬了东西才刷新通知，结果已经跑起来了通知还一直停在「正在启动」。
         val ok = runCatching {
             ServiceCompat.startForeground(
                 this,
                 Notifier.ID_WATCH,
-                app.notifier.watchNotification("正在启动…"),
+                app.notifier.watchNotification(watchText(moved = 0, lastRunLabel = null)),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         }.isSuccess
@@ -109,13 +114,18 @@ class WatchService : Service() {
             )
         }
         scope.launch { loop() }
+        // 进程重启后先把「累计已搬 / 上次运行」从规则表恢复，通知不会先显示 0 张
+        scope.launch {
+            runCatching { app.restoreWatchStats() }
+            refresh()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP_ALL -> scope.launch {
                 val n = app.stopAllRules()
-                notify("已全部停止（$n 条规则）")
+                refresh("已全部停止（$n 条规则）")
             }
             ACTION_RUN_NOW -> scope.launch { tick(force = true) }
         }
@@ -131,8 +141,10 @@ class WatchService : Service() {
                     runCatching { tick(force = false) }
                 } else {
                     // 快节奏：只 stat 目录，真变了才扫（屏幕亮着时唤醒不额外耗电）
-                    val fast = runCatching { app.runFastLane() }.getOrNull()
-                    if ((fast?.moved ?: 0) > 0) notify("快速检测：搬 ${fast?.moved} 张")
+                    runCatching { app.runFastLane() }
+                    // 原来只有搬了东西才刷新通知，屏幕亮着时通知会一直停在启动文案；
+                    // 现在每轮都刷新（正文没变时 refresh 内部跳过，不会重复发通知）。
+                    refresh()
                 }
                 delay(s.fastIntervalSec.coerceIn(3, 60) * 1000L)
             } else {
@@ -148,24 +160,39 @@ class WatchService : Service() {
         try {
             // 通道可以是 Shizuku，也可以是「所有文件访问」的本地通道；两条都不通才提示未就绪
             if (!app.ensureChannel()) {
-                notify("没有搬图通道：${app.bridge.state().display()}，也没给文件权限")
+                refresh("没有搬图通道：${app.bridge.state().display()}，也没给文件权限")
                 return
             }
             val summary = app.runDueRules(force)
-            notify(summary.message ?: "已搬 ${app.watchMoved} 张")
+            // 统计信息已经在正文的「已搬 N 张 · 上次 …」里，避免出现「已搬 660 张 · … · 已搬 1 张」
+            refresh(summary.message?.takeUnless { it.startsWith("已搬") })
         } finally {
             busy = false
         }
     }
 
-    private fun notify(text: String) {
-        val time = app.lastRunAt?.let { fmt(it) } ?: "—"
-        ServiceCompat.startForeground(
-            this,
-            Notifier.ID_WATCH,
-            app.notifier.watchNotification("已搬 ${app.watchMoved} 张 · 上次 $time · $text"),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+    /**
+     * 刷新常驻通知：正文由 [watchText] 统一生成。
+     *
+     * 内容没变就跳过，所以快节奏分支每几秒调一次也不会反复发通知；进程重启后会先
+     * 把历史统计恢复再刷新，不会出现「0 张」。
+     */
+    private fun refresh(status: String? = null) {
+        val text = watchText(
+            moved = app.watchMoved,
+            lastRunLabel = app.lastRunAt?.let { fmt(it) },
+            status = status,
         )
+        if (text == lastNotified) return
+        val ok = runCatching {
+            ServiceCompat.startForeground(
+                this,
+                Notifier.ID_WATCH,
+                app.notifier.watchNotification(text),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        }.isSuccess
+        if (ok) lastNotified = text
     }
 
     private fun fmt(ms: Long) = SimpleDateFormat("HH:mm", Locale.US).format(Date(ms))

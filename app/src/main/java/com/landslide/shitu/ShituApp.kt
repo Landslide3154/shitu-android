@@ -102,6 +102,16 @@ class ShituApp : Application() {
     @Volatile var lastMessage: String? = null
         private set
 
+    /**
+     * WatchService 重启后从规则表恢复「累计已搬 / 上次运行」，通知里不会退回 0 和「—」。
+     * 只影响通知显示，页面用的仍是规则自己存的统计。
+     */
+    suspend fun restoreWatchStats() {
+        val rules = repo.allRules()
+        watchMoved = rules.sumOf { it.totalMoved }
+        lastRunAt = rules.mapNotNull { it.lastRunAt }.maxOrNull()
+    }
+
     data class RunSummary(
         val rulesRun: Int = 0,
         val moved: Int = 0,
