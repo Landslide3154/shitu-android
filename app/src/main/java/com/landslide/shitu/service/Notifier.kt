@@ -18,7 +18,7 @@ class Notifier(private val context: Context) {
         const val CH_EVENT = "event"
         const val ID_WATCH = 1
 
-        /** 通知的强调色，与图标卡片同一个绿（tools/make_icon.py 的 BRAND） */
+        /** 通知的强调色，与图标底板同一个绿（tools/make_icon.py 的 BRAND） */
         private const val BRAND = 0xFF4CAF50.toInt()
     }
 

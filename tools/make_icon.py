@@ -3,16 +3,15 @@
 拾图 Shitu 图标生成器。
 
 按 ~/.dsh/AGENTS.md §7 + 技能 app-icon：
-- 结构（0.20.5 起，对齐 Lumen）：**浅色底板 + 带投影的绿色卡片 + 白色叠图剪影**。
+- 结构（0.20.6 起，对齐 PicSieve）：**整块绿色超椭圆底板（满幅、不缩小）+ 白色叠图剪影**。
 - 底板「经典圆角」：半径 r = 0.35 × 边长，圆角用**超椭圆**（指数 n = 4），不是 CSS 正圆角（n=2）。
-- 底色纯色，无渐变；卡片本身浮在底板上、往右下投一层软阴影（手机上也能看到，和 Lumen 一样）。
-- 卡片上是纯白单色剪影，轮廓不含折点：折角一律用超椭圆弧，山脊用 Catmull-Rom 样条。
-- 三层阴影：底板外投影 + 卡片投影 + 剪影内投影（数值见常量与技能 §0.1）。
+- 底色纯色，无渐变；白色剪影往右下投一层柔和阴影，阴影强度/柔度参考 Lumen（不是只给图标加白底）。
+- 剪影轮廓不含折点：折角一律用超椭圆弧，山脊用 Catmull-Rom 样条。
 - 4 倍超采样后 LANCZOS 缩小，做抗锯齿。
 
 输出：
-  1) 完整图标 PNG（README / Release 页用：浅色底板 + 卡片）
-  2) Android 自适应图标的前景层（卡片式，带投影）/ 单色层（白剪影，不带阴影）
+  1) 完整图标 PNG（README / Release 页用：满幅绿底板，边缘不留白边）
+  2) Android 自适应图标的前景层（白剪影带投影）/ 单色层（白剪影，不带阴影）
 
 用法：python tools/make_icon.py [变体名 ...]
 """
@@ -25,16 +24,14 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 SS = 4  # 超采样倍数
 
-# 0.20.5 起：Lumen 式「浅色底板 + 带投影的绿色卡片」
-BRAND = (0x4C, 0xAF, 0x50, 255)  # 卡片绿（Material Green 500）
-TILE = (0xF7, 0xF3, 0xEC, 255)   # 浅色底板：卡片浮在它上面；手机自适应图标的 background 也是这个色
+# 0.20.6 起：整块绿底板（PicSieve 做法）+ 白色剪影的 Lumen 式柔和投影
+BRAND = (0x4C, 0xAF, 0x50, 255)  # 底板绿（Material Green 500）；手机自适应图标 background 也是这个色
 WHITE = (255, 255, 255, 255)
 PLATE_SHADOW = (10, 16, 48)      # 阴影颜色（深藏蓝，和 PicSieve / Lumen 一致）
-CARD_FRAC = 0.62                 # 卡片边长 / 桌面可见区（72dp）：留出底板边缘和投影的空间
-GLYPH_FRAC = 0.68                # 剪影边长 / 卡片边长（技能 §0.3 的比例）
-CARD_SHADOW_ALPHA = 0.60         # 卡片投影不透明度（比底板投影明显，Lumen 那种浮起来的感觉）
-CARD_SHADOW_BLUR = 0.065         # 卡片投影模糊 / 卡片边长（Lumen 实测约 6.5%）
-CARD_SHADOW_OFFSET = (0.004, 0.030)  # 卡片投影偏移 / 卡片边长（x, y；Lumen 实测约 3%）
+# 白色剪影在底板上的投影：参照 PicSieve 的强度 + Lumen 的柔和度（按剪影自身尺寸取比例）
+GLYPH_SHADOW_ALPHA = 0.50        # 剪影投影不透明度
+GLYPH_SHADOW_BLUR = 0.055        # 剪影投影模糊 / 剪影边长
+GLYPH_SHADOW_OFFSET = (0.006, 0.024)  # 剪影投影偏移 / 剪影边长（x, y）
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -397,108 +394,68 @@ VARIANTS = {
 
 # ---------- 合成 ----------
 
-def card_composition(canvas, motif_fn, supersample=SS):
-    """可见区（72dp）画布：透明底 + 绿色卡片（右下投影）+ 白色叠图剪影（内投影）。
-
-    卡片投影就是 Lumen 那种「浮起来」的关键：先画一层软阴影，再画卡片本身；
-    剪影另有技能 §0.1 要求的内投影。
-    """
-    big = canvas * supersample
-    card = CARD_FRAC * big
-    ctr = big / 2.0
-    pts = rounded_rect(ctr - card / 2, ctr - card / 2, ctr + card / 2, ctr + card / 2, 0.35 * card)
-    out = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-
-    sil = Image.new("L", (big, big), 0)
-    ImageDraw.Draw(sil).polygon(pts, fill=255)
-    sh = Image.new("RGBA", (big, big), PLATE_SHADOW + (255,))
-    sh.putalpha(sil.point(lambda v: int(v * CARD_SHADOW_ALPHA)))
-    sh = sh.filter(ImageFilter.GaussianBlur(CARD_SHADOW_BLUR * card))
-    holder = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    # 用 alpha_composite 平移，不能 paste(..., sh)：paste 会把 alpha 再乘一次，阴影直接打对折
-    holder.alpha_composite(sh, (int(CARD_SHADOW_OFFSET[0] * card), int(CARD_SHADOW_OFFSET[1] * card)))
-    out = Image.alpha_composite(out, holder)
-    ImageDraw.Draw(out).polygon(pts, fill=BRAND)
-
+def _glyph_mask(big, motif_fn, target):
+    """把剪影缩放成 target 像素、居中的 L 通道掩膜。"""
     m = motif_fn(big)
     m = m.crop(m.getbbox() or (0, 0, big, big))
     w, h = m.size
-    scale = (GLYPH_FRAC * card) / max(w, h)
+    scale = target / max(w, h)
     m = m.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
     fg = Image.new("L", (big, big), 0)
-    fg.paste(m, (int(ctr - m.size[0] / 2), int(ctr - m.size[1] / 2)))
+    fg.paste(m, ((big - m.size[0]) // 2, (big - m.size[1]) // 2))
+    return fg
 
-    # 剪影内投影（技能 §0.1 内层）：按卡片边长的比例
-    off = int(0.024 * card)
-    inner = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    inner.putalpha(fg.point(lambda v: int(v * 0.42)))
-    inner = inner.filter(ImageFilter.GaussianBlur(0.022 * card))
-    base = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    base.alpha_composite(inner, (off, off))
-    out = Image.alpha_composite(out, base)
 
+def draw_glyph(canvas, motif_fn, frac, shadow=True):
+    """在 canvas 中心画白色剪影（占 canvas 的 frac），可选 Lumen 式投影。
+
+    投影只画在剪影后面；平移半透明层要用 alpha_composite ——
+    `paste(im, pos, im)` 会把 alpha 再乘一次，阴影会直接打对折。
+    """
+    big = canvas
+    target = frac * big
+    fg = _glyph_mask(big, motif_fn, target)
+    out = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    if shadow:
+        sh = Image.new("RGBA", (big, big), PLATE_SHADOW + (255,))
+        sh.putalpha(fg.point(lambda v: int(v * GLYPH_SHADOW_ALPHA)))
+        sh = sh.filter(ImageFilter.GaussianBlur(GLYPH_SHADOW_BLUR * target))
+        holder = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+        holder.alpha_composite(sh, (int(GLYPH_SHADOW_OFFSET[0] * target),
+                                    int(GLYPH_SHADOW_OFFSET[1] * target)))
+        out = Image.alpha_composite(out, holder)
     white = Image.new("RGBA", (big, big), WHITE)
     out = Image.alpha_composite(out, Image.composite(
         white, Image.new("RGBA", (big, big), (0, 0, 0, 0)), fg))
-    return out.resize((canvas, canvas), Image.LANCZOS) if supersample > 1 else out
+    return out
 
 
-def plate(size, motif_fn, supersample=SS, frac=0.72, plate_shadow=True, pad_ratio=0.075):
-    """完整图标（README / Release 用）：浅色超椭圆底板（外投影）+ 卡片（投影 + 白剪影）。
+def plate(size, motif_fn, supersample=SS, frac=0.72, plate_shadow=False, pad_ratio=0.0):
+    """完整图标（README / Release 用）：满幅绿色超椭圆底板 + 白色剪影（带投影）。
 
-    结构对齐手机上的自适应图标：浅色底 = 桌面图标的底，卡片浮在中间、带右下投影，
-    这样 README 里看到的图标和手机桌面上看到的是同一个样子。
-    [frac] 为旧实验台脚本保留，新结构改用 CARD_FRAC / GLYPH_FRAC。
-
-    外投影会被画布裁掉，所以画布四周留 pad_ratio 的边（输出尺寸不变，底板相应变小）。
+    PicSieve 的做法：底板铺满画布、不留白边，立体感全部来自白色剪影的投影。
+    [plate_shadow]/[pad_ratio] 为旧实验台脚本保留（当前不使用）。
     """
     big = size * supersample
-    pad = int(big * pad_ratio) if plate_shadow else 0
-    side = big + 2 * pad
-    plate_pts = rounded_rect(pad, pad, pad + big, pad + big, 0.35 * big)
-    canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-
-    if plate_shadow:
-        # 底板外投影：偏移 (0.0024, 0.024)S、模糊 0.022S、不透明度 0.42（技能 §0.1）
-        sil = Image.new("L", (side, side), 0)
-        ImageDraw.Draw(sil).polygon(plate_pts, fill=255)
-        ps = Image.new("RGBA", (side, side), PLATE_SHADOW + (255,))
-        ps.putalpha(sil.point(lambda v: int(v * 0.42)))
-        ps = ps.filter(ImageFilter.GaussianBlur(0.022 * big))
-        holder = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-        holder.alpha_composite(ps, (int(0.0024 * big), int(0.024 * big)))
-        canvas = Image.alpha_composite(canvas, holder)
-
-    ImageDraw.Draw(canvas).polygon(plate_pts, fill=TILE)
-    canvas.alpha_composite(card_composition(big, motif_fn, supersample=1), (pad, pad))
+    pts = rounded_rect(0, 0, big, big, 0.35 * big)
+    canvas = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    ImageDraw.Draw(canvas).polygon(pts, fill=BRAND)
+    canvas.alpha_composite(draw_glyph(big, motif_fn, frac, shadow=True))
     return canvas.resize((size, size), Image.LANCZOS)
 
 
 def adaptive_layer(size, motif_fn, shadow=True, supersample=SS, frac=0.68):
     """自适应图标的图层：108dp 画布，内容落在中央 72dp 可见区。
 
-    shadow=True：卡片式前景（绿色卡片 + 投影 + 白剪影）——手机桌面上因此也能看到投影；
-    shadow=False：单色层（themed icon）只留白色剪影，按可见区 0.68 缩放、不带阴影（技能 §3）。
+    前景层 = 白色剪影（带 Lumen 式投影），底板颜色由 background 资源给（整块绿，不缩小）；
+    shadow=False 是单色层（themed icon）：只留白剪影、不带阴影（技能 §3）。
     """
     big = size * supersample
+    visible = int(round(big * 72.0 / 108.0))
+    off = (big - visible) // 2
+    layer = draw_glyph(visible, motif_fn, frac, shadow=shadow)
     out = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    if shadow:
-        visible = int(round(big * 72.0 / 108.0))
-        card = card_composition(visible, motif_fn, supersample=1)
-        out.alpha_composite(card, ((big - visible) // 2, (big - visible) // 2))
-        return out.resize((size, size), Image.LANCZOS)
-
-    m = motif_fn(big)
-    m = m.crop(m.getbbox() or (0, 0, big, big))
-    w, h = m.size
-    target = frac * (big * 72.0 / 108.0)
-    scale = target / max(w, h)
-    m = m.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
-    layer = Image.new("L", (big, big), 0)
-    layer.paste(m, ((big - m.size[0]) // 2, (big - m.size[1]) // 2))
-    white = Image.new("RGBA", (big, big), WHITE)
-    out = Image.alpha_composite(out, Image.composite(
-        white, Image.new("RGBA", (big, big), (0, 0, 0, 0)), layer))
+    out.alpha_composite(layer, (off, off))
     return out.resize((size, size), Image.LANCZOS)
 
 
