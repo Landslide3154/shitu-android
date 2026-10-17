@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -102,6 +101,7 @@ import com.landslide.shitu.ui.status.shizukuActionLabel
 import com.landslide.shitu.ui.status.shizukuAdvice
 import com.landslide.shitu.ui.status.shizukuTitle
 import com.landslide.shitu.ui.status.shizukuTone
+import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import com.landslide.shitu.ui.theme.container
@@ -192,7 +192,7 @@ fun RuleListScreen(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(ShituRadius.RowShape)
                                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
@@ -498,7 +498,7 @@ fun RuleListScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(ShituRadius.RowShape)
                             .clickable { showWeekStats = true }
                             .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -588,11 +588,11 @@ private fun NewRuleOption(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(ShituRadius.RowShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .border(
                 BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                RoundedCornerShape(14.dp),
+                ShituRadius.RowShape,
             )
             .clickable(onClick = onClick)
             .padding(start = 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
@@ -918,7 +918,7 @@ private fun ModeTag(mode: Mode) {
     val tone = modeTone(mode)
     Box(
         Modifier
-            .clip(RoundedCornerShape(50))
+            .clip(ShituRadius.PillShape)
             .background(tone.container())
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
@@ -999,7 +999,7 @@ private fun BoxScope.RevealDeleteAction(onClick: () -> Unit) {
             Modifier
                 .fillMaxHeight()
                 .width(REVEAL_WIDTH)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(ShituRadius.CardShape)
                 .background(MaterialTheme.colorScheme.error)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,

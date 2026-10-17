@@ -24,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +43,7 @@ import androidx.compose.ui.window.Dialog
 import com.landslide.shitu.R
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.RemoteFile
+import com.landslide.shitu.ui.theme.ShituRadius
 
 /**
  * 目录选择器：从 /sdcard 往下点，也可直接输入路径。
@@ -65,7 +65,7 @@ fun DirPickerDialog(
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val readFailed = stringResource(R.string.app_dir_read_failed)
-    val rowShape = RoundedCornerShape(12.dp)
+    val rowShape = ShituRadius.RowShape
 
     LaunchedEffect(path) {
         loading = true
@@ -81,7 +81,7 @@ fun DirPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = ShituRadius.DialogShape,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth(),
@@ -105,10 +105,10 @@ fun DirPickerDialog(
                     }
                 }
 
-                OutlinedTextField(
+                ShituField(
                     value = manual,
                     onValueChange = { manual = it },
-                    label = { Text(stringResource(R.string.app_dir_path_label)) },
+                    label = stringResource(R.string.app_dir_path_label),
                     singleLine = true,
                     trailingIcon = {
                         TextButton(onClick = { path = manual.trim() }) {
@@ -120,7 +120,7 @@ fun DirPickerDialog(
 
                 // 当前路径单独一块淡底色，长路径也能看清，不再是一行小字贴在白底上
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = ShituRadius.RowShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier
                         .fillMaxWidth()

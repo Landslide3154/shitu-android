@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,7 +23,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -56,6 +54,8 @@ import com.landslide.shitu.ui.components.BannerCard
 import com.landslide.shitu.ui.components.DirPickerDialog
 import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.SectionCard
+import com.landslide.shitu.ui.components.ShituField
+import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import java.util.Locale
@@ -79,7 +79,7 @@ private fun HelpSectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = ShituRadius.CardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
@@ -260,10 +260,10 @@ fun RuleEditScreen(
         HelpSectionCard(
             title = stringResource(R.string.edit_label_name),
         ) {
-            OutlinedTextField(
+            ShituField(
                 value = rule.name,
                 onValueChange = { rule = rule.copy(name = it) },
-                placeholder = { Text(stringResource(R.string.edit_placeholder_name)) },
+                placeholder = stringResource(R.string.edit_placeholder_name),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -279,11 +279,11 @@ fun RuleEditScreen(
         HelpSectionCard(
             title = stringResource(R.string.edit_label_src),
         ) {
-            OutlinedTextField(
+            ShituField(
                 value = rule.srcPath,
                 onValueChange = {},
                 readOnly = true,
-                placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
+                placeholder = stringResource(R.string.edit_placeholder_dir),
                 trailingIcon = {
                     TextButton(onClick = { picking = "src" }) { Text(stringResource(R.string.edit_pick)) }
                 },
@@ -321,13 +321,13 @@ fun RuleEditScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
                     FilterLabel(stringResource(R.string.edit_label_max_depth))
-                    OutlinedTextField(
+                    ShituField(
                         value = rule.maxDepth?.toString() ?: "",
                         onValueChange = { t ->
                             val digits = t.filter { it.isDigit() }.take(2)
                             rule = rule.copy(maxDepth = digits.toIntOrNull()?.takeIf { it > 0 })
                         },
-                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        placeholder = stringResource(R.string.edit_unlimited),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -335,13 +335,13 @@ fun RuleEditScreen(
                 }
                 Column(Modifier.weight(1f)) {
                     FilterLabel(stringResource(R.string.edit_label_days))
-                    OutlinedTextField(
+                    ShituField(
                         value = if (rule.minAgeDays > 0) rule.minAgeDays.toString() else "",
                         onValueChange = { t ->
                             val digits = t.filter { it.isDigit() }.take(3)
                             rule = rule.copy(minAgeDays = digits.toIntOrNull() ?: 0)
                         },
-                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        placeholder = stringResource(R.string.edit_unlimited),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -349,13 +349,13 @@ fun RuleEditScreen(
                 }
                 Column(Modifier.weight(1f)) {
                     FilterLabel(stringResource(R.string.edit_label_size_kb))
-                    OutlinedTextField(
+                    ShituField(
                         value = if (rule.minSizeKb > 0) rule.minSizeKb.toString() else "",
                         onValueChange = { t ->
                             val digits = t.filter { it.isDigit() }.take(5)
                             rule = rule.copy(minSizeKb = digits.toIntOrNull() ?: 0)
                         },
-                        placeholder = { Text(stringResource(R.string.edit_unlimited)) },
+                        placeholder = stringResource(R.string.edit_unlimited),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -374,11 +374,11 @@ fun RuleEditScreen(
         HelpSectionCard(
             title = stringResource(R.string.edit_label_dst),
         ) {
-            OutlinedTextField(
+            ShituField(
                 value = rule.dstPath,
                 onValueChange = {},
                 readOnly = true,
-                placeholder = { Text(stringResource(R.string.edit_placeholder_dir)) },
+                placeholder = stringResource(R.string.edit_placeholder_dir),
                 trailingIcon = {
                     TextButton(onClick = { picking = "dst" }) { Text(stringResource(R.string.edit_pick)) }
                 },
@@ -462,21 +462,21 @@ fun RuleEditScreen(
 
         // 6. 文件名：后缀 → 扩展名白名单 → 按内容生成文件名
         SectionCard(title = stringResource(R.string.edit_section_file)) {
-            OutlinedTextField(
+            ShituField(
                 value = rule.suffix,
                 onValueChange = { rule = rule.copy(suffix = it) },
-                label = { Text(stringResource(R.string.edit_label_suffix)) },
-                placeholder = { Text(stringResource(R.string.edit_suffix_placeholder)) },
+                label = stringResource(R.string.edit_label_suffix),
+                placeholder = stringResource(R.string.edit_suffix_placeholder),
                 singleLine = true,
                 supportingText = { Text(stringResource(R.string.edit_suffix_hint)) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
+            ShituField(
                 value = rule.extensions,
                 onValueChange = { rule = rule.copy(extensions = it) },
-                label = { Text(stringResource(R.string.edit_label_extensions)) },
+                label = stringResource(R.string.edit_label_extensions),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -558,10 +558,10 @@ fun RuleEditScreen(
             text = {
                 Column {
                     Text(stringResource(R.string.edit_template_dialog_body))
-                    OutlinedTextField(
+                    ShituField(
                         value = templateName,
                         onValueChange = { templateName = it },
-                        label = { Text(stringResource(R.string.edit_template_name_label)) },
+                        label = stringResource(R.string.edit_template_name_label),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )

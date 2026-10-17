@@ -58,5 +58,5 @@ fun ShituTheme(
         dark -> Dark
         else -> Light
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme, shapes = ShituShapes, content = content)
 }

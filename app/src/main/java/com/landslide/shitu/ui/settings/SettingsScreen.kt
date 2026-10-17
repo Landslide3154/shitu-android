@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,7 +41,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,6 +75,8 @@ import com.landslide.shitu.data.db.CopiedEntity
 import com.landslide.shitu.local.StorageAccess
 import com.landslide.shitu.ui.components.FileThumbnail
 import com.landslide.shitu.ui.components.HelpDot
+import com.landslide.shitu.ui.components.ShituField
+import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.ThemeMode
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
@@ -802,7 +802,7 @@ private fun SettingsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = ShituRadius.CardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
@@ -989,14 +989,14 @@ private fun intField(
     onChange: (Int) -> Unit,
 ) {
     var text by remember(value) { mutableStateOf(value.toString()) }
-    OutlinedTextField(
+    ShituField(
         value = text,
         onValueChange = { raw ->
             val digits = raw.filter { it.isDigit() }.take(6)
             text = digits
             digits.toIntOrNull()?.let { n -> if (n in range) onChange(n) }
         },
-        label = { Text(stringResource(R.string.set_field_range, label, range.first, range.last)) },
+        label = stringResource(R.string.set_field_range, label, range.first, range.last),
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = modifier

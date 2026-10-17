@@ -39,6 +39,16 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
     <td align="center">Six clear cards</td>
     <td align="center">Thumbnails and filters</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/settings.png" width="250" alt="Settings"></td>
+    <td><img src="docs/screenshots/picker.png" width="250" alt="Choose folder"></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center">Run conditions, backup</td>
+    <td align="center">Choose a folder</td>
+    <td></td>
+  </tr>
 </table>
 
 ## Install

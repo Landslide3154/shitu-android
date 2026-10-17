@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -45,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
+import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import com.landslide.shitu.ui.theme.container
@@ -67,7 +67,7 @@ fun StatusPill(
     val bg by animateColorAsState(tone.container(), animationSpec = spring(), label = "pillBg")
     Row(
         modifier
-            .clip(RoundedCornerShape(50))
+            .clip(ShituRadius.PillShape)
             .background(bg)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -109,7 +109,7 @@ fun BannerCard(
     onAction: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = ShituRadius.CardShape
     val fg by animateColorAsState(tone.color(), animationSpec = spring(), label = "bannerFg")
     val bg by animateColorAsState(tone.container(), animationSpec = spring(), label = "bannerBg")
     Surface(
@@ -169,7 +169,7 @@ fun SectionCard(
     var expanded by remember { mutableStateOf(initiallyExpanded) }
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = ShituRadius.CardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),

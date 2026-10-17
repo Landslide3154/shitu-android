@@ -35,7 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -59,6 +58,7 @@ import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.ui.components.FileThumbnail
+import com.landslide.shitu.ui.components.ShituField
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.logTone
 import java.text.SimpleDateFormat
@@ -172,14 +172,14 @@ fun LogScreen(
                         }
                     },
             ) {
-                OutlinedTextField(
+                ShituField(
                     value = keyword,
                     onValueChange = {
                         keyword = it
                         // 手动输入时收起建议，别让菜单挡着日志列表
                         showPathSuggestions = false
                     },
-                    label = { Text(stringResource(R.string.logs_search_label)) },
+                    label = stringResource(R.string.logs_search_label),
                     singleLine = true,
                     trailingIcon = {
                         if (keyword.isNotEmpty()) {

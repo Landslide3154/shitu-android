@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_icon as M  # noqa: E402
 
 RES = os.path.join(M.ROOT, "app", "src", "main", "res")
-BRAND = (0x66, 0xBB, 0x6A, 255)
+BRAND = (0x4C, 0xAF, 0x50, 255)
 
 
 def composite(px):
