@@ -74,7 +74,7 @@ private fun previewSize(bytes: Long): String =
 @Composable
 private fun HelpSectionCard(
     title: String,
-    help: String,
+    help: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
@@ -92,7 +92,6 @@ private fun HelpSectionCard(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                HelpDot(help)
             }
             Spacer(Modifier.height(10.dp))
             content()
@@ -260,7 +259,6 @@ fun RuleEditScreen(
         // 1. 规则名称
         HelpSectionCard(
             title = stringResource(R.string.edit_label_name),
-            help = stringResource(R.string.edit_help_name),
         ) {
             OutlinedTextField(
                 value = rule.name,
@@ -280,7 +278,6 @@ fun RuleEditScreen(
         // 2. 源目录：目录 + 子目录/深度 + 老图/小图过滤
         HelpSectionCard(
             title = stringResource(R.string.edit_label_src),
-            help = stringResource(R.string.edit_help_src),
         ) {
             OutlinedTextField(
                 value = rule.srcPath,
@@ -385,7 +382,6 @@ fun RuleEditScreen(
         // 3. 目标目录：目录 + 按 App 名建子目录
         HelpSectionCard(
             title = stringResource(R.string.edit_label_dst),
-            help = stringResource(R.string.edit_help_dst),
         ) {
             OutlinedTextField(
                 value = rule.dstPath,
@@ -424,7 +420,6 @@ fun RuleEditScreen(
         // 4. 移动模式
         HelpSectionCard(
             title = stringResource(R.string.edit_section_mode),
-            help = stringResource(R.string.edit_help_mode),
         ) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Mode.entries.forEachIndexed { i, m ->
@@ -455,7 +450,6 @@ fun RuleEditScreen(
         // 5. 频率：这只是兜底——平时源目录一变，十几秒内就搬，不是真的等这么久
         HelpSectionCard(
             title = stringResource(R.string.edit_section_freq),
-            help = stringResource(R.string.edit_help_freq),
         ) {
             Text(
                 stringResource(R.string.edit_interval, rule.intervalMinutes),
@@ -484,9 +478,6 @@ fun RuleEditScreen(
                 placeholder = { Text(stringResource(R.string.edit_suffix_placeholder)) },
                 singleLine = true,
                 supportingText = { Text(stringResource(R.string.edit_suffix_hint)) },
-                trailingIcon = {
-                    HelpDot(stringResource(R.string.edit_help_suffix))
-                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -496,9 +487,6 @@ fun RuleEditScreen(
                 onValueChange = { rule = rule.copy(extensions = it) },
                 label = { Text(stringResource(R.string.edit_label_extensions)) },
                 singleLine = true,
-                trailingIcon = {
-                    HelpDot(stringResource(R.string.edit_help_extensions))
-                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -510,13 +498,7 @@ fun RuleEditScreen(
                     onCheckedChange = { rule = rule.copy(contentRename = it) },
                 )
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            stringResource(R.string.edit_content_rename),
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        HelpDot(stringResource(R.string.edit_help_content_rename))
-                    }
+                    Text(stringResource(R.string.edit_content_rename))
                     Text(
                         stringResource(
                             if (rule.contentRename) R.string.edit_content_rename_on_hint

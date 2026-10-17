@@ -9,6 +9,7 @@
     <string name="logs_export">导出</string>
     <string name="logs_clear">清除</string>
     <string name="logs_search_label">按文件路径搜索</string>
+    <string name="logs_search_clear">清除</string>
     <string name="logs_help_search">点搜索框会列出规则用过的路径，点一条就填进来；也可以直接手输路径。</string>
     <string name="logs_filtered">已筛选</string>
     <string name="logs_filtered_result">：结果「%1$s」</string>

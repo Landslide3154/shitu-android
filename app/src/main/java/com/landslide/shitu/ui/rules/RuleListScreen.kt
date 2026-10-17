@@ -93,7 +93,6 @@ import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.components.BannerCard
-import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.StatusDot
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.canResume
@@ -475,10 +474,6 @@ fun RuleListScreen(
                         stringResource(R.string.rules_total_moved_unit),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    HelpDot(stringResource(R.string.rules_help_stats))
-                }
-                // 简略/详细单独一行：英文文案更长，和统计挤在一行会把两个胶囊挤出屏幕
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.weight(1f))
                     FilterChip(
                         selected = compact,
@@ -491,8 +486,6 @@ fun RuleListScreen(
                         onClick = { onCompactChange(false) },
                         label = { Text(stringResource(R.string.rules_detailed)) },
                     )
-                    Spacer(Modifier.width(6.dp))
-                    HelpDot(stringResource(R.string.rules_help_view))
                 }
                 // 本周统计：只有拿到数据才显示；null 时整行不占位，点了看 Top 3 来源 App
                 stats?.let { s ->
@@ -784,6 +777,8 @@ private fun RuleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 勾选放在标题行，不再单独占一行（底部批量栏用）
+                Checkbox(checked = checked, onCheckedChange = onCheckedChange)
                 StatusDot(tone, size = 10.dp)
                 Text(
                     rule.name,
@@ -806,20 +801,39 @@ private fun RuleCard(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text(
-                rule.srcPath,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "→ ${rule.dstPath}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // 两行路径都从同一列开始，去掉箭头，读起来不用左右找
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.rules_path_from),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.width(34.dp),
+                )
+                Text(
+                    rule.srcPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.rules_path_to),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.width(34.dp),
+                )
+                Text(
+                    rule.dstPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             Spacer(Modifier.height(4.dp))
             val suffix = if (rule.suffix.isBlank()) {
                 stringResource(R.string.rules_suffix_none)
@@ -881,11 +895,6 @@ private fun RuleCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
-            // 右下角：这一条是否被勾选（勾选后用底部「开启 / 停止」批量操作）。
-            // 「立即运行」「编辑」按钮已去掉：打开页面会自动跑，点卡片就能进编辑。
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-            }
             }
         }
     }

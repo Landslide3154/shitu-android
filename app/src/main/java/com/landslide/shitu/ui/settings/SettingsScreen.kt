@@ -306,7 +306,6 @@ fun SettingsScreen(
         // 2. 运行条件：多选；插着充电器时电量条件不生效
         SettingsCard(
             title = stringResource(R.string.set_section_run_conditions),
-            help = stringResource(R.string.set_help_run_conditions),
         ) {
             Text(
                 stringResource(R.string.set_run_conditions_desc),
@@ -317,19 +316,16 @@ fun SettingsScreen(
                 title = stringResource(R.string.set_run_only_charging),
                 checked = settings.runOnlyCharging,
                 onCheckedChange = { scope.launch { store.setRunOnlyCharging(it) } },
-                help = stringResource(R.string.set_help_run_charging),
             )
             SettingSwitchRow(
                 title = stringResource(R.string.set_run_only_screen_on),
                 checked = settings.runOnlyScreenOn,
                 onCheckedChange = { scope.launch { store.setRunOnlyScreenOn(it) } },
-                help = stringResource(R.string.set_help_run_screen_on),
             )
             SettingSwitchRow(
                 title = stringResource(R.string.set_run_only_screen_off),
                 checked = settings.runOnlyScreenOff,
                 onCheckedChange = { scope.launch { store.setRunOnlyScreenOff(it) } },
-                help = stringResource(R.string.set_help_run_screen_off),
             )
             val batteryOn = settings.runMinBatteryPct > 0
             SettingSwitchRow(
@@ -343,7 +339,6 @@ fun SettingsScreen(
                     // 打开先给个 20%，要改再改下面的框；关掉 = 0 = 不看电量
                     scope.launch { store.setRunMinBatteryPct(if (on) 20 else 0) }
                 },
-                help = stringResource(R.string.set_help_run_battery),
             )
             if (batteryOn) {
                 intField(
@@ -357,13 +352,11 @@ fun SettingsScreen(
         // 3. 检测时机：快检 + 写完就搬；高级参数默认收起
         SettingsCard(
             title = stringResource(R.string.set_section_detection_timing),
-            help = stringResource(R.string.set_help_detection),
         ) {
             SettingSwitchRow(
                 title = stringResource(R.string.set_fast_while_active),
                 checked = settings.fastWhileActive,
                 onCheckedChange = { scope.launch { store.setFastWhileActive(it) } },
-                help = stringResource(R.string.set_help_fast_while_active),
                 subtitle = stringResource(R.string.set_fast_while_active_desc),
             )
             if (settings.fastWhileActive) {
@@ -378,7 +371,6 @@ fun SettingsScreen(
                 title = stringResource(R.string.set_settle_detect),
                 checked = settings.settleDetect,
                 onCheckedChange = { scope.launch { store.setSettleDetect(it) } },
-                help = stringResource(R.string.set_help_settle_detect),
                 subtitle = stringResource(R.string.set_settle_detect_desc),
             )
             if (settings.settleDetect) {
@@ -401,7 +393,6 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                 )
-                HelpDot(stringResource(R.string.set_help_run_params))
                 Icon(
                     imageVector = if (showRunParams) {
                         Icons.Filled.KeyboardArrowUp
@@ -460,7 +451,6 @@ fun SettingsScreen(
         // 4. 复制记录：点开列表，勾选后只清选中的
         SettingsCard(
             title = stringResource(R.string.set_section_copy_history),
-            help = stringResource(R.string.set_help_copy_history),
         ) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -480,7 +470,6 @@ fun SettingsScreen(
         // 5. 设置管理：规则 + 各项设置一起备份
         SettingsCard(
             title = stringResource(R.string.set_section_backup),
-            help = stringResource(R.string.set_help_backup),
         ) {
             Text(
                 stringResource(R.string.set_rules_count, rulesCount),
@@ -524,11 +513,9 @@ fun SettingsScreen(
         // 6. 外观与语言：语言、主题、动态取色合并成一张卡
         SettingsCard(
             title = stringResource(R.string.set_section_appearance_language),
-            help = stringResource(R.string.set_help_appearance),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.set_language), style = MaterialTheme.typography.bodyLarge)
-                HelpDot(stringResource(R.string.set_help_language))
             }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -555,7 +542,6 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.set_theme), style = MaterialTheme.typography.bodyLarge)
-                HelpDot(stringResource(R.string.set_help_theme))
             }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -581,7 +567,6 @@ fun SettingsScreen(
                 title = stringResource(R.string.set_dynamic_color),
                 checked = settings.dynamicColor,
                 onCheckedChange = { scope.launch { store.setDynamicColor(it) } },
-                help = stringResource(R.string.set_help_dynamic_color),
                 subtitle = stringResource(R.string.set_dynamic_color_desc),
             )
         }
@@ -589,7 +574,6 @@ fun SettingsScreen(
         // 7. 自检：只有一行按钮，详情由外面的弹窗负责
         SettingsCard(
             title = stringResource(R.string.set_section_self_check),
-            help = stringResource(R.string.set_help_self_check),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = onSelfCheck) {
@@ -611,7 +595,6 @@ fun SettingsScreen(
         // 8. 关于
         SettingsCard(
             title = stringResource(R.string.set_section_about),
-            help = stringResource(R.string.set_help_about),
         ) {
             Text(
                 stringResource(R.string.set_about_version, versionName),
@@ -679,7 +662,6 @@ fun SettingsScreen(
                         },
                     )
                 }
-                HelpDot(stringResource(R.string.set_help_check_update))
             }
             Spacer(Modifier.height(6.dp))
             Text(
@@ -833,7 +815,6 @@ private fun SettingsCard(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                if (help != null) HelpDot(help)
             }
             Spacer(Modifier.height(10.dp))
             content()
@@ -847,7 +828,7 @@ private fun SettingSwitchRow(
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    help: String,
+    help: String? = null,
     subtitle: String? = null,
 ) {
     Row(
@@ -861,7 +842,6 @@ private fun SettingSwitchRow(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f, fill = false),
                 )
-                HelpDot(help)
             }
             if (subtitle != null) {
                 Text(
@@ -900,7 +880,6 @@ private fun CopyHistorySheet(
                 stringResource(R.string.set_section_copy_history),
                 style = MaterialTheme.typography.titleMedium,
             )
-            HelpDot(stringResource(R.string.set_help_copy_history))
             Spacer(Modifier.weight(1f))
             Text(
                 stringResource(R.string.set_copy_history_count, total),

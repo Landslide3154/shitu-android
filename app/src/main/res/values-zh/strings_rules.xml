@@ -103,6 +103,8 @@
     <string name="rules_suffix_none">无</string>
     <!-- 行首的 \u0020 是刻意保留的空格（资源会裁掉行首空白）；%3$s = 这一段可选后缀 -->
     <string name="rules_content_rename_suffix">\u0020· 按内容命名</string>
+    <string name="rules_path_from">源</string>
+    <string name="rules_path_to">目标</string>
     <string name="rules_card_meta_detail">间隔 %1$d 分钟 · 后缀 %2$s%3$s</string>
     <string name="rules_card_stats">上次 %1$s · 上次搬 %2$d · 累计 %3$d · 失败 %4$d</string>
     <string name="rules_run_now">立即运行</string>

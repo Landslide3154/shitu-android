@@ -9,6 +9,7 @@
     <string name="logs_export">Export</string>
     <string name="logs_clear">Clear</string>
     <string name="logs_search_label">Search by file path</string>
+    <string name="logs_search_clear">Clear</string>
     <string name="logs_help_search">Tap the box to see paths used by your rules and pick one to fill it in. You can also type a path yourself.</string>
     <string name="logs_filtered">Filtered</string>
     <string name="logs_filtered_result">: result “%1$s”</string>

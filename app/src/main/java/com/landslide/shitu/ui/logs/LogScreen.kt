@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -31,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -57,7 +59,6 @@ import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.ui.components.FileThumbnail
-import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.logTone
 import java.text.SimpleDateFormat
@@ -149,7 +150,6 @@ fun LogScreen(
                     },
                 )
             }
-            HelpDot(stringResource(R.string.logs_help_filter))
             TextButton(onClick = onExport) { Text(stringResource(R.string.logs_export)) }
             TextButton(
                 onClick = { askClear = true },
@@ -181,6 +181,16 @@ fun LogScreen(
                     },
                     label = { Text(stringResource(R.string.logs_search_label)) },
                     singleLine = true,
+                    trailingIcon = {
+                        if (keyword.isNotEmpty()) {
+                            IconButton(onClick = { keyword = "" }) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.logs_search_clear),
+                                )
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // 锚在搜索框下方；点一条就直接填进搜索框。
@@ -208,7 +218,6 @@ fun LogScreen(
                     }
                 }
             }
-            HelpDot(stringResource(R.string.logs_help_search))
         }
 
         // 有筛选时给一行小字兜底：看得出现在筛的是哪几条，随时能一键清掉

@@ -25,9 +25,9 @@
     <string name="edit_subdirs_on_hint">Moves images from every level under the source folder</string>
     <string name="edit_subdirs_dst_inside">; note the target folder is inside the source, so files just moved there will be picked up as source again</string>
     <string name="edit_subdirs_off_hint">Only moves images directly in the source folder, subfolders are ignored (safer when the target is inside the source)</string>
-    <string name="edit_label_max_depth">Max depth</string>
-    <string name="edit_label_days">Last N days</string>
-    <string name="edit_label_size_kb">At least KB</string>
+    <string name="edit_label_max_depth">Folder depth</string>
+    <string name="edit_label_days">Only last N days</string>
+    <string name="edit_label_size_kb">Min size (KB)</string>
     <string name="edit_unlimited">No limit</string>
     <string name="edit_filter_hint">Blank = no limit; skips old photos and thumbnails</string>
 
@@ -46,18 +46,18 @@
     <string name="edit_mode_copy_hint">Keeps the originals, adds a copy</string>
 
     <!-- 频率 -->
-    <string name="edit_section_freq">Frequency</string>
+    <string name="edit_section_freq">Check frequency</string>
     <string name="edit_interval">Check every %1$d min</string>
 
     <!-- 文件名 -->
     <string name="edit_section_file">File names</string>
     <string name="edit_section_freq_name">Frequency &amp; file names</string>
-    <string name="edit_label_extensions">Allowed extensions, comma-separated</string>
-    <string name="edit_label_suffix">Name suffix</string>
+    <string name="edit_label_extensions">File types (comma-separated)</string>
+    <string name="edit_label_suffix">Add suffix</string>
     <string name="edit_suffix_hint">{app} = source app name; blank = keep original</string>
     <string name="edit_suffix_placeholder">{app}</string>
-    <string name="edit_content_rename">Name by content (15-char code)</string>
-    <string name="edit_content_rename_on_hint">The new name is a 15-character code; the same photo always gets the same name, so nothing is stored twice</string>
+    <string name="edit_content_rename">Rename by content (15-char code)</string>
+    <string name="edit_content_rename_on_hint">The name becomes a 15-character code; the same photo always gets the same name, so nothing is stored twice</string>
     <string name="edit_content_rename_suffix_example">_Qidian</string>
     <string name="edit_content_rename_off_hint">Off: the target keeps the original name and only gets the suffix you set</string>
 
