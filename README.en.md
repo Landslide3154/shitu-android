@@ -1,3 +1,5 @@
+<p align="right">Language / 语言：<a href="README.md">中文</a> · <b>English</b></p>
+
 # Shitu
 
 <img src="docs/icon/ic_launcher_512.png" width="88" alt="Shitu icon">
@@ -67,7 +69,7 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 
 ## Features
 
-- **Rules**: one card per rule, switch to enable/disable, tap to edit, long-press for duplicate / undo / delete.
+- **Rules**: one card per rule, switch to enable/disable, tap to edit, long-press for duplicate / undo / resume / delete.
   "This week +N" opens a summary; move is green, copy is blue.
 - **Edit rule**: name, source, target, mode, frequency, file names — plus a **dry-run preview**,
   "only last N days", "at least N KB", one subfolder per app, and **rename by content (15-char code)** so the same photo is never stored twice.
