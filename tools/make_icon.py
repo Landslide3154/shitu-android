@@ -24,7 +24,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 SS = 4  # 超采样倍数
 
-BRAND = (0x1B, 0x4F, 0xC4, 255)  # 与 App 主题主色一致（Theme.kt 的 Blue）
+BRAND = (0x66, 0xBB, 0x6A, 255)  # 浅绿底板（用户指定）；白色剪影 + 内投影保证小尺寸下仍清楚
 WHITE = (255, 255, 255, 255)
 PLATE_SHADOW = (10, 16, 48)      # 底板外投影的颜色（深藏蓝，和 PicSieve 一致）
 
