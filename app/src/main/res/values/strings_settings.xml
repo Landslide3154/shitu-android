@@ -15,14 +15,14 @@
     <string name="set_run_conditions_desc">Pick any number — any one of them is enough. While charging, the battery limit is ignored. All off = move any time.</string>
     <string name="set_run_only_charging">While charging</string>
     <string name="set_run_only_screen_on">While the screen is on</string>
-    <string name="set_run_only_screen_off">While the screen is off</string>
+    <string name="set_run_only_screen_off">While locked</string>
     <string name="set_run_min_battery">Don’t move below %1$d%% battery</string>
     <string name="set_run_min_battery_off">Don’t move below __% battery</string>
     <string name="set_run_min_battery_pct">Battery threshold</string>
     <string name="set_help_run_conditions">You can turn on several conditions at once. All off = move any time. The battery limit does not apply while charging.</string>
     <string name="set_help_run_charging">Move only while charging. The battery limit is also ignored while charging.</string>
-    <string name="set_help_run_screen_on">Move only while the screen is on and unlocked. Combined with “screen off”, it means any time.</string>
-    <string name="set_help_run_screen_off">Move only while the screen is off — handy when charging overnight.</string>
+    <string name="set_help_run_screen_on">Move only while the screen is on and unlocked. Combined with “while locked”, it means any time.</string>
+    <string name="set_help_run_screen_off">Move only while locked/screen off — handy when charging overnight. It also gets fast checks while locked, no need to open the app.</string>
     <string name="set_help_run_battery">Pause below the set battery level. Charging ignores this limit. Range 1–100.</string>
 
     <!-- 3. 检测时机 -->

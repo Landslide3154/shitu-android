@@ -6,9 +6,9 @@ import com.landslide.shitu.data.Settings
  * 运行条件判定（纯函数，方便单测）。
  *
  * 语义（和设置页文案一致）：
- * - **场景条件**：充电时搬 / 亮屏时搬 / 熄屏时搬 / 夜间，是多选；同时开多个 = **满足任一即可**，
- *   全关 = 任何时候都搬。旧实现是「每项都必须满足」，导致「充电 + 亮屏」两开时，
- *   熄屏放一晚上都等不到「亮屏」、图片一张不搬。
+ * - **场景条件**：充电时搬 / 亮屏时搬 / 锁屏时搬 / 夜间，是多选；同时开多个 = **满足任一即可**，
+ *   全关 = 任何时候都搬。锁屏和息屏按同一个状态算（屏幕熄灭或停在锁屏界面）。旧实现是「每项都必须满足」，
+ *   导致「充电 + 亮屏」两开时，锁屏放一晚上都等不到「亮屏」、图片一张不搬。
  * - **电量**是否决条件：不充电时，电量低于阈值或系统省电模式就暂停；**插着充电器时不受电量限制**。
  *
  * 返回空列表 = 可以跑；否则是给通知看的原因。
@@ -54,7 +54,7 @@ object RunConditions {
                 val wants = buildList {
                     if (settings.runOnlyCharging) add("充电")
                     if (settings.runOnlyScreenOn) add("亮屏")
-                    if (settings.runOnlyScreenOff) add("熄屏")
+                    if (settings.runOnlyScreenOff) add("锁屏")
                     if (settings.runOnlyNight) {
                         add("夜间 ${settings.nightStartHour}:00–${settings.nightEndHour}:00")
                     }

@@ -76,7 +76,7 @@
 
     <!-- 电池优化 -->
     <string name="app_battery_title">让它一直在后台搬</string>
-    <string name="app_battery_text">请把「拾图」加入电池优化白名单，否则 HyperOS 可能在息屏后把它冻结。另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。</string>
+    <string name="app_battery_text">请把「拾图」加入电池优化白名单，否则 HyperOS 可能在锁屏后把它冻结。另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。</string>
     <string name="app_go_to_settings">去设置</string>
     <string name="app_later">以后再说</string>
 

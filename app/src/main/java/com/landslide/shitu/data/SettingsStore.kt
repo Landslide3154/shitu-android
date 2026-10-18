@@ -57,8 +57,9 @@ data class Settings(
     val language: Int = AppLocale.SYSTEM,
     // —— 运行条件（多选；默认全关 = 和以前一样，随时都能搬） ——
     val runOnlyCharging: Boolean = false,
-    /** 只在亮屏（且解锁）时搬；和 [runOnlyScreenOff] 可以同时选（= 任何时候都搬） */
+    /** 只在亮屏（且解锁）时搬；和 [runOnlyScreenOff] 可以同时选（= 任何时候都搬）；锁屏/息屏算同一个状态 */
     val runOnlyScreenOn: Boolean = false,
+    /** 只在锁屏（屏幕熄灭或停在锁屏界面）时搬 */
     val runOnlyScreenOff: Boolean = false,
     /** 只在夜间搬运；时段默认 22:00–07:00（跨午夜用 hourInNightRange 判断） */
     val runOnlyNight: Boolean = false,

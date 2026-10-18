@@ -9,7 +9,7 @@ package com.landslide.shitu.service
  *
  * @param moved 累计已搬张数（服务启动时从规则表恢复，进程重启后不会退回 0）
  * @param lastRunLabel 上次运行时间（HH:mm）；从没跑过传 null
- * @param status 本轮附加状态（「没有到期规则」「熄屏暂停中」等），可为 null
+ * @param status 本轮附加状态（「没有到期规则」「等运行条件」等），可为 null
  */
 internal fun watchText(moved: Long, lastRunLabel: String?, status: String? = null): String {
     val base = when {

@@ -74,7 +74,7 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 - **Edit rule**: name, source, target, mode, frequency, file names — plus a **dry-run preview**,
   "only last N days", "at least N KB", one subfolder per app, and **rename by content (15-char code)** so the same photo is never stored twice.
 - **Logs**: thumbnails, green/grey/blue result tags, filter panel, CSV export, and a search box that suggests paths used by your rules (✕ clears it).
-- **Settings**: run conditions (charging / screen on / screen off / low battery — **any selected one is enough**),
+- **Settings**: run conditions (charging / screen on / locked / low battery — **any selected one is enough**),
   storage access, detection timing, copy records (pick and clear), rule + settings backup, appearance & language,
   self-check, and **automatic update checks (at most once a day, with a notification when a new version is out)**.
 

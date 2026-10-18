@@ -30,8 +30,7 @@ import kotlinx.coroutines.launch
  *
  * 两种节奏：
  * - **屏幕亮着且解锁** → 每 fastIntervalSec 秒跑一次「快节奏检测」（只 stat 目录，真变了才扫）；
- * - **其他时候** → 每 30 秒按规则自己的间隔跑（设置里开了「熄屏后暂停扫描」则跳过），
- *   另加 WorkManager 15 分钟兜底；亮屏解锁会立刻补跑一次。
+ * - **锁屏/息屏** → 每 30 秒跑一次同样的快节奏检测 + 按规则间隔的完整扫描，另加 WorkManager 15 分钟兜底。
  */
 class WatchService : Service() {
 
@@ -140,17 +139,13 @@ class WatchService : Service() {
             val s = app.currentSettings()
             // 每次都用系统的真实状态：锁屏/亮屏广播偶尔会漏，缓存的 screenUsable 一旦错了会整段跑偏
             screenUsable = computeScreenUsable()
-            if (screenUsable && s.fastWhileActive) {
-                if (!app.hasChannel()) {
-                    // 未就绪：走常规节奏，顺便把"未就绪"提示刷新到通知上
-                    runCatching { tick(force = false) }
-                } else {
-                    // 快节奏：只 stat 目录，真变了才扫（屏幕亮着时唤醒不额外耗电）
-                    runCatching { app.runFastLane() }
-                    // 原来只有搬了东西才刷新通知，屏幕亮着时通知会一直停在启动文案；
-                    // 现在每轮都刷新（正文没变时 refresh 内部跳过，不会重复发通知）。
-                    refresh()
-                }
+            // 快节奏检测：只 stat 目录，真变了才真扫。
+            // 锁屏/息屏也跑（30 秒一拍）：新图不用再干等规则间隔（最长 5 分钟），更不用打开 App。
+            if (s.fastWhileActive && app.hasChannel()) {
+                runCatching { app.runFastLane() }
+                // 原来只有搬了东西才刷新通知，屏幕亮着时通知会一直停在启动文案；
+                // 现在每轮都刷新（正文没变时 refresh 内部跳过，不会重复发通知）。
+                refresh()
             }
             // 不管屏幕状态，每 TICK_MS 至少做一次「到期规则」的完整扫描：
             // 快节奏只看目录 mtime，快节奏没盯到的变化（嵌套目录、条件不满足期间产生的文件）
