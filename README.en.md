@@ -82,20 +82,35 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 
 ## Scan & move timing
 
-How soon a new image is picked up depends on the phone state:
+At a glance:
 
-| State | Directory check | New file → moved |
-| --- | --- | --- |
-| **Screen on & unlocked** (foreground or background) | every 10s (3–60s in settings) | usually 10–20s |
-| **Locked / screen off / lock screen visible** | every 30s (fixed) | usually 30–60s |
-| **Deep sleep** (~4 min after locking, Doze) | timers pause; a 10-minute alarm wakes it | up to ~10 min |
-| **Rule interval** (default 5 min, 1–30 min per rule) | full source scan | nested folders the fast check cannot see: up to one interval |
+| Phone state | Typically moved in |
+| --- | --- |
+| **Screen on & unlocked** (foreground or background) | **10–20s** |
+| **First few minutes after locking** (not yet deep asleep) | **30–60s** |
+| **Locked for a while, phone in deep sleep** | waits for the next alarm — **several minutes, up to ~10 min** |
+| **File in a rarely used subfolder** | waits for a full rule scan — **5 min default** (1–30 min) |
 
-Notes:
+> In short: fastest with the screen on; still quick in the first minutes after locking; once the phone deep-sleeps, it waits for the 10-minute alarm.
 
-- The **fast check** only stats source folders; it does a real scan when a folder changes, so new files don't wait for the rule interval.
-- A file must be **finished writing**: by default two observations ≥3s apart with the same size/mtime; still-downloading files wait (up to the 30s stability window).
-- While **run conditions are not met**, nothing is scanned (the notification says why). It resumes on the next tick after conditions allow (≤10s on screen, ≤30s locked, ≤10 min in deep sleep).
+### Why locking for a while is slower
+
+- For the first few minutes after locking, the app checks source folders every 30s, so new files usually move in 30–60s.
+- After about 4 minutes (varies by phone), Android puts the phone into **deep sleep (Doze)** and pauses the 30s timer; only the app's **10-minute alarm** can wake it.
+- The alarm runs on a fixed schedule, so the wait depends on how far away the next alarm is: **several minutes to 10 minutes is normal**, not a stuck app.
+- Tip: watch the “last run” time in the ongoing notification; if it stops updating every minute, the phone is probably deep asleep.
+
+### Why charging / USB debugging looks faster
+
+- **Scan frequency does not depend on charging**: charging only affects the “move while charging” run condition; it does not speed up scans.
+- But **a phone that is charging or connected to a computer tends to enter deep sleep later**, so it looks faster. The 10–20s / 30–60s measured over USB only apply while the timer is still running.
+- To keep 30–60s while locked on battery, the app would have to stay awake after locking, which uses more battery; it is off by default.
+
+### Other things that affect timing
+
+- While **run conditions are not met**, nothing is scanned (the notification says why). It resumes on the next tick after conditions allow.
+- A file must be **finished writing** before it moves: by default two observations ≥3s apart with the same size/mtime; downloads still in progress wait (up to about 30s).
+- A **full rule scan** runs every 5 minutes by default; deep subfolders the fast check cannot see wait up to one rule interval.
 - Duplicate content in the target, paused/failed rules, extension/size/age filters, or `Android/data` without Shizuku can skip or fail the move.
 
 ## FAQ
