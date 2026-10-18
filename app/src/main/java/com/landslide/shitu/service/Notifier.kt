@@ -67,11 +67,15 @@ class Notifier(private val context: Context) {
         )
     }
 
-    fun event(title: String, text: String) {
+    fun event(title: String, text: String, openUpdate: Boolean = false) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        // 「有新版本」点开直接进 App 的更新弹窗；其它事件点开就是打开 App
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            if (openUpdate) putExtra(MainActivity.EXTRA_SHOW_UPDATE, true)
+        }
         val open = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, MainActivity::class.java),
+            context, if (openUpdate) 2 else 0, openIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val n = NotificationCompat.Builder(context, CH_EVENT)

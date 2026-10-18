@@ -70,6 +70,10 @@
     <string name="app_rules_import_empty">No rules found in that file</string>
     <string name="app_copied_removed">Cleared %1$d copy records</string>
 
+    <!-- 更新提醒 -->
+    <string name="update_notif_title">Shitu %1$s is available</string>
+    <string name="update_notif_text">You have %1$s; the latest is %2$s. Tap to see what\'s new.</string>
+
     <!-- 电池优化 -->
     <string name="app_battery_title">Keep it moving in the background</string>
     <string name="app_battery_text">Add Shitu to the battery optimization allowlist, or HyperOS may freeze it when the screen is off. It\'s also a good idea to turn on Autostart in system settings, set the battery policy to No restrictions, and lock Shitu in Recents.</string>

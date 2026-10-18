@@ -2,6 +2,7 @@ package com.landslide.shitu
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -13,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.landslide.shitu.data.AppLocale
@@ -24,6 +26,14 @@ import com.landslide.shitu.ui.theme.resolveDark
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        /** 「有新版本」通知里带的 extra：点通知进来直接打开设置页的更新弹窗。 */
+        const val EXTRA_SHOW_UPDATE = "show_update"
+    }
+
+    /** 通知点进来的「打开更新」标记；用 State 让 Compose 能跟着变。 */
+    private val showUpdate = mutableStateOf(false)
 
     /**
      * 语言开关真正生效的地方：给 Activity 套一层指定 Locale 的 Context。
@@ -41,6 +51,7 @@ class MainActivity : ComponentActivity() {
         requestMediaPermission()
         WatchService.start(this)
         val app = application as ShituApp
+        showUpdate.value = intent?.getBooleanExtra(EXTRA_SHOW_UPDATE, false) == true
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = Settings())
             val dark = resolveDark(settings.themeMode, isSystemInDarkTheme())
@@ -54,7 +65,11 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
             ShituTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
-                ShituRoot(app)
+                ShituRoot(
+                    app = app,
+                    autoOpenUpdate = showUpdate.value,
+                    onAutoOpenUpdateConsumed = { showUpdate.value = false },
+                )
             }
         }
     }
@@ -64,6 +79,15 @@ class MainActivity : ComponentActivity() {
         // 打开 App 立即扫一次（规格 §6.7）；手动打开不受「运行条件」限制
         val app = application as ShituApp
         lifecycleScope.launch { runCatching { app.runDueRules(force = true) } }
+        // 顺带检查更新（内部 24h 节流）；打开 App 时就能看到新版提示
+        lifecycleScope.launch { runCatching { app.maybeCheckUpdate() } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // singleTop：点「有新版本」通知时 Activity 已存在，走这里
+        if (intent.getBooleanExtra(EXTRA_SHOW_UPDATE, false)) showUpdate.value = true
     }
 
     private fun requestNotificationPermission() {

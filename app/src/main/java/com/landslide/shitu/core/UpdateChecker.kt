@@ -168,6 +168,20 @@ object UpdateChecker {
         return a.compareTo(b)
     }
 
+    /**
+     * 自动检查更新的节流：从没查过（`lastCheckAt <= 0`）或已超过 [intervalMs] 才需要再查。
+     * 纯函数，方便单测；时间由调用方传入，不读系统时钟。
+     */
+    fun shouldAutoCheck(now: Long, lastCheckAt: Long, intervalMs: Long): Boolean =
+        lastCheckAt <= 0L || now - lastCheckAt >= intervalMs
+
+    /**
+     * 是否该弹「有新版本」：远端比本地新，且这个版本还没提醒过（同一版本只提醒一次）。
+     * 纯函数，方便单测。
+     */
+    fun shouldNotify(local: String, remote: String, lastNotified: String?): Boolean =
+        remote != lastNotified && isNewer(local, remote)
+
     // ---------------------------------------------------------------- 网络
 
     /**

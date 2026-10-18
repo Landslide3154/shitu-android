@@ -219,4 +219,20 @@ class UpdateCheckerTest {
         assertTrue(UpdateChecker.isNewer("0.12.3", "0.13.0+build.7"))
         assertFalse(UpdateChecker.isNewer("0.13.0", "0.13.0-beta"))
     }
+
+    @Test
+    fun `自动检查节流：从未查过或超过间隔才查`() {
+        assertTrue(UpdateChecker.shouldAutoCheck(now = 1000L, lastCheckAt = 0L, intervalMs = 100L))
+        assertFalse(UpdateChecker.shouldAutoCheck(now = 1099L, lastCheckAt = 1000L, intervalMs = 100L))
+        assertTrue(UpdateChecker.shouldAutoCheck(now = 1100L, lastCheckAt = 1000L, intervalMs = 100L))
+    }
+
+    @Test
+    fun `同一版本只提醒一次，已是最新不提醒`() {
+        assertTrue(UpdateChecker.shouldNotify("0.20.8", "0.20.9", null))
+        assertTrue(UpdateChecker.shouldNotify("0.20.8", "0.20.9", "0.20.8"))
+        assertFalse(UpdateChecker.shouldNotify("0.20.8", "0.20.9", "0.20.9"))
+        assertFalse(UpdateChecker.shouldNotify("0.20.9", "0.20.9", null))
+        assertFalse(UpdateChecker.shouldNotify("0.20.9", "0.20.8", null))
+    }
 }

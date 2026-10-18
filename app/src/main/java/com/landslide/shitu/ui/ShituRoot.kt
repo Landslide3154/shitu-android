@@ -78,7 +78,12 @@ import kotlinx.coroutines.launch
 
 /** App 根界面：三个标签页 + 规则编辑页 + 自检结果弹窗。 */
 @Composable
-fun ShituRoot(app: ShituApp) {
+fun ShituRoot(
+    app: ShituApp,
+    /** 从「有新版本」通知点进来：直接切到设置页并打开更新弹窗 */
+    autoOpenUpdate: Boolean = false,
+    onAutoOpenUpdateConsumed: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = Settings())
@@ -104,6 +109,8 @@ fun ShituRoot(app: ShituApp) {
     var health by remember { mutableStateOf<List<HealthChecker.Item>?>(null) }
     var checking by remember { mutableStateOf(false) }
     var askBattery by remember { mutableStateOf(false) }
+    /** 通知点进来后，等设置页真正显示出来再触发一次「检查更新」 */
+    var pendingUpdateCheck by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     suspend fun refresh() {
@@ -157,6 +164,14 @@ fun ShituRoot(app: ShituApp) {
     LaunchedEffect(Unit) {
         refresh()
         askBattery = !isIgnoringBattery(context)
+    }
+    // 点「有新版本」通知进来：切到设置页，并让设置页自动打开更新弹窗（只消费一次）
+    LaunchedEffect(autoOpenUpdate) {
+        if (autoOpenUpdate) {
+            tab = 2
+            pendingUpdateCheck = true
+            onAutoOpenUpdateConsumed()
+        }
     }
     LaunchedEffect(Unit) {
         while (true) {
@@ -440,6 +455,8 @@ fun ShituRoot(app: ShituApp) {
                 else -> SettingsScreen(
                     settings = settings,
                     store = app.settings,
+                    autoCheckUpdate = pendingUpdateCheck,
+                    onAutoCheckConsumed = { pendingUpdateCheck = false },
                     onSelfCheck = { selfCheck() },
                     copiedCount = copiedCount,
                     onClearCopied = {

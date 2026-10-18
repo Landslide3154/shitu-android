@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -125,6 +126,9 @@ fun SettingsScreen(
     onExportBackup: () -> Unit = {},
     /** 导入：把选中的备份文件读成字符串交给上层解析 */
     onImportBackup: (String) -> Unit = {},
+    /** 从「有新版本」通知进来时，设置页一显示就自动检查一次 */
+    autoCheckUpdate: Boolean = false,
+    onAutoCheckConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -162,6 +166,56 @@ fun SettingsScreen(
     var downloading by remember { mutableStateOf(false) }
     var progressPct by remember { mutableStateOf(-1) }
     var downloadError by remember { mutableStateOf<String?>(null) }
+
+    /** 「检查更新」的唯一入口：手动点按钮、点「有新版本」通知都走这里。 */
+    fun checkForUpdate() {
+        checkingUpdate = true
+        downloadError = null
+        scope.launch {
+            val info = withContext(Dispatchers.IO) {
+                runCatching { UpdateChecker.fetchLatest() }.getOrNull()
+            }
+            checkingUpdate = false
+            updateDialog = when {
+                info == null -> UpdateDialog(
+                    context.getString(R.string.set_update_failed_title),
+                    context.getString(R.string.set_update_failed_body),
+                    null,
+                )
+
+                UpdateChecker.isNewer(versionName, info.version) -> UpdateDialog(
+                    title = context.getString(
+                        R.string.set_update_available_title,
+                        info.version,
+                    ),
+                    body = info.notes.ifBlank {
+                        context.getString(R.string.set_update_notes_fallback)
+                    },
+                    pageUrl = info.pageUrl.takeIf { it.isNotBlank() },
+                    apkUrl = info.apkUrl,
+                    version = info.version,
+                )
+
+                else -> UpdateDialog(
+                    context.getString(R.string.set_update_latest_title),
+                    context.getString(
+                        R.string.set_update_latest_body,
+                        versionName,
+                        info.version,
+                    ),
+                    null,
+                )
+            }
+        }
+    }
+
+    // 点「有新版本」通知进来：设置页一显示就自动查一次（只消费一次）
+    LaunchedEffect(autoCheckUpdate) {
+        if (autoCheckUpdate) {
+            onAutoCheckConsumed()
+            checkForUpdate()
+        }
+    }
 
     fun openUrl(url: String) {
         runCatching {
@@ -612,46 +666,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(
-                    onClick = {
-                        checkingUpdate = true
-                        downloadError = null
-                        scope.launch {
-                            val info = withContext(Dispatchers.IO) {
-                                runCatching { UpdateChecker.fetchLatest() }.getOrNull()
-                            }
-                            checkingUpdate = false
-                            updateDialog = when {
-                                info == null -> UpdateDialog(
-                                    context.getString(R.string.set_update_failed_title),
-                                    context.getString(R.string.set_update_failed_body),
-                                    null,
-                                )
-
-                                UpdateChecker.isNewer(versionName, info.version) -> UpdateDialog(
-                                    title = context.getString(
-                                        R.string.set_update_available_title,
-                                        info.version,
-                                    ),
-                                    body = info.notes.ifBlank {
-                                        context.getString(R.string.set_update_notes_fallback)
-                                    },
-                                    pageUrl = info.pageUrl.takeIf { it.isNotBlank() },
-                                    apkUrl = info.apkUrl,
-                                    version = info.version,
-                                )
-
-                                else -> UpdateDialog(
-                                    context.getString(R.string.set_update_latest_title),
-                                    context.getString(
-                                        R.string.set_update_latest_body,
-                                        versionName,
-                                        info.version,
-                                    ),
-                                    null,
-                                )
-                            }
-                        }
-                    },
+                    onClick = { checkForUpdate() },
                     enabled = !checkingUpdate,
                 ) {
                     Text(

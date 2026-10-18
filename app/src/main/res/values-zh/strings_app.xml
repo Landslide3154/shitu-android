@@ -70,6 +70,10 @@
     <string name="app_rules_import_empty">那个文件里没有找到规则</string>
     <string name="app_copied_removed">已清除 %1$d 条复制记录</string>
 
+    <!-- 更新提醒 -->
+    <string name="update_notif_title">拾图有新版本 %1$s</string>
+    <string name="update_notif_text">当前 %1$s，线上最新 %2$s。点开看看更新了什么。</string>
+
     <!-- 电池优化 -->
     <string name="app_battery_title">让它一直在后台搬</string>
     <string name="app_battery_text">请把「拾图」加入电池优化白名单，否则 HyperOS 可能在息屏后把它冻结。另外建议在系统设置里开启「自启动」、省电策略设为「无限制」，并在最近任务里加锁。</string>

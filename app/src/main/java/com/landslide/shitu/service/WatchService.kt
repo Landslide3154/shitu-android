@@ -57,6 +57,9 @@ class WatchService : Service() {
     /** 上一次发出去的通知正文：内容没变就不重复 startForeground（快节奏分支每几秒会刷新一次）。 */
     @Volatile private var lastNotified: String? = null
 
+    /** 上一次「到期规则」完整扫描的时间：快节奏只 stat 目录，完整扫描必须独立按节奏跑。 */
+    @Volatile private var lastDueScanAt = 0L
+
     /** 屏幕开关/解锁：只在服务存活期间用运行时注册（清单里注册收不到这类广播）。 */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -135,6 +138,8 @@ class WatchService : Service() {
     private suspend fun loop() {
         while (scope.isActive) {
             val s = app.currentSettings()
+            // 每次都用系统的真实状态：锁屏/亮屏广播偶尔会漏，缓存的 screenUsable 一旦错了会整段跑偏
+            screenUsable = computeScreenUsable()
             if (screenUsable && s.fastWhileActive) {
                 if (!app.hasChannel()) {
                     // 未就绪：走常规节奏，顺便把"未就绪"提示刷新到通知上
@@ -146,11 +151,23 @@ class WatchService : Service() {
                     // 现在每轮都刷新（正文没变时 refresh 内部跳过，不会重复发通知）。
                     refresh()
                 }
-                delay(s.fastIntervalSec.coerceIn(3, 60) * 1000L)
-            } else {
-                runCatching { tick(force = false) }
-                delay(TICK_MS)
             }
+            // 不管屏幕状态，每 TICK_MS 至少做一次「到期规则」的完整扫描：
+            // 快节奏只看目录 mtime，快节奏没盯到的变化（嵌套目录、条件不满足期间产生的文件）
+            // 只有完整扫描能兜住；旧版亮屏时永远不跑定时扫描，后台就一直不搬。
+            val now = System.currentTimeMillis()
+            if (now - lastDueScanAt >= TICK_MS) {
+                lastDueScanAt = now
+                runCatching { tick(force = false) }
+            }
+            // 自动检查更新（内部有节流：内存 1 小时、落盘 24 小时；失败静默）
+            runCatching { app.maybeCheckUpdate() }
+            val delayMs = if (screenUsable && s.fastWhileActive) {
+                s.fastIntervalSec.coerceIn(3, 60) * 1000L
+            } else {
+                TICK_MS
+            }
+            delay(delayMs)
         }
     }
 

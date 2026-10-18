@@ -12,7 +12,7 @@
 
     <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">运行条件</string>
-    <string name="set_run_conditions_desc">可以同时开多个。插着充电器时不受电量条件限制（充电优先）；全关 = 任何时候都搬。</string>
+    <string name="set_run_conditions_desc">可以同时开多个，满足任意一条就搬。插着充电器时不受电量条件限制（充电优先）；全关 = 任何时候都搬。</string>
     <string name="set_run_only_charging">充电时搬</string>
     <string name="set_run_only_screen_on">亮屏时搬</string>
     <string name="set_run_only_screen_off">熄屏时搬</string>
@@ -125,7 +125,7 @@
     <string name="set_retry">重试</string>
     <string name="set_got_it">知道了</string>
     <string name="set_later">以后再说</string>
-    <string name="set_privacy_note">只有检查更新会联网，其余功能都不联网。</string>
-    <string name="set_help_about">版本号、项目主页和检查更新。只有检查更新会联网。</string>
-    <string name="set_help_check_update">去 GitHub 查最新版本，有新版可以直接下载安装。这是全 App 唯一联网的地方。</string>
+    <string name="set_privacy_note">只有检查更新会联网（后台每天最多自动查一次），其余功能都不联网。</string>
+    <string name="set_help_about">版本号、项目主页和检查更新。只有检查更新会联网，后台每天最多自动查一次。</string>
+    <string name="set_help_check_update">去 GitHub 查最新版本，有新版可以直接下载安装。这是全 App 唯一联网的地方；后台每天最多自动查一次，有新版会发通知。</string>
 </resources>

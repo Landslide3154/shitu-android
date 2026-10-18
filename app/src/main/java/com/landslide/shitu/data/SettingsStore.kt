@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.landslide.shitu.core.RuleTemplate
@@ -34,7 +35,7 @@ data class Settings(
     val settleDetect: Boolean = true,
     /** 判定窗口：两次观察至少间隔这么多秒才算确认写完 */
     val settleGapSec: Int = 3,
-    /** 熄屏后是否暂停扫描（默认 false = 继续按规则间隔工作） */
+    /** 旧版「熄屏后暂停扫描」开关：UI 已移除，运行条件接管这个判断；字段留着只为兼容旧备份/旧设置 */
     val screenOffPause: Boolean = false,
     /** 规则卡片是否用简略样式（只显示名称 + 开关） */
     val ruleCardsCompact: Boolean = false,
@@ -48,6 +49,10 @@ data class Settings(
     val notifyEnabled: Boolean = true,
     val lastSelfCheck: String? = null,
     val lastSelfCheckAt: Long? = null,
+    /** 上次自动检查更新的时间（毫秒；0 = 从没查过） */
+    val lastUpdateCheckAt: Long = 0L,
+    /** 已经提醒过的新版本号（同一版本只提醒一次） */
+    val lastNotifiedUpdate: String? = null,
     /** 界面语言：0 跟随系统 / 1 中文 / 2 English（见 AppLocale；真正生效靠 SharedPreferences 同步读取） */
     val language: Int = AppLocale.SYSTEM,
     // —— 运行条件（多选；默认全关 = 和以前一样，随时都能搬） ——
@@ -91,6 +96,8 @@ class SettingsStore(private val context: Context) {
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
         val SELF_CHECK_AT = intPreferencesKey("last_self_check_at")
+        val LAST_UPDATE_CHECK_AT = longPreferencesKey("last_update_check_at")
+        val LAST_NOTIFIED_UPDATE = stringPreferencesKey("last_notified_update")
         val LANGUAGE = intPreferencesKey("language")
         val RUN_ONLY_CHARGING = booleanPreferencesKey("run_only_charging")
         val RUN_ONLY_SCREEN_ON = booleanPreferencesKey("run_only_screen_on")
@@ -128,6 +135,8 @@ class SettingsStore(private val context: Context) {
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
             lastSelfCheckAt = p[K.SELF_CHECK_AT]?.toLong(),
+            lastUpdateCheckAt = p[K.LAST_UPDATE_CHECK_AT] ?: 0L,
+            lastNotifiedUpdate = p[K.LAST_NOTIFIED_UPDATE],
             language = p[K.LANGUAGE] ?: AppLocale.SYSTEM,
             runOnlyCharging = p[K.RUN_ONLY_CHARGING] ?: false,
             // 旧版的「熄屏后暂停扫描」等价于新版的「只在亮屏时搬」；老设置升级后自动带过来
@@ -165,6 +174,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setDynamicColor(v: Boolean) = put(K.DYNAMIC_COLOR, v)
     suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
+    suspend fun setLastUpdateCheckAt(v: Long) = put(K.LAST_UPDATE_CHECK_AT, v)
+    suspend fun setLastNotifiedUpdate(v: String) = put(K.LAST_NOTIFIED_UPDATE, v)
     suspend fun setRunOnlyCharging(v: Boolean) = put(K.RUN_ONLY_CHARGING, v)
     suspend fun setRunOnlyScreenOn(v: Boolean) = put(K.RUN_ONLY_SCREEN_ON, v)
     suspend fun setRunOnlyScreenOff(v: Boolean) = put(K.RUN_ONLY_SCREEN_OFF, v)

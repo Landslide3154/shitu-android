@@ -35,6 +35,7 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 - **两条通道不是等价替代**：有 Shizuku 走 `ShizukuBridge`（shell 身份，能进 `Android/data`）；没有才用 `local/` 的「所有文件访问」通道。
   `MANAGE_EXTERNAL_STORAGE` 同样进不了 `Android/data`/`Android/obb`（系统限制），所以 `Android/data` 相关能力必须保留 Shizuku，别把本地通道写成它的替代。
 - **联网只有「检查更新」一处**：`core/UpdateChecker` 请求 GitHub Releases，其余功能一律离线；新增任何联网行为前先改 README/手册的隐私口径。
+- **UI 样式只有一个来源**：圆角一律引用 `ui/theme/Shapes.kt` 的 `ShituRadius`（已接进 `ShituShapes` / MaterialTheme），输入框一律用 `ui/components/ShituField.kt`；不要裸写圆角数字、也不要直接用 `OutlinedTextField`。
 
 ## 5. 版本与发布
 
@@ -44,6 +45,8 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 2. 真机装一遍、点一遍主流程
 3. **到这里停下**：汇报「已提交、已装机、未推送」，等用户发话（`git push` / tag / Release 的口径见全局 `AGENTS.md` 的「Git 与 GitHub」节）。
 4. 用户说推送后：`git push origin main` → `git tag vX.Y.Z` 并推 tag → 建 Release；附件名带版本号（`shitu-X.Y.Z.apk`）、用**本机构建**的 `app-release.apk`；上传资产的 URL 规矩见技能 `github-rest-cli`。
+
+- **README 与截图**：中英两版顶部都保留「中文 / English」切换条、默认中文；UI 或图标改动后重拍 `docs/screenshots/`，并核对两版 README 的图片引用。
 
 CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，仅应急用：要 4 个 Secrets `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`；`chmod +x gradlew`（Windows 提交会丢 exec 位）；runner 自带 SDK 里没有编译期要的 platform 37，得自己调 `cmdline-tools/*/bin/sdkmanager` 装（`android-actions/setup-android` 内部的 sdkmanager 会报错，不要用）。
 

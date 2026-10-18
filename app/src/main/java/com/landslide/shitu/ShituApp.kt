@@ -14,7 +14,7 @@ import com.landslide.shitu.core.DirProbe
 import com.landslide.shitu.core.FileStability
 import com.landslide.shitu.core.LoopGuard
 import com.landslide.shitu.core.NamePolicy
-import com.landslide.shitu.core.RunWindow
+import com.landslide.shitu.core.RunConditions
 import com.landslide.shitu.core.ScanFilter
 import com.landslide.shitu.data.LogExporter
 import com.landslide.shitu.data.RoomContentLedger
@@ -33,6 +33,7 @@ import com.landslide.shitu.engine.UndoService
 import com.landslide.shitu.local.LocalFileBridge
 import com.landslide.shitu.service.FallbackWorker
 import com.landslide.shitu.service.Notifier
+import com.landslide.shitu.service.UpdateNotice
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.ShizukuBridge
 import com.landslide.shitu.shizuku.ShizukuState
@@ -111,6 +112,9 @@ class ShituApp : Application() {
         watchMoved = rules.sumOf { it.totalMoved }
         lastRunAt = rules.mapNotNull { it.lastRunAt }.maxOrNull()
     }
+
+    /** 后台/打开 App 时调一下：最多每 24 小时联网查一次更新，有新版发通知（失败静默）。 */
+    suspend fun maybeCheckUpdate() = UpdateNotice.maybeNotify(this)
 
     data class RunSummary(
         val rulesRun: Int = 0,
@@ -230,25 +234,21 @@ class ShituApp : Application() {
 
     /**
      * 当前有哪些条件没满足。空列表 = 可以跑。
-     * 手动触发（打开 App、点「立即运行」）走 force 分支，不受这里限制。
+     * 手动触发（打开 App、点「立即扫一次」）走 force 分支，不受这里限制。
      */
-    fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> {
-        val out = ArrayList<String>(4)
-        val charging = isCharging()
-        if (s.runOnlyCharging && !charging) out += "要插上充电器"
-        // 充电优先：插着电时不再受「电量低于 X% 不搬」限制
-        if (!charging && s.runMinBatteryPct > 0) {
-            val pct = batteryPct()
-            if (pct in 0 until s.runMinBatteryPct) out += "电量低于 ${s.runMinBatteryPct}%"
-        }
-        val screenOn = isScreenUsable()
-        if (s.runOnlyScreenOn && !screenOn) out += "要等亮屏"
-        if (s.runOnlyScreenOff && screenOn) out += "要等熄屏"
-        if (s.runOnlyNight && !RunWindow.inNightRange(s.nightStartHour, s.nightEndHour, nowHour)) {
-            out += "只在夜间 ${s.nightStartHour}:00–${s.nightEndHour}:00"
-        }
-        return out
-    }
+    fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> =
+        RunConditions.unmet(
+            settings = s,
+            charging = isCharging(),
+            screenOn = isScreenUsable(),
+            batteryPct = batteryPct(),
+            powerSaveMode = isPowerSaveMode(),
+            nowHour = nowHour,
+        )
+
+    private fun isPowerSaveMode(): Boolean = runCatching {
+        getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
+    }.getOrDefault(false)
 
     private fun currentHour(): Int =
         java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -388,12 +388,7 @@ class ShituApp : Application() {
     /** 供 WatchService / Worker 调用：跑所有"到期且启用"的规则。 */
     suspend fun runDueRules(force: Boolean = false): RunSummary = runMutex.withLock {
         val s = currentSettings()
-        if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary(message = "低电量/省电模式暂停")
-        // 熄屏/锁屏暂停：手动触发（打开 App、「立即扫一次」）不受影响，亮屏解锁后自动继续
-        if (!force && s.screenOffPause && !isScreenUsable()) {
-            return@withLock RunSummary(message = "熄屏暂停中（亮屏解锁后自动继续）")
-        }
-        // 用户勾选的「只在充电 / 熄屏 / 夜间 / 电量够高时搬」：手动触发不受限
+        // 运行条件（多选场景 = 满足任一；电量是否决）：手动触发（打开 App、「立即扫一次」）不受限
         if (!force) {
             val unmet = unmetConditions(s)
             if (unmet.isNotEmpty()) {
@@ -465,7 +460,6 @@ class ShituApp : Application() {
     suspend fun runFastLane(): RunSummary = runMutex.withLock {
         val s = currentSettings()
         if (!s.fastWhileActive) return@withLock RunSummary()
-        if (s.lowBatteryPause && isLowPower(s)) return@withLock RunSummary()
         if (unmetConditions(s).isNotEmpty()) return@withLock RunSummary()
         if (!ensureChannel()) return@withLock RunSummary()
 
@@ -727,14 +721,6 @@ class ShituApp : Application() {
             fileBridge.move(file.absolutePath, target)
         }.getOrDefault(false)
         return if (ok) target else file.absolutePath
-    }
-
-    fun isLowPower(s: Settings): Boolean {
-        val pm = getSystemService(PowerManager::class.java)
-        if (pm != null && pm.isPowerSaveMode) return true
-        val bm = getSystemService(BatteryManager::class.java) ?: return false
-        val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        return pct in 1..s.lowBatteryPct
     }
 
     /** 屏幕亮着**且已解锁**：只有这种状态才算"用户在用手机"。 */

@@ -12,7 +12,7 @@
 
     <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">Run conditions</string>
-    <string name="set_run_conditions_desc">Pick any combination. While charging, the battery limit is ignored. All off = move any time.</string>
+    <string name="set_run_conditions_desc">Pick any number — any one of them is enough. While charging, the battery limit is ignored. All off = move any time.</string>
     <string name="set_run_only_charging">While charging</string>
     <string name="set_run_only_screen_on">While the screen is on</string>
     <string name="set_run_only_screen_off">While the screen is off</string>
@@ -125,7 +125,7 @@
     <string name="set_retry">Retry</string>
     <string name="set_got_it">Got it</string>
     <string name="set_later">Later</string>
-    <string name="set_privacy_note">Only update checks use the network.</string>
-    <string name="set_help_about">Version, project page and update check. Only update checks use the network.</string>
-    <string name="set_help_check_update">Checks GitHub for the latest version and can download it. This is the only network feature.</string>
+    <string name="set_privacy_note">Only update checks use the network (automatic check at most once a day).</string>
+    <string name="set_help_about">Version, project page and update check. Only update checks use the network, at most once a day automatically.</string>
+    <string name="set_help_check_update">Checks GitHub for the latest version and can download it. This is the only network feature; it also checks automatically at most once a day and notifies you when a new version is out.</string>
 </resources>
