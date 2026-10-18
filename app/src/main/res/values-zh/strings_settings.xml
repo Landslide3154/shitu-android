@@ -12,18 +12,21 @@
 
     <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">运行条件</string>
-    <string name="set_run_conditions_desc">可以同时开多个，满足任意一条就搬。插着充电器时不受电量条件限制（充电优先）；全关 = 任何时候都搬。</string>
+    <string name="set_run_conditions_desc">从上到下先命中先算：允许条件（充电/亮屏/锁屏）命中就搬，阻止条件（锁屏超时/电量低）命中就停。充电放最上面 = 充电优先；全关 = 任何时候都搬。</string>
     <string name="set_run_only_charging">充电时搬</string>
     <string name="set_run_only_screen_on">亮屏时搬</string>
     <string name="set_run_only_screen_off">锁屏时搬</string>
+    <string name="set_run_lock_timeout_on">锁屏超过 %1$d 分钟不搬</string>
+    <string name="set_run_lock_timeout_off">锁屏超过 X 分钟不搬</string>
+    <string name="set_run_lock_timeout_min">锁屏时长（分钟）</string>
     <string name="set_run_min_battery">电量低于 %1$d%% 时不搬</string>
-    <string name="set_run_min_battery_off">电量低于 __% 时不搬</string>
+    <string name="set_run_min_battery_off">电量低于 X% 时不搬</string>
     <string name="set_run_min_battery_pct">电量阈值</string>
-    <string name="set_help_run_conditions">可以同时开多个条件；全关 = 任何时候都搬。插着充电器时电量条件不生效。</string>
-    <string name="set_help_run_charging">只有插着充电器时才搬；这时也不受电量条件限制。</string>
-    <string name="set_help_run_screen_on">只有亮屏（且解锁）时才搬。和「锁屏时搬」同时开 = 任何时候都搬。</string>
-    <string name="set_help_run_screen_off">只有锁屏/息屏时才搬，适合晚上放着充电时慢慢搬；锁屏后也会做快节奏检测，新图不用打开 App。</string>
-    <string name="set_help_run_battery">电量低于设定值时先不搬；插着充电器时不受限制。数字范围 1–100。</string>
+    <string name="set_help_run_conditions">条件从上到下检查，先命中先算。充电放最上面 = 充电时怎么都搬；把「电量低」「锁屏超时」排到充电上面，它们也会拦住充电。</string>
+    <string name="set_help_run_charging">只有插着充电器时才搬；把它排在「电量低」「锁屏超时」上面，充电会越过这两条限制。</string>
+    <string name="set_help_run_screen_on">只有亮屏（且解锁）时才搬；优先级里谁先命中按谁算。</string>
+    <string name="set_help_run_screen_off">只有锁屏/息屏时才搬；如果「锁屏超时」排在它上面，锁屏久了会先停。</string>
+    <string name="set_help_run_battery">电量低于设定值时先不搬；如果「充电时搬」排在它上面，充电会越过去。数字范围 1–100。</string>
 
     <!-- 3. 检测时机 -->
     <string name="set_section_detection_timing">检测时机</string>

@@ -12,6 +12,7 @@ import android.os.PowerManager
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.landslide.shitu.ShituApp
+import com.landslide.shitu.data.LockClock
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.shizuku.display
 import java.text.SimpleDateFormat
@@ -37,11 +38,22 @@ class WatchService : Service() {
     companion object {
         const val ACTION_STOP_ALL = "com.landslide.shitu.action.STOP_ALL"
         const val ACTION_RUN_NOW = "com.landslide.shitu.action.RUN_NOW"
+        const val ACTION_ALARM_SCAN = "com.landslide.shitu.action.ALARM_SCAN"
         const val TICK_MS = 30_000L
 
         fun start(context: Context) {
             runCatching {
                 ContextCompat.startForegroundService(context, Intent(context, WatchService::class.java))
+            }
+        }
+
+        /** 闹钟到点：叫醒服务跑一轮扫描（服务已在运行时就只是发一个 action）。 */
+        fun startForScan(context: Context) {
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, WatchService::class.java).setAction(ACTION_ALARM_SCAN),
+                )
             }
         }
     }
@@ -64,15 +76,19 @@ class WatchService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
                 screenUsable = false
+                LockClock.markLocked(this@WatchService)
                 return
             }
             // 刚亮屏那一瞬间 KeyguardManager 还没报告"已锁"，等 0.7 秒再问一次真实状态：
-            // 有锁屏 → 继续暂停，等 USER_PRESENT；没锁屏 → 立刻补跑一次
+            // 有锁屏 → 继续计时，等 USER_PRESENT；没锁屏 → 清掉锁屏计时并补跑一次
             scope.launch {
                 delay(700)
                 val was = screenUsable
                 screenUsable = computeScreenUsable()
-                if (screenUsable && !was) tick(force = false)
+                if (screenUsable) {
+                    LockClock.markUnlocked(this@WatchService)
+                    if (!was) tick(force = false)
+                }
             }
         }
     }
@@ -105,6 +121,12 @@ class WatchService : Service() {
             return
         }
         screenUsable = computeScreenUsable()
+        if (screenUsable) {
+            LockClock.markUnlocked(this)
+        } else if (!LockClock.isTracking(this)) {
+            // 服务在锁屏后才起来：没有更早的起点，就从现在开始算
+            LockClock.markLocked(this)
+        }
         runCatching {
             registerReceiver(
                 screenReceiver,
@@ -116,6 +138,8 @@ class WatchService : Service() {
             )
         }
         scope.launch { loop() }
+        // 深度休眠时 delay() 会停：用闹钟每 10 分钟叫醒一次，保证锁屏很久后新图也能搬
+        ScanAlarm.schedule(this)
         // 进程重启后先把「累计已搬 / 上次运行」从规则表恢复，通知不会先显示 0 张
         scope.launch {
             runCatching { app.restoreWatchStats() }
@@ -130,6 +154,7 @@ class WatchService : Service() {
                 refresh("已全部停止（$n 条规则）")
             }
             ACTION_RUN_NOW -> scope.launch { tick(force = true) }
+            ACTION_ALARM_SCAN -> scope.launch { tick(force = false) }
         }
         return START_STICKY
     }
@@ -139,6 +164,12 @@ class WatchService : Service() {
             val s = app.currentSettings()
             // 每次都用系统的真实状态：锁屏/亮屏广播偶尔会漏，缓存的 screenUsable 一旦错了会整段跑偏
             screenUsable = computeScreenUsable()
+            // 锁屏计时同步：解锁就清掉；锁屏/息屏期间保留起点
+            if (screenUsable) {
+                if (LockClock.isTracking(this)) LockClock.markUnlocked(this)
+            } else if (!LockClock.isTracking(this)) {
+                LockClock.markLocked(this)
+            }
             // 快节奏检测：只 stat 目录，真变了才真扫。
             // 锁屏/息屏也跑（30 秒一拍）：新图不用再干等规则间隔（最长 5 分钟），更不用打开 App。
             if (s.fastWhileActive && app.hasChannel()) {
@@ -169,6 +200,12 @@ class WatchService : Service() {
     private suspend fun tick(force: Boolean) {
         if (busy) return
         busy = true
+        // 锁屏/Doze 里 CPU 随时可能睡：扫描期间拿一个短时 WakeLock，别搬一半被冻住
+        val wake = runCatching {
+            getSystemService(PowerManager::class.java)
+                ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "shitu:scan")
+                ?.apply { acquire(120_000L) }
+        }.getOrNull()
         try {
             // 通道可以是 Shizuku，也可以是「所有文件访问」的本地通道；两条都不通才提示未就绪
             if (!app.ensureChannel()) {
@@ -179,6 +216,7 @@ class WatchService : Service() {
             // 统计信息已经在正文的「已搬 N 张 · 上次 …」里，避免出现「已搬 660 张 · … · 已搬 1 张」
             refresh(summary.message?.takeUnless { it.startsWith("已搬") })
         } finally {
+            runCatching { wake?.release() }
             busy = false
         }
     }

@@ -2,6 +2,8 @@ package com.landslide.shitu
 
 import android.app.Application
 import android.app.KeyguardManager
+import android.content.Intent
+import android.content.IntentFilter
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.BatteryManager
@@ -17,6 +19,7 @@ import com.landslide.shitu.core.NamePolicy
 import com.landslide.shitu.core.RunConditions
 import com.landslide.shitu.core.ScanFilter
 import com.landslide.shitu.data.LogExporter
+import com.landslide.shitu.data.LockClock
 import com.landslide.shitu.data.RoomContentLedger
 import com.landslide.shitu.data.BackupIo
 import com.landslide.shitu.data.RuleRepository
@@ -236,25 +239,39 @@ class ShituApp : Application() {
      * 当前有哪些条件没满足。空列表 = 可以跑。
      * 手动触发（打开 App、点「立即扫一次」）走 force 分支，不受这里限制。
      */
-    fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> =
-        RunConditions.unmet(
+    fun unmetConditions(s: Settings, nowHour: Int = currentHour()): List<String> {
+        val screenOn = isScreenUsable()
+        return RunConditions.unmet(
             settings = s,
             charging = isCharging(),
-            screenOn = isScreenUsable(),
+            screenOn = screenOn,
             batteryPct = batteryPct(),
-            powerSaveMode = isPowerSaveMode(),
+            lockedForMs = if (screenOn) 0L else LockClock.lockedForMs(this),
             nowHour = nowHour,
         )
-
-    private fun isPowerSaveMode(): Boolean = runCatching {
-        getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
-    }.getOrDefault(false)
+    }
 
     private fun currentHour(): Int =
         java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
 
+    /**
+     * 是否「插着充电器」。
+     *
+     * 注意不能只看 [BatteryManager.isCharging]：本机实测充电保护/旁路供电时它会返回 false，
+     * 但电池状态仍是 plugged=1 / status=2。所以以「是否插电」为准（这也是设置页文案的意思）。
+     */
     fun isCharging(): Boolean = runCatching {
-        getSystemService(BatteryManager::class.java)?.isCharging == true
+        val bm = getSystemService(BatteryManager::class.java)
+        if (bm?.isCharging == true) return true
+        val sticky = registerReceiver(
+            null,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+        )
+        val plugged = sticky?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val status = sticky?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        plugged != 0 ||
+            status == BatteryManager.BATTERY_STATUS_CHARGING ||
+            status == BatteryManager.BATTERY_STATUS_FULL
     }.getOrDefault(false)
 
     fun batteryPct(): Int = runCatching {

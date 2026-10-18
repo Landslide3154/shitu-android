@@ -67,6 +67,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.landslide.shitu.R
+import com.landslide.shitu.core.ConditionOrder
 import com.landslide.shitu.core.UpdateChecker
 import com.landslide.shitu.core.UpdateInstaller
 import com.landslide.shitu.data.AppLocale
@@ -357,7 +358,7 @@ fun SettingsScreen(
             }
         }
 
-        // 2. 运行条件：多选；插着充电器时电量条件不生效
+        // 2. 运行条件：统一优先级列表，从上到下先命中先算
         SettingsCard(
             title = stringResource(R.string.set_section_run_conditions),
         ) {
@@ -366,40 +367,87 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SettingSwitchRow(
-                title = stringResource(R.string.set_run_only_charging),
-                checked = settings.runOnlyCharging,
-                onCheckedChange = { scope.launch { store.setRunOnlyCharging(it) } },
-            )
-            SettingSwitchRow(
-                title = stringResource(R.string.set_run_only_screen_on),
-                checked = settings.runOnlyScreenOn,
-                onCheckedChange = { scope.launch { store.setRunOnlyScreenOn(it) } },
-            )
-            SettingSwitchRow(
-                title = stringResource(R.string.set_run_only_screen_off),
-                checked = settings.runOnlyScreenOff,
-                onCheckedChange = { scope.launch { store.setRunOnlyScreenOff(it) } },
-            )
+
+            val lockTimeoutOn = settings.lockTimeoutMin > 0
             val batteryOn = settings.runMinBatteryPct > 0
-            SettingSwitchRow(
-                title = if (batteryOn) {
-                    stringResource(R.string.set_run_min_battery, settings.runMinBatteryPct)
-                } else {
-                    stringResource(R.string.set_run_min_battery_off)
-                },
-                checked = batteryOn,
-                onCheckedChange = { on ->
-                    // 打开先给个 20%，要改再改下面的框；关掉 = 0 = 不看电量
-                    scope.launch { store.setRunMinBatteryPct(if (on) 20 else 0) }
-                },
+            val order = ConditionOrder.normalize(settings.conditionOrder)
+            val chargingLabel = stringResource(R.string.set_run_only_charging)
+            val lockTimeoutLabel = if (lockTimeoutOn) {
+                stringResource(R.string.set_run_lock_timeout_on, settings.lockTimeoutMin)
+            } else {
+                stringResource(R.string.set_run_lock_timeout_off)
+            }
+            val batteryLabel = if (batteryOn) {
+                stringResource(R.string.set_run_min_battery, settings.runMinBatteryPct)
+            } else {
+                stringResource(R.string.set_run_min_battery_off)
+            }
+            val screenOnLabel = stringResource(R.string.set_run_only_screen_on)
+            val screenOffLabel = stringResource(R.string.set_run_only_screen_off)
+            val labels = mapOf(
+                ConditionOrder.CHARGING to chargingLabel,
+                ConditionOrder.LOCK_TIMEOUT to lockTimeoutLabel,
+                ConditionOrder.BATTERY to batteryLabel,
+                ConditionOrder.SCREEN_ON to screenOnLabel,
+                ConditionOrder.SCREEN_OFF to screenOffLabel,
             )
-            if (batteryOn) {
-                intField(
-                    stringResource(R.string.set_run_min_battery_pct),
-                    settings.runMinBatteryPct,
-                    1..100,
-                ) { scope.launch { store.setRunMinBatteryPct(it) } }
+
+            fun moveCondition(id: String, delta: Int) {
+                val list = ConditionOrder.normalize(settings.conditionOrder).toMutableList()
+                val from = list.indexOf(id)
+                val to = from + delta
+                if (from < 0 || to !in list.indices) return
+                val tmp = list[from]
+                list[from] = list[to]
+                list[to] = tmp
+                scope.launch { store.setConditionOrder(list) }
+            }
+
+            order.forEachIndexed { index, id ->
+                val checked = when (id) {
+                    ConditionOrder.CHARGING -> settings.runOnlyCharging
+                    ConditionOrder.LOCK_TIMEOUT -> lockTimeoutOn
+                    ConditionOrder.BATTERY -> batteryOn
+                    ConditionOrder.SCREEN_ON -> settings.runOnlyScreenOn
+                    else -> settings.runOnlyScreenOff
+                }
+                ConditionRow(
+                    index = index + 1,
+                    title = labels.getValue(id),
+                    checked = checked,
+                    onCheckedChange = { on ->
+                        scope.launch {
+                            when (id) {
+                                ConditionOrder.CHARGING -> store.setRunOnlyCharging(on)
+                                // 打开先给 30 分钟；关掉 = 0 = 不启用
+                                ConditionOrder.LOCK_TIMEOUT -> store.setLockTimeoutMin(
+                                    if (on) settings.lockTimeoutMin.takeIf { it in 1..240 } ?: 30 else 0,
+                                )
+                                ConditionOrder.BATTERY -> store.setRunMinBatteryPct(if (on) 20 else 0)
+                                ConditionOrder.SCREEN_ON -> store.setRunOnlyScreenOn(on)
+                                else -> store.setRunOnlyScreenOff(on)
+                            }
+                        }
+                    },
+                    canUp = index > 0,
+                    canDown = index < order.lastIndex,
+                    onUp = { moveCondition(id, -1) },
+                    onDown = { moveCondition(id, 1) },
+                )
+                if (id == ConditionOrder.LOCK_TIMEOUT && lockTimeoutOn) {
+                    intField(
+                        stringResource(R.string.set_run_lock_timeout_min),
+                        settings.lockTimeoutMin,
+                        1..240,
+                    ) { scope.launch { store.setLockTimeoutMin(it) } }
+                }
+                if (id == ConditionOrder.BATTERY && batteryOn) {
+                    intField(
+                        stringResource(R.string.set_run_min_battery_pct),
+                        settings.runMinBatteryPct,
+                        1..100,
+                    ) { scope.launch { store.setRunMinBatteryPct(it) } }
+                }
             }
         }
 
@@ -1018,4 +1066,47 @@ private fun intField(
             .padding(vertical = 4.dp)
             .onFocusChanged { if (!it.isFocused) text = value.toString() },
     )
+}
+
+/**
+ * 运行条件的一行：序号 + 名称 + 上下移动 + 开关。
+ *
+ * 顺序就是优先级：从上到下先命中先算。放在这里而不是 SettingSwitchRow，
+ * 是因为每一行都要额外的移动按钮，且数字序号要固定宽度对齐。
+ */
+@Composable
+private fun ConditionRow(
+    index: Int,
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    canUp: Boolean,
+    canDown: Boolean,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            index.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(18.dp),
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(start = 4.dp),
+        )
+        TextButton(onClick = onUp, enabled = canUp, modifier = Modifier.width(38.dp)) {
+            Text("↑")
+        }
+        TextButton(onClick = onDown, enabled = canDown, modifier = Modifier.width(38.dp)) {
+            Text("↓")
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
 }

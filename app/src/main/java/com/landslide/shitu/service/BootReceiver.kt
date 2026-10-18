@@ -14,6 +14,7 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
             -> {
                 FallbackWorker.schedule(context)
+                ScanAlarm.schedule(context)
                 WatchService.start(context)
             }
         }

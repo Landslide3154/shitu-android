@@ -1,5 +1,6 @@
 package com.landslide.shitu.data
 
+import com.landslide.shitu.core.ConditionOrder
 import com.landslide.shitu.data.db.RuleEntity
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -92,6 +93,8 @@ object BackupIo {
         "nightStartHour" to s.nightStartHour,
         "nightEndHour" to s.nightEndHour,
         "runMinBatteryPct" to s.runMinBatteryPct,
+        "lockTimeoutMin" to s.lockTimeoutMin,
+        "conditionOrder" to ConditionOrder.encode(s.conditionOrder),
     ).map { (k, v) -> k to v.toString() }
 
     /** 缺字段就用默认值：备份文件可能来自旧版本。 */
@@ -129,6 +132,8 @@ object BackupIo {
             nightStartHour = i("nightStartHour", d.nightStartHour).coerceIn(0, 23),
             nightEndHour = i("nightEndHour", d.nightEndHour).coerceIn(0, 23),
             runMinBatteryPct = i("runMinBatteryPct", d.runMinBatteryPct).coerceIn(0, 100),
+            lockTimeoutMin = i("lockTimeoutMin", d.lockTimeoutMin).coerceIn(0, 240),
+            conditionOrder = ConditionOrder.decode(m["conditionOrder"]),
         )
     }
 

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.landslide.shitu.core.ConditionOrder
 import com.landslide.shitu.core.RuleTemplate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +24,7 @@ data class Settings(
     val loopWindowMin: Int = 30,
     val loopThreshold: Int = 3,
     val failThreshold: Int = 5,
+    /** 旧版「低电量暂停」：UI 已移除，电量条件改由 runMinBatteryPct 控制；字段只兼容旧备份 */
     val lowBatteryPause: Boolean = true,
     val lowBatteryPct: Int = 15,
     val logKeepDays: Int = 30,
@@ -67,6 +69,10 @@ data class Settings(
     val nightEndHour: Int = 7,
     /** 电量高于这个百分比才搬；0 = 不看电量 */
     val runMinBatteryPct: Int = 0,
+    /** 锁屏超过这么多分钟就不搬；0 = 不启用（打开开关时默认 30） */
+    val lockTimeoutMin: Int = 0,
+    /** 运行条件优先级（[ConditionOrder] 的 id，从上到下先命中先算） */
+    val conditionOrder: List<String> = ConditionOrder.DEFAULT,
 )
 
 class SettingsStore(private val context: Context) {
@@ -107,6 +113,8 @@ class SettingsStore(private val context: Context) {
         val NIGHT_START_HOUR = intPreferencesKey("night_start_hour")
         val NIGHT_END_HOUR = intPreferencesKey("night_end_hour")
         val RUN_MIN_BATTERY_PCT = intPreferencesKey("run_min_battery_pct")
+        val LOCK_TIMEOUT_MIN = intPreferencesKey("lock_timeout_min")
+        val CONDITION_ORDER = stringPreferencesKey("condition_order")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -149,6 +157,8 @@ class SettingsStore(private val context: Context) {
             nightStartHour = p[K.NIGHT_START_HOUR] ?: 22,
             nightEndHour = p[K.NIGHT_END_HOUR] ?: 7,
             runMinBatteryPct = p[K.RUN_MIN_BATTERY_PCT] ?: 0,
+            lockTimeoutMin = (p[K.LOCK_TIMEOUT_MIN] ?: 0).coerceIn(0, 240),
+            conditionOrder = ConditionOrder.decode(p[K.CONDITION_ORDER]),
         )
     }
 
@@ -184,6 +194,9 @@ class SettingsStore(private val context: Context) {
     suspend fun setNightStartHour(v: Int) = put(K.NIGHT_START_HOUR, v)
     suspend fun setNightEndHour(v: Int) = put(K.NIGHT_END_HOUR, v)
     suspend fun setRunMinBatteryPct(v: Int) = put(K.RUN_MIN_BATTERY_PCT, v)
+    suspend fun setLockTimeoutMin(v: Int) = put(K.LOCK_TIMEOUT_MIN, v.coerceIn(0, 240))
+    suspend fun setConditionOrder(v: List<String>) =
+        put(K.CONDITION_ORDER, ConditionOrder.encode(v))
 
     /** 语言要能被 `attachBaseContext` 同步读到，所以额外落一份 SharedPreferences（DataStore 是异步的）。 */
     suspend fun setLanguage(v: Int) {
@@ -224,6 +237,8 @@ class SettingsStore(private val context: Context) {
             p[K.NIGHT_START_HOUR] = s.nightStartHour
             p[K.NIGHT_END_HOUR] = s.nightEndHour
             p[K.RUN_MIN_BATTERY_PCT] = s.runMinBatteryPct
+            p[K.LOCK_TIMEOUT_MIN] = s.lockTimeoutMin
+            p[K.CONDITION_ORDER] = ConditionOrder.encode(s.conditionOrder)
             p[K.RULE_TEMPLATES] = RuleTemplate.encode(s.ruleTemplates)
         }
         AppLocale.set(context, s.language)

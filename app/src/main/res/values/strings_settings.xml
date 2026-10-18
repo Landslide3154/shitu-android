@@ -12,18 +12,21 @@
 
     <!-- 2. 运行条件 -->
     <string name="set_section_run_conditions">Run conditions</string>
-    <string name="set_run_conditions_desc">Pick any number — any one of them is enough. While charging, the battery limit is ignored. All off = move any time.</string>
+    <string name="set_run_conditions_desc">Top to bottom, first match wins: allow conditions (charging / screen on / locked) let it move; block conditions (locked too long / low battery) stop it. Charging on top = charging priority. All off = move any time.</string>
     <string name="set_run_only_charging">While charging</string>
     <string name="set_run_only_screen_on">While the screen is on</string>
     <string name="set_run_only_screen_off">While locked</string>
     <string name="set_run_min_battery">Don’t move below %1$d%% battery</string>
-    <string name="set_run_min_battery_off">Don’t move below __% battery</string>
+    <string name="set_run_min_battery_off">Don’t move below X% battery</string>
     <string name="set_run_min_battery_pct">Battery threshold</string>
-    <string name="set_help_run_conditions">You can turn on several conditions at once. All off = move any time. The battery limit does not apply while charging.</string>
-    <string name="set_help_run_charging">Move only while charging. The battery limit is also ignored while charging.</string>
-    <string name="set_help_run_screen_on">Move only while the screen is on and unlocked. Combined with “while locked”, it means any time.</string>
-    <string name="set_help_run_screen_off">Move only while locked/screen off — handy when charging overnight. It also gets fast checks while locked, no need to open the app.</string>
-    <string name="set_help_run_battery">Pause below the set battery level. Charging ignores this limit. Range 1–100.</string>
+    <string name="set_run_lock_timeout_on">Stop after %1$d min locked</string>
+    <string name="set_run_lock_timeout_off">Stop after X min locked</string>
+    <string name="set_run_lock_timeout_min">Locked duration (minutes)</string>
+    <string name="set_help_run_conditions">Conditions are checked top to bottom; the first match wins. Charging on top means charging always wins; put low battery or lock timeout above it to block charging too.</string>
+    <string name="set_help_run_charging">Move only while charging. Put it above low battery / lock timeout to make charging override them.</string>
+    <string name="set_help_run_screen_on">Move only while the screen is on and unlocked. The first matching condition wins.</string>
+    <string name="set_help_run_screen_off">Move only while locked/screen off. If lock timeout is above it, moving stops after the timeout.</string>
+    <string name="set_help_run_battery">Stop below the set battery level. If charging is above it, charging overrides this limit. Range 1–100.</string>
 
     <!-- 3. 检测时机 -->
     <string name="set_section_detection_timing">Detection timing</string>

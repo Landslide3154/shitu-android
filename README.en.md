@@ -74,8 +74,10 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 - **Edit rule**: name, source, target, mode, frequency, file names — plus a **dry-run preview**,
   "only last N days", "at least N KB", one subfolder per app, and **rename by content (15-char code)** so the same photo is never stored twice.
 - **Logs**: thumbnails, green/grey/blue result tags, filter panel, CSV export, and a search box that suggests paths used by your rules (✕ clears it).
-- **Settings**: run conditions (charging / screen on / locked / low battery — **any selected one is enough**),
-  storage access, detection timing, copy records (pick and clear), rule + settings backup, appearance & language,
+- **Settings**: run conditions with **manual priority** (top to bottom, first match wins): charging / stop after X min locked /
+  low battery / screen on / locked. Default order: charging → lock timeout → low battery → screen on → locked.
+  Charging on top = charging priority; move it down and low battery / lock timeout can block charging too.
+  Also storage access, detection timing, copy records (pick and clear), rule + settings backup, appearance & language,
   self-check, and **automatic update checks (at most once a day, with a notification when a new version is out)**.
 
 ## FAQ
