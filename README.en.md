@@ -80,6 +80,24 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
   Also storage access, detection timing, copy records (pick and clear), rule + settings backup, appearance & language,
   self-check, and **automatic update checks (at most once a day, with a notification when a new version is out)**.
 
+## Scan & move timing
+
+How soon a new image is picked up depends on the phone state:
+
+| State | Directory check | New file → moved |
+| --- | --- | --- |
+| **Screen on & unlocked** (foreground or background) | every 10s (3–60s in settings) | usually 10–20s |
+| **Locked / screen off / lock screen visible** | every 30s (fixed) | usually 30–60s |
+| **Deep sleep** (~4 min after locking, Doze) | timers pause; a 10-minute alarm wakes it | up to ~10 min |
+| **Rule interval** (default 5 min, 1–30 min per rule) | full source scan | nested folders the fast check cannot see: up to one interval |
+
+Notes:
+
+- The **fast check** only stats source folders; it does a real scan when a folder changes, so new files don't wait for the rule interval.
+- A file must be **finished writing**: by default two observations ≥3s apart with the same size/mtime; still-downloading files wait (up to the 30s stability window).
+- While **run conditions are not met**, nothing is scanned (the notification says why). It resumes on the next tick after conditions allow (≤10s on screen, ≤30s locked, ≤10 min in deep sleep).
+- Duplicate content in the target, paused/failed rules, extension/size/age filters, or `Android/data` without Shizuku can skip or fail the move.
+
 ## FAQ
 
 **Nothing is being moved.** Tap the status card to run a self-check, then check the failure reason in Logs.
