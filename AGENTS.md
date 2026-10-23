@@ -35,7 +35,7 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 - **两条通道不是等价替代**：有 Shizuku 走 `ShizukuBridge`（shell 身份，能进 `Android/data`）；没有才用 `local/` 的「所有文件访问」通道。
   `MANAGE_EXTERNAL_STORAGE` 同样进不了 `Android/data`/`Android/obb`（系统限制），所以 `Android/data` 相关能力必须保留 Shizuku，别把本地通道写成它的替代。
 - **联网只有「检查更新」一处**：`core/UpdateChecker` 请求 GitHub Releases，其余功能一律离线；新增任何联网行为前先改 README/手册的隐私口径。
-- **UI 样式只有一个来源**：圆角一律引用 `ui/theme/Shapes.kt` 的 `ShituRadius`（已接进 `ShituShapes` / MaterialTheme），输入框一律用 `ui/components/ShituField.kt`；不要裸写圆角数字、也不要直接用 `OutlinedTextField`。
+- **UI 样式只有一个来源**：圆角一律引用 `app/src/main/java/com/landslide/shitu/ui/theme/Shapes.kt` 的 `ShituRadius`（已接进 `ShituShapes` / MaterialTheme），输入框一律用 `app/src/main/java/com/landslide/shitu/ui/components/ShituField.kt`；不要裸写圆角数字、也不要直接用 `OutlinedTextField`。
 
 ## 5. 版本与发布
 
@@ -53,7 +53,7 @@ CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，仅�
 ## 6. 已知坑
 
 - **`adb shell input tap` 打不到 Compose DropdownMenu 的弹出项**：弹出窗口不按可聚焦窗口处理，点击落到 Activity 窗口，菜单既不关也不响应 → 自动化验证改用 `input keyevent KEYCODE_DPAD_DOWN` ×N + `KEYCODE_ENTER` 选中；AlertDialog 是独立可聚焦窗口，`input tap` 正常。
-- **系统图标缓存**：改图标一般随 `versionCode` 自增 + `install -r` 就刷新；个别 ROM 仍显示旧图时才重启手机（**重启后 Shizuku 要重新启动**，用电脑跑一次启动脚本）。
+- **系统图标缓存**：改图标一般随 `versionCode` 自增 + `install -r` 刷新；仍显示旧图时先 force-stop 桌面/主题/SystemUI（具体命令见 `AGENTS.local.md`），个别 ROM 才需要重启手机（**重启后 Shizuku 要重新启动**）。
 
 ## 7. 指针
 
