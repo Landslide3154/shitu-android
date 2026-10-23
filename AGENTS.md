@@ -39,16 +39,7 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 
 ## 5. 版本与发布
 
-版本号与 SDK 的唯一来源是 `app/build.gradle.kts`。发版**走本机，不要用 GitHub Actions**：
-
-1. `.\gradlew.bat assembleRelease` → 产物 `app/build/outputs/apk/release/app-release.apk`
-2. 真机装一遍、点一遍主流程
-3. **到这里停下**：汇报「已提交、已装机、未推送」，等用户发话（`git push` / tag / Release 的口径见全局 `AGENTS.md` 的「Git 与 GitHub」节）。
-4. 用户说推送后：`git push origin main` → `git tag vX.Y.Z` 并推 tag → 建 Release；附件名带版本号（`shitu-X.Y.Z.apk`）、用**本机构建**的 `app-release.apk`；上传资产的 URL 规矩见技能 `github-rest-cli`。
-
-- **README 与截图**：中英两版顶部都保留「中文 / English」切换条、默认中文；UI 或图标改动后重拍 `docs/screenshots/`，并核对两版 README 的图片引用。
-
-CI（`.github/workflows/release.yml`）**只保留 `workflow_dispatch`**，仅应急用：要 4 个 Secrets `KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`；`chmod +x gradlew`（Windows 提交会丢 exec 位）；runner 自带 SDK 里没有编译期要的 platform 37，得自己调 `cmdline-tools/*/bin/sdkmanager` 装（`android-actions/setup-android` 内部的 sdkmanager 会报错，不要用）。
+版本号与 SDK 的唯一来源是 `app/build.gradle.kts`。发版**走本机，不要用 GitHub Actions**；发版步骤（构建 → 真机装一遍 → **停下等用户发话** → push/tag/Release）、README 与截图规矩、CI 应急流程（4 个 Secrets、缺 platform 37）逐字外移到 [docs/release-process.md](docs/release-process.md)。
 
 ## 6. 已知坑
 
