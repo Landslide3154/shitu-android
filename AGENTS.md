@@ -44,7 +44,7 @@ Kotlin + Jetpack Compose + Room/DataStore + Shizuku（自定义 UserService，AI
 ## 6. 已知坑
 
 - **`adb shell input tap` 打不到 Compose DropdownMenu 的弹出项**：弹出窗口不按可聚焦窗口处理，点击落到 Activity 窗口，菜单既不关也不响应 → 自动化验证改用 `input keyevent KEYCODE_DPAD_DOWN` ×N + `KEYCODE_ENTER` 选中；AlertDialog 是独立可聚焦窗口，`input tap` 正常。
-- **系统图标缓存**：改图标一般随 `versionCode` 自增 + `install -r` 刷新；仍显示旧图时先 force-stop 桌面/主题/SystemUI（具体命令见 `AGENTS.local.md`），个别 ROM 才需要重启手机（**重启后 Shizuku 要重新启动**）。
+- **系统图标缓存**：覆盖安装后桌面/应用信息可能仍显示旧图 → 处理步骤、命令与「要不要重启手机」见 `AGENTS.local.md` §4（本机实测）。
 
 ## 7. 指针
 
