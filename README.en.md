@@ -72,7 +72,7 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 **Interface**
 
 - A floating dock on phones (Rules / Logs / Settings); switch to a docked bar under Appearance → Navigation style. Tablets and landscape use a left sidebar.
-- Theme center: system / light / dark, pure black, 8 accent colors + a custom picker, Vivid / Tinted / Soft / Mono, text size 80–140%, and tab animation.
+- Theme center: system / light / dark, pure black, 8 accent colors + a custom picker (degree, percentages and the confirm button update live), Vivid / Tinted / Soft / Mono, text size 80–140%, and tab animation.
 - Destructive actions share one red confirm dialog; common switches and confirms give light haptic feedback.
 
 **Rules**
@@ -80,7 +80,7 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 - Overview card: channel status and a **Self-check** button on the left; total moved / this week / enabled rules on the right. The weekly summary is in the overflow menu.
 - One card per rule: switch to enable, tap to edit, long-press for duplicate / undo / resume / delete.
 - Search by rule name, source or target; multi-select to enable, pause or delete in bulk.
-- Sort mode: drag the handle, or use move up / down; the order is remembered.
+- Sort mode: drag the handle — the card follows your finger, other rules make room, and it settles into place on release; move up / down also works, and the order is remembered. The delete action stays hidden while sorting.
 - Compact mode is one line per rule; detailed mode splits source and target onto two aligned lines.
 - Move is green, copy is blue.
 
