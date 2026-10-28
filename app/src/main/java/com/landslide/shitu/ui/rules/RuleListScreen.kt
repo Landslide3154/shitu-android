@@ -445,9 +445,11 @@ private fun OverviewCard(
                         },
                     )
                 } else {
-                    Box(Modifier.padding(start = 8.dp)) {
-                        TextButtonText(stringResource(R.string.rules_self_check), onSelfCheck)
-                    }
+                    ShituButton(
+                        text = stringResource(R.string.rules_self_check),
+                        primary = false,
+                        onClick = onSelfCheck,
+                    )
                 }
             }
             Spacer(Modifier.width(12.dp))

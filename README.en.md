@@ -1,4 +1,4 @@
-<p align="right">Language / 语言：<a href="README.md">中文</a> · <b>English</b></p>
+<p align="right">Language / 语言：<a href="README.md">汉语</a> · <b>English</b></p>
 
 # Shitu
 
@@ -44,12 +44,12 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
   <tr>
     <td><img src="docs/screenshots/settings.png" width="250" alt="Settings"></td>
     <td><img src="docs/screenshots/picker.png" width="250" alt="Choose folder"></td>
-    <td></td>
+    <td><img src="docs/screenshots/theme.png" width="250" alt="Theme center"></td>
   </tr>
   <tr>
-    <td align="center">Run conditions, backup</td>
-    <td align="center">Choose a folder</td>
-    <td></td>
+    <td align="center">Grouped settings, one level deep</td>
+    <td align="center">Type a path or browse</td>
+    <td align="center">Colors, text size, dock style</td>
   </tr>
 </table>
 
@@ -61,7 +61,7 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 
 ## First run
 
-1. Check the card at the top: "**Standard mode**" or "**Shizuku ready**" means you're good to go
+1. Look at the status card: "**Standard mode**" or "**Shizuku ready**" means you're good to go. Otherwise tap **Self-check** and fix the red item.
 2. Tap **`+`** → **Blank rule**
 3. Name it, choose a **source folder** and a **target folder** (both start at `/sdcard`)
 4. Keep mode on **Copy**, tap **Save and start moving** — it shows how many files would move before saving
@@ -69,16 +69,44 @@ Without Shizuku, pictures inside `Android/data` can't be reached (the system doe
 
 ## Features
 
-- **Rules**: one card per rule, switch to enable/disable, tap to edit, long-press for duplicate / undo / resume / delete.
-  "This week +N" opens a summary; move is green, copy is blue.
-- **Edit rule**: name, source, target, mode, frequency, file names — plus a **dry-run preview**,
-  "only last N days", "at least N KB", one subfolder per app, and **rename by content (15-char code)** so the same photo is never stored twice.
-- **Logs**: thumbnails, green/grey/blue result tags, filter panel, CSV export, and a search box that suggests paths used by your rules (✕ clears it).
-- **Settings**: run conditions with **manual priority** (top to bottom, first match wins): charging / stop after X min locked /
-  low battery / screen on / locked. Default order: charging → lock timeout → low battery → screen on → locked.
-  Charging on top = charging priority; move it down and low battery / lock timeout can block charging too.
-  Also storage access, detection timing, copy records (pick and clear), rule + settings backup, appearance & language,
-  self-check, and **automatic update checks (at most once a day, with a notification when a new version is out)**.
+**Interface**
+
+- A floating dock on phones (Rules / Logs / Settings); switch to a docked bar under Appearance → Navigation style. Tablets and landscape use a left sidebar.
+- Theme center: system / light / dark, pure black, 8 accent colors + a custom picker, Vivid / Tinted / Soft / Mono, text size 80–140%, and tab animation.
+- Destructive actions share one red confirm dialog; common switches and confirms give light haptic feedback.
+
+**Rules**
+
+- Overview card: channel status and a **Self-check** button on the left; total moved / this week / enabled rules on the right. The weekly summary is in the overflow menu.
+- One card per rule: switch to enable, tap to edit, long-press for duplicate / undo / resume / delete.
+- Search by rule name, source or target; multi-select to enable, pause or delete in bulk.
+- Sort mode: drag the handle, or use move up / down; the order is remembered.
+- Compact mode is one line per rule; detailed mode splits source and target onto two aligned lines.
+- Move is green, copy is blue.
+
+**Edit rule**
+
+- Six cards: name, source, target, mode, frequency, file names.
+- Back and **Save and start moving** at the top; a **dry-run preview** shows how many files would move and how big they are.
+- "Only last N days", "at least N KB", one subfolder per app, and **rename by content (15-char code)** so the same photo is never stored twice.
+- Frequency is only a fallback: normally a changed source folder is picked up within seconds.
+
+**Logs**
+
+- Thumbnails for destination pictures; green "moved", blue "copied"; tap a row for the full paths and failure reason.
+- The search box suggests paths used by your rules (✕ clears it).
+- Filter by result or rule, pause refresh, and export CSV.
+- Duplicate skips are counted, not logged.
+
+**Settings**
+
+- **Run conditions** with manual priority (top to bottom, first match wins): charging / stop after X min locked / low battery / screen on / locked. All off = move any time.
+- **Detection timing**: faster checks while the screen is on; move as soon as writing finishes.
+- **Run parameters**: scan budget, per-run / per-minute caps, log retention — defaults suit most phones.
+- **Storage access**, **copy records** (clear selected), and **backup** (restore rules, settings, or both).
+- **Appearance**: theme center, dock style, tab animation, text size; language follows the system, 汉语 or English.
+- **Notifications**, **self-check** (permissions, Shizuku, database; result can be copied), and **update checks** (at most once a day, with a notification).
+- Long-press the launcher icon for **Move now / Logs / Settings** shortcuts.
 
 ## Scan & move timing
 
@@ -115,11 +143,11 @@ At a glance:
 
 ## FAQ
 
-**Nothing is being moved.** Tap the status card to run a self-check, then check the failure reason in Logs.
+**Nothing is being moved.** Tap **Self-check** on the status card, then check the failure reason in Logs.
 
 **Will it delete my pictures?** No. Failed moves leave the source untouched, a bad move is rolled back, and existing files are never overwritten.
 
-**How do I switch the interface language?** Settings → Appearance & language → English / 中文 / System.
+**How do I switch the interface language?** Settings → Appearance → language: System / 汉语 / English.
 
 **Only one feature goes online** — "Check for updates" (GitHub Releases; also checked automatically at most once a day). Everything else is offline.
 
@@ -127,7 +155,7 @@ At a glance:
 
 - Detailed manual (Chinese): [使用手册](docs/使用手册.md)
 - Changelog: [CHANGELOG](docs/CHANGELOG.md)
-- 中文说明: [README.md](README.md)
+- 汉语说明: [README.md](README.md)
 
 ---
 
