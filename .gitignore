@@ -19,6 +19,7 @@ keystore.properties
 *.aab
 *.ap_
 *.dex
+/release/
 
 # 日志与临时文件
 *.log
@@ -41,3 +42,6 @@ __pycache__/
 
 # 项目级技能链接（只在本机生效，技能实体在 ~/.agents/skills）
 .dsh/skills/
+
+# Kotlin 2.x 会话目录（编译期生成）
+.kotlin/

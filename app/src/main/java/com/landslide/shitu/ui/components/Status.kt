@@ -27,7 +27,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
 import com.landslide.shitu.ui.theme.ShituRadius
+import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import com.landslide.shitu.ui.theme.container
@@ -170,9 +170,7 @@ fun SectionCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = ShituRadius.CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(
@@ -226,7 +224,9 @@ fun SwitchRow(
     subtitle: String? = null,
 ) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp),
+        modifier.fillMaxWidth()
+            .heightIn(min = if (subtitle != null) 56.dp else 48.dp)
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -241,6 +241,6 @@ fun SwitchRow(
                 )
             }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        ShituSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,7 +53,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,6 +82,8 @@ import com.landslide.shitu.data.db.Mode
 import com.landslide.shitu.data.db.RuleEntity
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.components.BannerCard
+import com.landslide.shitu.ui.components.DangerConfirmDialog
+import com.landslide.shitu.ui.components.ShituSwitch
 import com.landslide.shitu.ui.components.StatusDot
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.canResume
@@ -92,6 +94,7 @@ import com.landslide.shitu.ui.status.shizukuAdvice
 import com.landslide.shitu.ui.status.shizukuTitle
 import com.landslide.shitu.ui.status.shizukuTone
 import com.landslide.shitu.ui.theme.ShituRadius
+import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import com.landslide.shitu.ui.theme.container
@@ -170,7 +173,7 @@ fun RuleListScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .clip(ShituRadius.RowShape)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                .background(ShituSurface.inset())
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             Icon(
@@ -234,25 +237,16 @@ fun RuleListScreen(
     }
 
     pendingDelete?.let { target ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.rules_delete_rule_title, target.name)) },
-            text = {
-                Text(stringResource(R.string.rules_delete_rule_body))
+        DangerConfirmDialog(
+            title = stringResource(R.string.rules_delete_rule_title, target.name),
+            body = stringResource(R.string.rules_delete_rule_body),
+            confirmLabel = stringResource(R.string.rules_delete),
+            dismissLabel = stringResource(R.string.rules_cancel),
+            onConfirm = {
+                pendingDelete = null
+                onDelete(target)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingDelete = null
-                        onDelete(target)
-                    },
-                ) {
-                    Text(stringResource(R.string.rules_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.rules_cancel)) }
-            },
+            onDismiss = { pendingDelete = null },
         )
     }
 
@@ -263,6 +257,7 @@ fun RuleListScreen(
     Scaffold(
         // 外层 Scaffold 已经处理过状态栏内边距，这里再叠一次会多出一条空白
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = ShituSurface.page(),
         floatingActionButton = {
             FloatingActionButton(onClick = { showNew = true }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.rules_new_rule))
@@ -438,7 +433,7 @@ private fun NewRuleOption(
         Modifier
             .fillMaxWidth()
             .clip(ShituRadius.RowShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .background(ShituSurface.inset())
             .border(
                 BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ShituRadius.RowShape,
@@ -570,6 +565,7 @@ private fun RuleCard(
                 Modifier
                     .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                     .then(dragModifier),
+                colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
             ) {
                 Row(
                     Modifier
@@ -591,7 +587,7 @@ private fun RuleCard(
                     Spacer(Modifier.width(6.dp))
                     StatusPill(stringResource(ruleStatusText(rule)), tone)
                     Spacer(Modifier.width(10.dp))
-                    Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                    ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
                     // 菜单锚在这个 1dp 的小盒子上，弹出来就贴着卡片右上角
                     Box(Modifier.size(1.dp)) {
                         DropdownMenu(
@@ -616,6 +612,7 @@ private fun RuleCard(
             Modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .then(dragModifier),
+            colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
         ) {
             Column(Modifier.then(longPressModifier).padding(12.dp)) {
             Row(
@@ -634,7 +631,7 @@ private fun RuleCard(
                 StatusPill(stringResource(ruleStatusText(rule)), tone)
                 Spacer(Modifier.width(10.dp))
                 // 每条规则自己的开关
-                Switch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+                ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
                 // 菜单锚在这个 1dp 的小盒子上，弹出来就贴着卡片右上角
                 Box(Modifier.size(1.dp)) {
                     DropdownMenu(

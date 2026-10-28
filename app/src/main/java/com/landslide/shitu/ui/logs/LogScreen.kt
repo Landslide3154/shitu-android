@@ -24,9 +24,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,10 +57,12 @@ import com.landslide.shitu.data.db.Labels
 import com.landslide.shitu.data.db.LogEntity
 import com.landslide.shitu.data.db.LogResult
 import com.landslide.shitu.data.db.RuleEntity
+import com.landslide.shitu.ui.components.DangerConfirmDialog
 import com.landslide.shitu.ui.components.FileThumbnail
 import com.landslide.shitu.ui.components.ShituField
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.logTone
+import com.landslide.shitu.ui.theme.ShituSurface
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,25 +99,16 @@ fun LogScreen(
     val ruleName = rules.firstOrNull { it.id == ruleFilter }?.name
 
     if (askClear) {
-        AlertDialog(
-            onDismissRequest = { askClear = false },
-            title = { Text(stringResource(R.string.logs_clear_dialog_title)) },
-            text = {
-                Text(
-                    stringResource(R.string.logs_clear_dialog_body, logs.size),
-                )
+        DangerConfirmDialog(
+            title = stringResource(R.string.logs_clear_dialog_title),
+            body = stringResource(R.string.logs_clear_dialog_body, logs.size),
+            confirmLabel = stringResource(R.string.logs_clear_confirm),
+            dismissLabel = stringResource(R.string.logs_cancel),
+            onConfirm = {
+                askClear = false
+                onClearAll()
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        askClear = false
-                        onClearAll()
-                    },
-                ) { Text(stringResource(R.string.logs_clear_confirm), color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { askClear = false }) { Text(stringResource(R.string.logs_cancel)) }
-            },
+            onDismiss = { askClear = false },
         )
     }
 
@@ -390,7 +383,10 @@ private fun LogRow(l: LogEntity, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     // 结果颜色统一走 StatusMap.logTone：移动=绿、复制=蓝
     val tone = logTone(l.result)
-    Card(modifier.fillMaxWidth()) {
+    Card(
+        modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
+    ) {
         // 缩略图固定在左边 48dp，读不到也只画占位块，文字排版不跟着跳
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
             FileThumbnail(path = l.dstPath)

@@ -68,6 +68,8 @@
     <string name="set_clear_all">Clear all</string>
     <string name="set_clear_copy_history_title">Clear all copy records?</string>
     <string name="set_clear_copy_history_body">Cleared photos will be treated as new and may be copied again. Rules and files already moved are not affected.</string>
+    <string name="set_clear_copy_history_body_count">About to clear %1$d copy records. Cleared photos count as new and may be copied again; rules and files already moved are not affected.</string>
+    <string name="set_section_data">Data &amp; backup</string>
     <string name="set_clear_confirm">Clear</string>
     <string name="set_cancel">Cancel</string>
     <string name="set_help_copy_history">Copy-mode rules use this to know what was copied. Cleared photos count as new and may be copied again.</string>

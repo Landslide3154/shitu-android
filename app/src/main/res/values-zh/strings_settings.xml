@@ -68,6 +68,8 @@
     <string name="set_clear_all">全部清空</string>
     <string name="set_clear_copy_history_title">清空全部复制记录？</string>
     <string name="set_clear_copy_history_body">清空后，以前复制过的图会被当成没复制过，以后遇到会再复制一份；规则和已搬走的文件不受影响。</string>
+    <string name="set_clear_copy_history_body_count">将清空 %1$d 条复制记录。清空后，以前复制过的图会被当成没复制过，以后遇到会再复制一份；规则和已搬走的文件不受影响。</string>
+    <string name="set_section_data">数据与备份</string>
     <string name="set_clear_confirm">清空</string>
     <string name="set_cancel">取消</string>
     <string name="set_help_copy_history">复制模式靠它判断图片复制过没有。清掉记录后，这些图会被当成没复制过，下次可能再复制一份。</string>

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
 import com.landslide.shitu.ui.theme.ShituRadius
+import com.landslide.shitu.ui.theme.ShituSurface
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,7 +66,7 @@ fun FileThumbnail(
         modifier
             .size(size)
             .clip(ShituRadius.thumb(size))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            .background(ShituSurface.inset()),
         contentAlignment = Alignment.Center,
     ) {
         val loaded = bitmap

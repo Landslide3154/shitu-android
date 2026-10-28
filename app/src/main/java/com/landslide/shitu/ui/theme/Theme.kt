@@ -51,12 +51,14 @@ fun ShituTheme(
 ) {
     val dark = resolveDark(themeMode, isSystemInDarkTheme())
     val context = LocalContext.current
-    val scheme = when {
+    val base = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 
         dark -> Dark
         else -> Light
     }
+    // 表面层级：亮色「灰页 + 近白卡」由 ShituSurface 负责；暗色在这里把 4 个角色抬到 15/21/27 + onSurface 97
+    val scheme = if (dark) base.withShituDarkTones() else base
     MaterialTheme(colorScheme = scheme, shapes = ShituShapes, content = content)
 }

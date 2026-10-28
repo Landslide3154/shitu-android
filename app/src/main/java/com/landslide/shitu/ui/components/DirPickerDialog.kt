@@ -43,13 +43,14 @@ import androidx.compose.ui.window.Dialog
 import com.landslide.shitu.R
 import com.landslide.shitu.shizuku.FileBridge
 import com.landslide.shitu.shizuku.RemoteFile
+import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.ShituRadius
 
 /**
  * 目录选择器：从 /sdcard 往下点，也可直接输入路径。
  *
- * 视觉上不用 AlertDialog 的默认白底：整块用主题的 surfaceContainerLow，
- * 每个文件夹是一行 12dp 圆角的「抬起来」的小卡片（surfaceContainerHighest），
+ * 视觉上不用 AlertDialog 的默认白底：整块用卡片层（[ShituSurface.card]），
+ * 每个文件夹是一行 12dp 圆角的「抬起来」的小槽（[ShituSurface.inset]），
  * 点上去有 ripple —— 跟 App 其它卡片同一个语言，不会出现「一块纯白」的割裂感。
  */
 @Composable
@@ -82,7 +83,7 @@ fun DirPickerDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = ShituRadius.DialogShape,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = ShituSurface.card(),
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -121,7 +122,7 @@ fun DirPickerDialog(
                 // 当前路径单独一块淡底色，长路径也能看清，不再是一行小字贴在白底上
                 Surface(
                     shape = ShituRadius.RowShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = ShituSurface.block(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -221,7 +222,7 @@ private fun DirRow(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .background(ShituSurface.inset())
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

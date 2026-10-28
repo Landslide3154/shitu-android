@@ -41,7 +41,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -77,8 +76,11 @@ import com.landslide.shitu.data.db.CopiedEntity
 import com.landslide.shitu.local.StorageAccess
 import com.landslide.shitu.ui.components.FileThumbnail
 import com.landslide.shitu.ui.components.HelpDot
+import com.landslide.shitu.ui.components.DangerConfirmDialog
 import com.landslide.shitu.ui.components.ShituField
+import com.landslide.shitu.ui.components.ShituSwitch
 import com.landslide.shitu.ui.theme.ShituRadius
+import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.ThemeMode
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
@@ -550,10 +552,11 @@ fun SettingsScreen(
             }
         }
 
-        // 4. 复制记录：点开列表，勾选后只清选中的
+        // 4. 数据与备份：复制记录 + 规则/设置备份收在一张卡里
         SettingsCard(
-            title = stringResource(R.string.set_section_copy_history),
+            title = stringResource(R.string.set_section_data),
         ) {
+            SubHeader(stringResource(R.string.set_section_copy_history))
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -567,12 +570,7 @@ fun SettingsScreen(
                     Text(stringResource(R.string.set_copy_history_view))
                 }
             }
-        }
-
-        // 5. 设置管理：规则 + 各项设置一起备份
-        SettingsCard(
-            title = stringResource(R.string.set_section_backup),
-        ) {
+            Spacer(Modifier.height(10.dp))
             Text(
                 stringResource(R.string.set_rules_count, rulesCount),
                 style = MaterialTheme.typography.bodyMedium,
@@ -612,7 +610,7 @@ fun SettingsScreen(
             }
         }
 
-        // 6. 外观与语言：语言、主题、动态取色合并成一张卡
+        // 5. 外观与语言：语言、主题、动态取色合并成一张卡
         SettingsCard(
             title = stringResource(R.string.set_section_appearance_language),
         ) {
@@ -673,10 +671,11 @@ fun SettingsScreen(
             )
         }
 
-        // 7. 自检：只有一行按钮，详情由外面的弹窗负责
+        // 6. 关于：自检 + 版本 + 更新（自检详情仍由外面的弹窗负责）
         SettingsCard(
-            title = stringResource(R.string.set_section_self_check),
+            title = stringResource(R.string.set_section_about),
         ) {
+            SubHeader(stringResource(R.string.set_section_self_check))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = onSelfCheck) {
                     Text(stringResource(R.string.set_run_self_check))
@@ -692,12 +691,7 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f),
                 )
             }
-        }
-
-        // 8. 关于
-        SettingsCard(
-            title = stringResource(R.string.set_section_about),
-        ) {
+            Spacer(Modifier.height(10.dp))
             Text(
                 stringResource(R.string.set_about_version, versionName),
                 style = MaterialTheme.typography.bodyMedium,
@@ -751,22 +745,17 @@ fun SettingsScreen(
     }
 
     if (askClearCopied) {
-        AlertDialog(
-            onDismissRequest = { askClearCopied = false },
-            title = { Text(stringResource(R.string.set_clear_copy_history_title)) },
-            text = { Text(stringResource(R.string.set_clear_copy_history_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    askClearCopied = false
-                    showCopySheet = false
-                    onClearCopied()
-                }) { Text(stringResource(R.string.set_clear_confirm)) }
+        DangerConfirmDialog(
+            title = stringResource(R.string.set_clear_copy_history_title),
+            body = stringResource(R.string.set_clear_copy_history_body_count, copiedCount),
+            confirmLabel = stringResource(R.string.set_clear_confirm),
+            dismissLabel = stringResource(R.string.set_cancel),
+            onConfirm = {
+                askClearCopied = false
+                showCopySheet = false
+                onClearCopied()
             },
-            dismissButton = {
-                TextButton(onClick = { askClearCopied = false }) {
-                    Text(stringResource(R.string.set_cancel))
-                }
-            },
+            onDismiss = { askClearCopied = false },
         )
     }
 
@@ -856,6 +845,17 @@ fun SettingsScreen(
     }
 }
 
+/** 卡片里的小节标题：把「复制记录」「自检」这类二级内容从卡片标题里拆出来。 */
+@Composable
+private fun SubHeader(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+}
+
 /** 设置卡片：和 SectionCard 同款外观，标题行右侧多一个帮助问号。 */
 @Composable
 private fun SettingsCard(
@@ -866,9 +866,7 @@ private fun SettingsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = ShituRadius.CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -895,7 +893,9 @@ private fun SettingSwitchRow(
     subtitle: String? = null,
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp),
+        Modifier.fillMaxWidth()
+            .heightIn(min = if (subtitle != null) 56.dp else 48.dp)
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = 8.dp)) {
@@ -915,7 +915,7 @@ private fun SettingSwitchRow(
                 )
             }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        ShituSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -1107,6 +1107,6 @@ private fun ConditionRow(
         TextButton(onClick = onDown, enabled = canDown, modifier = Modifier.width(38.dp)) {
             Text("↓")
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        ShituSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

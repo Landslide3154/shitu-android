@@ -27,7 +27,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,7 +54,9 @@ import com.landslide.shitu.ui.components.DirPickerDialog
 import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.SectionCard
 import com.landslide.shitu.ui.components.ShituField
+import com.landslide.shitu.ui.components.ShituSwitch
 import com.landslide.shitu.ui.theme.ShituRadius
+import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.Tone
 import com.landslide.shitu.ui.theme.color
 import java.util.Locale
@@ -80,9 +81,7 @@ private fun HelpSectionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = ShituRadius.CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -401,7 +400,7 @@ fun RuleEditScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(
+                ShituSwitch(
                     checked = rule.dstSubdirApp,
                     onCheckedChange = { rule = rule.copy(dstSubdirApp = it) },
                 )

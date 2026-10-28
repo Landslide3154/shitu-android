@@ -1,5 +1,6 @@
 package com.landslide.shitu.ui
 
+import android.animation.ValueAnimator
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -10,6 +11,7 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,12 +21,17 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,6 +44,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -53,8 +63,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -73,6 +86,7 @@ import com.landslide.shitu.ui.logs.LogScreen
 import com.landslide.shitu.ui.rules.RuleEditScreen
 import com.landslide.shitu.ui.rules.RuleListScreen
 import com.landslide.shitu.ui.settings.SettingsScreen
+import com.landslide.shitu.ui.theme.ShituSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -88,7 +102,8 @@ fun ShituRoot(
     val scope = rememberCoroutineScope()
     val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = Settings())
 
-    var tab by remember { mutableIntStateOf(0) }
+    // 旋转屏幕、折叠屏展开后 Tab 不能丢
+    var tab by rememberSaveable { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<RuleEntity?>(null) }
     // 编辑页在做退出动画时 editing 已经变成 null，用它撑住那几帧画面
     var lastEdit by remember { mutableStateOf<RuleEntity?>(null) }
@@ -112,6 +127,8 @@ fun ShituRoot(
     /** 通知点进来后，等设置页真正显示出来再触发一次「检查更新」 */
     var pendingUpdateCheck by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    /** 系统设置里关掉动画（开发者选项 → 动画时长 0）时，转场直接切，不做位移 */
+    val reduceMotion = remember { !ValueAnimator.areAnimatorsEnabled() }
 
     suspend fun refresh() {
         rules = app.repo.allRules()
@@ -226,8 +243,13 @@ fun ShituRoot(
         }
     }
 
-    Scaffold(
-        snackbarHost = {
+    // 宽屏（平板 / 折叠屏展开 / 横屏）走左侧导航栏；手机仍旧是底栏
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= 600.dp
+
+        Scaffold(
+            containerColor = ShituSurface.page(),
+            snackbarHost = {
             SnackbarHost(snackbar) { data ->
                 // 点提示条本身也能关掉（「撤销删除」那个按钮自己响应自己的点击）
                 Snackbar(
@@ -237,35 +259,81 @@ fun ShituRoot(
             }
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = tab == 0,
-                    onClick = { leaveEditor(0) },
-                    icon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                    label = { Text(stringResource(R.string.app_nav_rules)) },
-                )
-                NavigationBarItem(
-                    selected = tab == 1,
-                    onClick = { leaveEditor(1) },
-                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
-                    label = { Text(stringResource(R.string.app_nav_logs)) },
-                )
-                NavigationBarItem(
-                    selected = tab == 2,
-                    onClick = { leaveEditor(2) },
-                    icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                    label = { Text(stringResource(R.string.app_nav_settings)) },
-                )
+            if (!wide) {
+                NavigationBar {
+                    ShituNavItem(
+                        selected = tab == 0,
+                        onClick = { leaveEditor(0) },
+                        icon = Icons.Filled.Share,
+                        label = stringResource(R.string.app_nav_rules),
+                    )
+                    ShituNavItem(
+                        selected = tab == 1,
+                        onClick = { leaveEditor(1) },
+                        icon = Icons.Filled.List,
+                        label = stringResource(R.string.app_nav_logs),
+                    )
+                    ShituNavItem(
+                        selected = tab == 2,
+                        onClick = { leaveEditor(2) },
+                        icon = Icons.Filled.Settings,
+                        label = stringResource(R.string.app_nav_settings),
+                    )
+                }
             }
         },
     ) { padding ->
-        // Box 在外、Column 在内：这样下面的编辑页转场是 Column 的兄弟，不会被 ColumnScope 抢走
         Box(Modifier.fillMaxSize().padding(padding)) {
-            Column(Modifier.fillMaxSize()) {
-                // 三个标签页之间淡入淡出
+            Row(Modifier.fillMaxSize()) {
+            if (wide) {
+                NavigationRail(containerColor = ShituSurface.page()) {
+                    Spacer(Modifier.height(8.dp))
+                    ShituRailItem(
+                        selected = tab == 0,
+                        onClick = { leaveEditor(0) },
+                        icon = Icons.Filled.Share,
+                        label = stringResource(R.string.app_nav_rules),
+                    )
+                    ShituRailItem(
+                        selected = tab == 1,
+                        onClick = { leaveEditor(1) },
+                        icon = Icons.Filled.List,
+                        label = stringResource(R.string.app_nav_logs),
+                    )
+                    ShituRailItem(
+                        selected = tab == 2,
+                        onClick = { leaveEditor(2) },
+                        icon = Icons.Filled.Settings,
+                        label = stringResource(R.string.app_nav_settings),
+                    )
+                }
+            }
+            Box(
+                Modifier.weight(1f).fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                // 平板横屏别把内容拉满整行：最宽 840dp，居中
+                Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
+                    Column(Modifier.fillMaxSize()) {
+                // 三个标签页之间：0.15 屏宽位移 + 300ms，淡入淡出压住换页白闪
                 AnimatedContent(
                     targetState = tab,
-                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                    transitionSpec = {
+                        val dir = if (targetState < initialState) -1 else 1
+                        val duration = if (reduceMotion) 0 else 300
+                        val shift = { full: Int -> (full * 0.15f * dir).toInt() }
+                        (
+                            fadeIn(tween(duration, easing = FastOutSlowInEasing)) +
+                                slideInHorizontally(
+                                    tween(duration, easing = FastOutSlowInEasing),
+                                ) { shift(it) }
+                            ) togetherWith (
+                            fadeOut(tween(duration / 2, easing = FastOutSlowInEasing)) +
+                                slideOutHorizontally(
+                                    tween(duration, easing = FastOutSlowInEasing),
+                                ) { -shift(it) }
+                            )
+                    },
                     label = "tab",
                     modifier = Modifier.fillMaxSize(),
                 ) { which ->
@@ -515,42 +583,52 @@ fun ShituRoot(
                     }
                 }
             }
+                    } // 内容最宽 840dp
+                } // 剩余宽度 Box
+            } // Row
 
             // 编辑页：从右边滑进来，盖在标签页上面（里面的按钮/开关照常各自响应）
-                val editShown = editing ?: lastEdit
-                AnimatedVisibility(
-                    visible = editing != null,
-                    enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(180)),
-                    exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(120)),
-                ) {
-                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        if (editShown != null) {
-                            RuleEditScreen(
-                                initial = editShown,
-                                bridge = app.fileBridge,
-                                otherRules = rules.filter { it.id != editShown.id },
-                                onDraftChange = { draft = it },
-                                onDirtyChange = { editingDirty = it },
-                                onSaveAsTemplate = { r, tplName ->
-                                    scope.launch {
-                                        val t = RuleTemplate.fromRule(r, tplName)
-                                        app.settings.setRuleTemplates(settings.ruleTemplates + t)
-                                        snackbar.showSnackbar(context.getString(R.string.app_template_saved, t.name))
-                                    }
-                                },
-                                onSave = { r ->
-                                    draft = r
-                                    saveDraft()
-                                },
-                                onPreview = { rule -> app.previewRule(rule) },
-                                // 取消 = 放弃本次修改，直接回规则列表
-                                onCancel = { closeEditor(null) },
-                            )
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
+                    val editShown = editing ?: lastEdit
+                    AnimatedVisibility(
+                        visible = editing != null,
+                        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(180)),
+                        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(120)),
+                    ) {
+                        Surface(Modifier.fillMaxSize(), color = ShituSurface.page()) {
+                            if (editShown != null) {
+                                RuleEditScreen(
+                                    initial = editShown,
+                                    bridge = app.fileBridge,
+                                    otherRules = rules.filter { it.id != editShown.id },
+                                    onDraftChange = { draft = it },
+                                    onDirtyChange = { editingDirty = it },
+                                    onSaveAsTemplate = { r, tplName ->
+                                        scope.launch {
+                                            val t = RuleTemplate.fromRule(r, tplName)
+                                            app.settings.setRuleTemplates(settings.ruleTemplates + t)
+                                            snackbar.showSnackbar(
+                                                context.getString(R.string.app_template_saved, t.name),
+                                            )
+                                        }
+                                    },
+                                    onSave = { r ->
+                                        draft = r
+                                        saveDraft()
+                                    },
+                                    onPreview = { rule -> app.previewRule(rule) },
+                                    // 取消 = 放弃本次修改，直接回规则列表
+                                    onCancel = { closeEditor(null) },
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
+        } // 外层 Box
+        } // Scaffold
+    } // BoxWithConstraints
 
     if (askSave) {
         AlertDialog(
@@ -592,7 +670,10 @@ fun ShituRoot(
             title = { Text(stringResource(R.string.app_checking_title)) },
             text = {
                 Column {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        Modifier.fillMaxWidth(),
+                        trackColor = ShituSurface.inset(),
+                    )
                     Text(
                         stringResource(R.string.app_checking_text),
                         style = MaterialTheme.typography.bodySmall,
@@ -657,6 +738,43 @@ fun ShituRoot(
             },
         )
     }
+}
+
+/** 手机底栏：NavigationBarItem 是 RowScope 扩展，所以这里也挂在 RowScope 上。 */
+@Composable
+private fun RowScope.ShituNavItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String,
+) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(icon, contentDescription = null) },
+        label = { Text(label) },
+    )
+}
+
+/** 宽屏侧栏：选中态是中性底 + 主色图标，不铺整块主色。 */
+@Composable
+private fun ShituRailItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String,
+) {
+    NavigationRailItem(
+        selected = selected,
+        onClick = onClick,
+        icon = { Icon(icon, contentDescription = null) },
+        label = { Text(label) },
+        colors = NavigationRailItemDefaults.colors(
+            indicatorColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    )
 }
 
 private fun renderReport(context: Context, report: List<HealthChecker.Item>): String =
