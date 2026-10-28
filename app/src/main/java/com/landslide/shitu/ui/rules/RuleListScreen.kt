@@ -41,8 +41,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,10 +56,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
@@ -151,6 +155,7 @@ fun RuleListScreen(
             rule.srcPath.contains(query, ignoreCase = true) ||
             rule.dstPath.contains(query, ignoreCase = true)
     }
+    val itemSpacing = if (compact) 4.dp else 8.dp
 
     if (showNew) {
         NewRuleSheet(
@@ -204,7 +209,10 @@ fun RuleListScreen(
             ShituToolbar(
                 title = stringResource(R.string.app_nav_rules),
             ) {
-                IconButton(onClick = { searchOpen = !searchOpen }) {
+                IconButton(onClick = {
+                    if (sortMode) sortMode = false
+                    searchOpen = !searchOpen
+                }) {
                     Icon(ShituIcons.Search, null, modifier = Modifier.size(24.dp))
                 }
                 Box {
@@ -259,6 +267,11 @@ fun RuleListScreen(
                             onClick = {
                                 showMenu = false
                                 sortMode = !sortMode
+                                if (sortMode) {
+                                    // 排序只在完整列表上做；带搜索条件时索引和持久化顺序对不上
+                                    query = ""
+                                    searchOpen = false
+                                }
                                 selectionMode = false
                                 selected = emptySet()
                             },
@@ -306,7 +319,7 @@ fun RuleListScreen(
                 LazyColumn(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 130.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(itemSpacing),
                 ) {
                     item {
                         OverviewCard(
@@ -327,8 +340,11 @@ fun RuleListScreen(
                             selectionMode = selectionMode,
                             sortMode = sortMode,
                             selected = rule.id in selected,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < shown.lastIndex,
+                            index = index,
+                            count = shown.size,
+                            itemSpacing = itemSpacing,
+                            canMoveUp = query.isBlank() && index > 0,
+                            canMoveDown = query.isBlank() && index < shown.lastIndex,
                             onMoveUp = { onMoveRule(rule, -1) },
                             onMoveDown = { onMoveRule(rule, 1) },
                             onEdit = { onEdit(rule) },
@@ -346,7 +362,7 @@ fun RuleListScreen(
                                 }
                             },
                             onMoveBy = { steps -> onMoveRule(rule, steps) },
-                            modifier = Modifier.animateItem(),
+                            modifier = if (sortMode) Modifier else Modifier.animateItem(),
                         )
                     }
                 }
@@ -420,40 +436,62 @@ private fun OverviewCard(
         shape = squircle(AppCorner.xl),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ToneDot(tone)
-                    Spacer(Modifier.width(8.dp))
-                    Text(title, style = AppType.Headline.style(emphasized = true), color = scheme.onSurface)
-                }
-                if (body != null) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(body, style = AppType.Footnote.style(), color = scheme.onSurfaceVariant)
-                }
-                Spacer(Modifier.height(10.dp))
-                if (action != null) {
-                    ShituButton(
-                        text = action,
-                        primary = false,
-                        onClick = {
-                            when (state) {
-                                ShizukuState.NO_PERMISSION -> onRequestPermission()
-                                ShizukuState.NOT_INSTALLED, ShizukuState.NOT_RUNNING -> onOpenShizuku()
-                                else -> onSelfCheck()
-                            }
-                        },
-                    )
+                if (body == null && action == null) {
+                    // 已就绪：标题和按钮包在同一个自适应宽度里，按钮中心严格对准标题中心
+                    Row(verticalAlignment = Alignment.Top) {
+                        ToneDot(tone, Modifier.padding(top = 6.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(title, style = AppType.Headline.style(emphasized = true), color = scheme.onSurface)
+                            Spacer(Modifier.height(8.dp))
+                            ShituButton(
+                                text = stringResource(R.string.rules_self_check),
+                                primary = false,
+                                onClick = onSelfCheck,
+                            )
+                        }
+                    }
                 } else {
-                    ShituButton(
-                        text = stringResource(R.string.rules_self_check),
-                        primary = false,
-                        onClick = onSelfCheck,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ToneDot(tone)
+                        Spacer(Modifier.width(8.dp))
+                        Text(title, style = AppType.Headline.style(emphasized = true), color = scheme.onSurface)
+                    }
+                    if (body != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(body, style = AppType.Footnote.style(), color = scheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        if (action != null) {
+                            ShituButton(
+                                text = action,
+                                primary = false,
+                                onClick = {
+                                    when (state) {
+                                        ShizukuState.NO_PERMISSION -> onRequestPermission()
+                                        ShizukuState.NOT_INSTALLED, ShizukuState.NOT_RUNNING -> onOpenShizuku()
+                                        else -> onSelfCheck()
+                                    }
+                                },
+                            )
+                        } else {
+                            ShituButton(
+                                text = stringResource(R.string.rules_self_check),
+                                primary = false,
+                                onClick = onSelfCheck,
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 StatLine(totalLabel, "$movedTotal $unit")
                 StatLine(stringResource(R.string.rules_overview_week), "${stats?.weekMoved ?: 0} $unit")
                 StatLine(enabledLabel, "${rules.count { it.enabled }} / ${rules.size}")
@@ -499,8 +537,8 @@ private fun TextButtonText(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ToneDot(tone: Tone) {
-    Box(Modifier.size(10.dp).clip(CircleShape).background(tone.color()))
+private fun ToneDot(tone: Tone, modifier: Modifier = Modifier) {
+    Box(modifier.size(10.dp).clip(CircleShape).background(tone.color()))
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -511,6 +549,9 @@ private fun RuleCard(
     selectionMode: Boolean,
     sortMode: Boolean,
     selected: Boolean,
+    index: Int,
+    count: Int,
+    itemSpacing: Dp,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
@@ -531,10 +572,13 @@ private fun RuleCard(
     val tone = cardTone(rule)
     var menu by remember { mutableStateOf(false) }
     var dragY by remember { mutableFloatStateOf(0f) }
+    var cardHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val revealPx = with(LocalDensity.current) { REVEAL_WIDTH.toPx() }
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // 退出/进入排序模式时清掉半路的位移，避免下一张卡带着旧偏移出现
+    LaunchedEffect(sortMode) { dragY = 0f }
     fun closeReveal() = scope.launch { offsetX.animateTo(0f, spring()) }
     val dragModifier = if (selectionMode) {
         Modifier
@@ -577,10 +621,14 @@ private fun RuleCard(
                     .pointerInput(rule.id, sortMode) {
                         detectDragGestures(
                             onDragEnd = {
-                                val steps = (dragY / with(density) { 150.dp.toPx() })
-                                    .roundToInt()
+                                // 用卡片的真实高度 + 实际间距算步数，不能写死 150dp
+                                val gapPx = with(density) { itemSpacing.toPx() }
+                                val stride = (cardHeightPx + gapPx).takeIf { it > 0f }
+                                    ?: with(density) { 60.dp.toPx() }
+                                val raw = (dragY / stride).roundToInt()
+                                val delta = raw.coerceIn(-index, (count - 1 - index).coerceAtLeast(0))
                                 dragY = 0f
-                                if (steps != 0) onMoveBy(steps)
+                                if (delta != 0) onMoveBy(delta)
                             },
                             onDragCancel = { dragY = 0f },
                         ) { change, amount ->
@@ -602,6 +650,7 @@ private fun RuleCard(
         }
         Surface(
             modifier = Modifier
+                .onGloballyPositioned { cardHeightPx = it.size.height }
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .graphicsLayer { translationY = dragY }
                 .then(dragModifier)

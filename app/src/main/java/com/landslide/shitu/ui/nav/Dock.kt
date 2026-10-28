@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +76,7 @@ fun ShituDock(
 ) {
     val scheme = MaterialTheme.colorScheme
     val count = ShituDestination.entries.size
+    val interactions = remember { List(count) { MutableInteractionSource() } }
     val itemWidth = 72.dp
     Surface(
         modifier = modifier
@@ -111,7 +114,11 @@ fun ShituDock(
                         Modifier
                             .width(itemWidth)
                             .height(AppMetrics.DockHeight)
-                            .clickable { onSelect(index) }
+                            .clickable(
+                                interactionSource = interactions[index],
+                                indication = null,
+                                onClick = { onSelect(index) },
+                            )
                             .semantics { this.selected = active; role = Role.Tab },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,

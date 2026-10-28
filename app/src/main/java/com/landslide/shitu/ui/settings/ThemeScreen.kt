@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -588,6 +589,7 @@ private fun ColorPickerDialog(
                     valueLabel = "${hue.roundToInt()}°",
                     value = hue,
                     valueRange = 0f..360f,
+                    accent = color,
                     onValueChange = { hue = it },
                 )
                 ColorSlider(
@@ -595,6 +597,7 @@ private fun ColorPickerDialog(
                     valueLabel = "${(saturation * 100).roundToInt()}%",
                     value = saturation,
                     valueRange = 0f..1f,
+                    accent = color,
                     onValueChange = { saturation = it },
                 )
                 ColorSlider(
@@ -602,6 +605,7 @@ private fun ColorPickerDialog(
                     valueLabel = "${(value * 100).roundToInt()}%",
                     value = value,
                     valueRange = 0f..1f,
+                    accent = color,
                     onValueChange = { value = it },
                 )
             }
@@ -615,6 +619,7 @@ private fun ColorSlider(
     valueLabel: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    accent: Color,
     onValueChange: (Float) -> Unit,
 ) {
     Column {
@@ -627,7 +632,18 @@ private fun ColorSlider(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent,
+                inactiveTrackColor = accent.copy(alpha = 0.22f),
+                activeTickColor = Color.White.copy(alpha = 0.9f),
+                inactiveTickColor = accent.copy(alpha = 0.45f),
+            ),
+        )
     }
 }
 

@@ -113,7 +113,7 @@ fun ShituRoot(
 
     // 旋转屏幕、折叠屏展开后 Tab 不能丢
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var settingsDetail by remember { mutableStateOf(false) }
+    var settingsDetail by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RuleEntity?>(null) }
     // 编辑页在做退出动画时 editing 已经变成 null，用它撑住那几帧画面
     var lastEdit by remember { mutableStateOf<RuleEntity?>(null) }
@@ -123,6 +123,8 @@ fun ShituRoot(
     var askSave by remember { mutableStateOf(false) }
     var pendingTab by remember { mutableStateOf<Int?>(null) }
     var rules by remember { mutableStateOf<List<RuleEntity>>(emptyList()) }
+    /** 刚拖动后的顺序：DataStore 还没写完时先压住刷新，避免 5 秒轮询把它顶回去 */
+    var localOrder by remember { mutableStateOf<List<Long>?>(null) }
     var logs by remember { mutableStateOf<List<LogEntity>>(emptyList()) }
     var copiedCount by remember { mutableStateOf(0) }
     /** 本周统计；拿不到就不显示统计行，不占位 */
@@ -140,17 +142,24 @@ fun ShituRoot(
     /** 系统设置里关掉动画（开发者选项 → 动画时长 0）时，转场直接切，不做位移 */
     val reduceMotion = remember { !ValueAnimator.areAnimatorsEnabled() }
 
-    suspend fun refresh() {
-        val order = runCatching { app.currentSettings().ruleOrder }.getOrDefault(emptyList())
+    suspend fun loadRules() {
+        val order = localOrder
+            ?: runCatching { app.currentSettings().ruleOrder }.getOrDefault(emptyList())
         rules = app.repo.allRules().let { list ->
             if (order.isEmpty()) {
                 list
             } else {
-                list.sortedBy { rule ->
-                    order.indexOf(rule.id).takeIf { it >= 0 } ?: Int.MAX_VALUE
-                }
+                val position = order.withIndex().associate { (index, id) -> id to index }
+                list.sortedWith(
+                    compareBy<RuleEntity> { position[it.id] ?: Int.MAX_VALUE }
+                        .thenBy { it.id },
+                )
             }
         }
+    }
+
+    suspend fun refresh() {
+        loadRules()
         logs = app.repo.recentLogs(500)
         copiedCount = app.ledger.count()
         copiedItems = runCatching { app.ledger.recent(500) }.getOrDefault(emptyList())
@@ -169,20 +178,26 @@ fun ShituRoot(
 
     /** 规则手动排序：把当前显示顺序写进设置，刷新后按新顺序显示。 */
     fun moveRule(rule: RuleEntity, delta: Int) {
+        val from = rules.indexOfFirst { it.id == rule.id }
+        if (from < 0) return
+        val to = (from + delta).coerceIn(rules.indices)
+        if (to == from) return
+        val reordered = rules.toMutableList().apply {
+            add(to, removeAt(from))
+        }
+        // 先乐观更新界面，再落盘；不要等 DataStore 回来才动，否则松手时会回弹
+        rules = reordered
+        val ids = reordered.map { it.id }
+        localOrder = ids
         scope.launch {
-            val order = runCatching { app.currentSettings().ruleOrder }
-                .getOrDefault(emptyList())
-                .toMutableList()
-            val ids = if (order.isEmpty()) rules.map { it.id }.toMutableList() else order
-            val from = ids.indexOf(rule.id)
-            if (from < 0) return@launch
-            val to = from + delta
-            if (to !in ids.indices) return@launch
-            val tmp = ids[from]
-            ids[from] = ids[to]
-            ids[to] = tmp
-            app.settings.setRuleOrder(ids)
-            refresh()
+            val ok = runCatching { app.settings.setRuleOrder(ids) }.isSuccess
+            if (ok) {
+                // 期间又拖了一次的话，别把新的本地顺序清掉
+                if (localOrder == ids) localOrder = null
+            } else {
+                localOrder = null
+                refresh()
+            }
         }
     }
 
@@ -240,10 +255,11 @@ fun ShituRoot(
             channel = app.channel()
         }
     }
-    // 后台自己搬完东西之后，列表和日志要能自己刷新，不能一直显示旧的
+    // 后台自己搬完东西之后，列表和日志要能自己刷新，不能一直显示旧的。
+    // 这里必须走 loadRules()：直接 allRules() 会把手动排序覆盖回数据库 id 顺序。
     LaunchedEffect(tab, editing) {
         while (true) {
-            rules = app.repo.allRules()
+            loadRules()
             logs = app.repo.recentLogs(500)
             copiedCount = app.ledger.count()
             delay(5_000)
