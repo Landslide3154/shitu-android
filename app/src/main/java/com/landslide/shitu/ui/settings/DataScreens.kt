@@ -302,9 +302,13 @@ fun AboutSettingsScreen(
                 }
             }
             item {
-                Section("更新") {
+                Section(stringResource(R.string.set_about_update)) {
                     ListItemAction(
-                        title = if (checking) "正在检查…" else stringResource(R.string.set_check_update),
+                        title = if (checking) {
+                            stringResource(R.string.set_about_checking)
+                        } else {
+                            stringResource(R.string.set_check_update)
+                        },
                         onClick = {
                             if (!checking) {
                                 checking = true
@@ -323,7 +327,7 @@ fun AboutSettingsScreen(
                 }
             }
             item {
-                Section("自检") {
+                Section(stringResource(R.string.set_section_self_check)) {
                     ListItemAction(
                         title = stringResource(R.string.set_run_self_check),
                         onClick = onSelfCheck,
@@ -332,9 +336,9 @@ fun AboutSettingsScreen(
                 }
             }
             item {
-                Section("其他") {
+                Section(stringResource(R.string.set_about_other)) {
                     ListItemAction(
-                        title = "开源许可",
+                        title = stringResource(R.string.set_about_license),
                         onClick = {
                             runCatching {
                                 context.startActivity(
@@ -347,7 +351,7 @@ fun AboutSettingsScreen(
                         },
                     )
                     ListItem(
-                        title = "隐私",
+                        title = stringResource(R.string.set_about_privacy),
                         subtitle = stringResource(R.string.set_privacy_note),
                         divider = false,
                     )

@@ -173,4 +173,13 @@
     <string name="set_system_notification">System notification settings</string>
     <string name="set_system_notification_desc">Channels, sound and pop-ups are controlled by the system.</string>
     <string name="set_copy_clear_all_title">Clear all copy records?</string>
+    <string name="set_shizuku_channel">Android/data channel</string>
+    <string name="set_shizuku_channel_desc">Without Shizuku, images inside Android/data still cannot be moved; normal folders are unaffected.</string>
+    <string name="set_open_shizuku">Open Shizuku</string>
+    <string name="set_about_update">Updates</string>
+    <string name="set_about_other">Other</string>
+    <string name="set_about_license">Open-source licenses</string>
+    <string name="set_about_privacy">Privacy</string>
+    <string name="set_about_checking">Checking…</string>
+    <string name="set_text_scale_sample">Body sample Aa · 17sp</string>
 </resources>

@@ -485,11 +485,11 @@ fun StorageSettingsScreen(settings: Settings, onSelfCheck: () -> Unit, onBack: (
         item {
             Section(title = "Shizuku") {
                 ListItem(
-                    title = "Android/data 专用通道",
-                    subtitle = "没有 Shizuku 时，Android/data 里的图仍然搬不了；普通目录不受影响。",
+                    title = stringResource(R.string.set_shizuku_channel),
+                    subtitle = stringResource(R.string.set_shizuku_channel_desc),
                     trailing = {
                         ShituButton(
-                            text = "打开 Shizuku",
+                            text = stringResource(R.string.set_open_shizuku),
                             primary = false,
                             onClick = {
                                 val launch = context.packageManager
@@ -543,8 +543,8 @@ fun NotifySettingsScreen(app: ShituApp, settings: Settings, store: SettingsStore
         item {
             Section {
                 ListItemToggle(
-                    title = "允许通知",
-                    subtitle = "规则暂停、Shizuku 未就绪、撤回结果等事件提醒；关掉不影响后台搬运。",
+                    title = stringResource(R.string.set_allow_notifications),
+                    subtitle = stringResource(R.string.set_allow_notifications_desc),
                     checked = settings.notifyEnabled,
                     onCheckedChange = { scope.launch { store.setNotifyEnabled(it) } },
                     divider = false,
@@ -554,8 +554,8 @@ fun NotifySettingsScreen(app: ShituApp, settings: Settings, store: SettingsStore
         item {
             Section {
                 ListItem(
-                    title = "发送测试通知",
-                    subtitle = "确认系统没有拦截拾图的通知。",
+                    title = stringResource(R.string.set_test_notification),
+                    subtitle = stringResource(R.string.set_test_notification_desc),
                     onClick = {
                         runCatching {
                             Notifier(context).ensureChannels()
@@ -565,8 +565,8 @@ fun NotifySettingsScreen(app: ShituApp, settings: Settings, store: SettingsStore
                     divider = false,
                 )
                 ListItem(
-                    title = "系统通知设置",
-                    subtitle = "渠道、声音、悬浮通知都在系统里改。",
+                    title = stringResource(R.string.set_system_notification),
+                    subtitle = stringResource(R.string.set_system_notification_desc),
                     onClick = {
                         runCatching {
                             context.startActivity(

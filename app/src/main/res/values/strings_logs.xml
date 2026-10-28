@@ -34,4 +34,10 @@
     <string name="logs_src">Source\u0020\u0020%1$s</string>
     <string name="logs_dst">Destination\u0020\u0020%1$s</string>
     <string name="logs_thumb_desc">Photo preview</string>
+    <string name="logs_search_hint">Search source or destination path</string>
+    <string name="logs_detail_title">Log details</string>
+    <string name="logs_detail_source">Source</string>
+    <string name="logs_detail_destination">Destination</string>
+    <string name="logs_detail_message">Message</string>
+    <string name="logs_paused_suffix">paused</string>
 </resources>

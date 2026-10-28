@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -142,6 +145,7 @@ fun RuleListScreen(
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var askBatchDelete by remember { mutableStateOf(false) }
+    var sortMode by rememberSaveable { mutableStateOf(false) }
 
     val shown = rules.filter { rule ->
         val matchQuery = query.isBlank() ||
@@ -226,17 +230,42 @@ fun RuleListScreen(
                         containerColor = floatingColor(MaterialTheme.colorScheme),
                     ) {
                         DropdownMenuItem(
-                            text = { Text(if (compact) "详细模式" else "简略模式") },
+                            text = {
+                                Text(
+                                    if (compact) {
+                                        stringResource(R.string.rules_menu_detailed)
+                                    } else {
+                                        stringResource(R.string.rules_menu_compact)
+                                    },
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 onCompactChange(!compact)
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text(if (selectionMode) "退出多选" else "多选") },
+                            text = {
+                                Text(
+                                    if (selectionMode) {
+                                        stringResource(R.string.rules_menu_exit_select)
+                                    } else {
+                                        stringResource(R.string.rules_menu_select)
+                                    },
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 selectionMode = !selectionMode
+                                selected = emptySet()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (sortMode) "完成排序" else "排序") },
+                            onClick = {
+                                showMenu = false
+                                sortMode = !sortMode
+                                selectionMode = false
                                 selected = emptySet()
                             },
                         )
@@ -259,7 +288,7 @@ fun RuleListScreen(
                 SearchField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = "搜索规则名 / 源目录 / 目标目录",
+                    placeholder = stringResource(R.string.rules_search_hint),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
@@ -271,11 +300,11 @@ fun RuleListScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(
-                    RuleFilter.ALL to "全部",
-                    RuleFilter.ACTIVE to "运行中",
-                    RuleFilter.IDLE to "待命",
-                    RuleFilter.PAUSED to "已暂停",
-                    RuleFilter.FAILED to "失败",
+                    RuleFilter.ALL to stringResource(R.string.rules_filter_all),
+                    RuleFilter.ACTIVE to stringResource(R.string.rules_filter_active),
+                    RuleFilter.IDLE to stringResource(R.string.rules_filter_idle),
+                    RuleFilter.PAUSED to stringResource(R.string.rules_filter_paused),
+                    RuleFilter.FAILED to stringResource(R.string.rules_filter_failed),
                 ).forEach { (value, label) ->
                     CommonChip(
                         text = label,
@@ -296,8 +325,8 @@ fun RuleListScreen(
             } else if (shown.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyState(
-                        title = "没有匹配的规则",
-                        body = "换个关键词或筛选条件试试。",
+                        title = stringResource(R.string.rules_no_match_title),
+                        body = stringResource(R.string.rules_no_match_body),
                     )
                 }
             } else {
@@ -323,6 +352,7 @@ fun RuleListScreen(
                             rule = rule,
                             compact = compact,
                             selectionMode = selectionMode,
+                            sortMode = sortMode,
                             selected = rule.id in selected,
                             canMoveUp = index > 0,
                             canMoveDown = index < shown.lastIndex,
@@ -342,6 +372,7 @@ fun RuleListScreen(
                                     selected + rule.id
                                 }
                             },
+                            onMoveBy = { steps -> onMoveRule(rule, steps) },
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -425,16 +456,20 @@ private fun OverviewCard(
                         },
                     )
                 } else {
-                    TextButtonText("自检", onSelfCheck)
+                    TextButtonText(stringResource(R.string.rules_self_check), onSelfCheck)
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(body, style = AppType.Footnote.style(), color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Stat("累计搬运", "$movedTotal", "张")
-                Stat("本周", "${stats?.weekMoved ?: 0}", "张")
-                Stat("启用规则", "${rules.count { it.enabled }}", "/ ${rules.size}")
+                Stat(stringResource(R.string.rules_overview_total), "$movedTotal", "张")
+                Stat(stringResource(R.string.rules_overview_week), "${stats?.weekMoved ?: 0}", "张")
+                Stat(
+                    stringResource(R.string.rules_overview_enabled),
+                    "${rules.count { it.enabled }}",
+                    "/ ${rules.size}",
+                )
             }
         }
     }
@@ -484,6 +519,7 @@ private fun RuleCard(
     rule: RuleEntity,
     compact: Boolean,
     selectionMode: Boolean,
+    sortMode: Boolean,
     selected: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
@@ -497,12 +533,15 @@ private fun RuleCard(
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onToggleSelected: () -> Unit,
+    onMoveBy: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val tone = cardTone(rule)
     var menu by remember { mutableStateOf(false) }
+    var dragY by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
     val revealPx = with(LocalDensity.current) { REVEAL_WIDTH.toPx() }
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
@@ -542,6 +581,7 @@ private fun RuleCard(
         Surface(
             modifier = Modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .graphicsLayer { translationY = dragY }
                 .then(dragModifier)
                 .then(clickModifier),
             shape = squircle(AppCorner.xl),
@@ -559,7 +599,30 @@ private fun RuleCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    if (selectionMode) {
+                    if (sortMode) {
+                        Icon(
+                            ShituIcons.GripVertical,
+                            contentDescription = "拖动排序",
+                            tint = scheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .pointerInput(rule.id, sortMode) {
+                                    detectDragGestures(
+                                        onDragEnd = {
+                                            val steps = (dragY / with(density) { 150.dp.toPx() })
+                                                .roundToInt()
+                                            dragY = 0f
+                                            if (steps != 0) onMoveBy(steps)
+                                        },
+                                        onDragCancel = { dragY = 0f },
+                                    ) { change, amount ->
+                                        change.consume()
+                                        dragY += amount.y
+                                    }
+                                }
+                                .padding(8.dp),
+                        )
+                    } else if (selectionMode) {
                         SelectionMark(selected)
                     } else {
                         ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
@@ -580,7 +643,8 @@ private fun RuleCard(
                     TonalChip(Labels.mode(context, rule.mode), color = modeTone(rule.mode).color())
                     Spacer(Modifier.weight(1f))
                     Text(
-                        rule.lastRunAt?.let { timeFmt.format(Date(it)) } ?: "还没跑过",
+                        rule.lastRunAt?.let { timeFmt.format(Date(it)) }
+                            ?: stringResource(R.string.rules_last_run_never),
                         style = AppType.Caption1.style(),
                         color = scheme.onSurfaceVariant,
                     )
@@ -621,12 +685,12 @@ private fun RuleCard(
                     onClick = { menu = false; onRunNow() },
                 )
                 DropdownMenuItem(
-                    text = { Text("上移") },
+                    text = { Text(stringResource(R.string.rules_move_up)) },
                     enabled = canMoveUp,
                     onClick = { menu = false; onMoveUp() },
                 )
                 DropdownMenuItem(
-                    text = { Text("下移") },
+                    text = { Text(stringResource(R.string.rules_move_down)) },
                     enabled = canMoveDown,
                     onClick = { menu = false; onMoveDown() },
                 )

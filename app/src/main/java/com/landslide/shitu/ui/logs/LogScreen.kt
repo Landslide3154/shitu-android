@@ -130,7 +130,8 @@ fun LogScreen(
             }
         }
         Text(
-            stringResource(R.string.logs_count, displayed.size, logs.size) + if (paused) " · 已暂停" else "",
+            stringResource(R.string.logs_count, displayed.size, logs.size) +
+                if (paused) " · " + stringResource(R.string.logs_paused_suffix) else "",
             style = AppType.Footnote.style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -138,7 +139,7 @@ fun LogScreen(
         SearchField(
             value = keyword,
             onValueChange = { keyword = it },
-            placeholder = "搜索源/目标路径",
+            placeholder = stringResource(R.string.logs_search_hint),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         if (activeFilters > 0) {
@@ -238,7 +239,7 @@ fun LogScreen(
     }
 
     detail?.let { log ->
-        AppSheet(onDismiss = { detail = null }, title = "日志详情") {
+        AppSheet(onDismiss = { detail = null }, title = stringResource(R.string.logs_detail_title)) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FileThumbnail(path = log.dstPath ?: log.srcPath)
@@ -257,9 +258,9 @@ fun LogScreen(
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                DetailLine("来源", log.srcPath ?: "—")
-                DetailLine("目标", log.dstPath ?: "—")
-                log.message?.let { DetailLine("说明", it) }
+                DetailLine(stringResource(R.string.logs_detail_source), log.srcPath ?: "—")
+                DetailLine(stringResource(R.string.logs_detail_destination), log.dstPath ?: "—")
+                log.message?.let { DetailLine(stringResource(R.string.logs_detail_message), it) }
             }
         }
     }

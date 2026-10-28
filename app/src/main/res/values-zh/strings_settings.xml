@@ -173,4 +173,13 @@
     <string name="set_system_notification">系统通知设置</string>
     <string name="set_system_notification_desc">渠道、声音、悬浮通知都在系统里改。</string>
     <string name="set_copy_clear_all_title">清空全部复制记录？</string>
+    <string name="set_shizuku_channel">Android/data 专用通道</string>
+    <string name="set_shizuku_channel_desc">没有 Shizuku 时，Android/data 里的图仍然搬不了；普通目录不受影响。</string>
+    <string name="set_open_shizuku">打开 Shizuku</string>
+    <string name="set_about_update">更新</string>
+    <string name="set_about_other">其他</string>
+    <string name="set_about_license">开源许可</string>
+    <string name="set_about_privacy">隐私</string>
+    <string name="set_about_checking">正在检查…</string>
+    <string name="set_text_scale_sample">正文示例 Aa · 17sp</string>
 </resources>

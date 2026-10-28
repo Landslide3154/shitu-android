@@ -109,5 +109,24 @@
     <string name="rules_card_stats">Last run %1$s · moved %2$d · moved %3$d total · failed %4$d</string>
     <string name="rules_run_now">Run now</string>
     <string name="rules_edit">Edit</string>
+    <string name="rules_search_hint">Search name, source or destination</string>
+    <string name="rules_filter_all">All</string>
+    <string name="rules_filter_active">Running</string>
+    <string name="rules_filter_idle">Idle</string>
+    <string name="rules_filter_paused">Paused</string>
+    <string name="rules_filter_failed">Failed</string>
+    <string name="rules_no_match_title">No matching rules</string>
+    <string name="rules_no_match_body">Try another keyword or filter.</string>
+    <string name="rules_menu_compact">Compact mode</string>
+    <string name="rules_menu_detailed">Detailed mode</string>
+    <string name="rules_menu_select">Select</string>
+    <string name="rules_menu_exit_select">Exit selection</string>
+    <string name="rules_move_up">Move up</string>
+    <string name="rules_move_down">Move down</string>
+    <string name="rules_last_run_never">Never run</string>
+    <string name="rules_overview_total">Moved</string>
+    <string name="rules_overview_week">This week</string>
+    <string name="rules_overview_enabled">Enabled</string>
+    <string name="rules_self_check">Self-check</string>
 
 </resources>

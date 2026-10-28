@@ -175,8 +175,9 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ColorStyle.entries.forEach { entry ->
+                            val zh = java.util.Locale.getDefault().language.startsWith("zh")
                             CommonChip(
-                                text = entry.labelZh,
+                                text = if (zh) entry.labelZh else entry.labelEn,
                                 selected = entry == style,
                                 modifier = Modifier.weight(1f),
                                 onClick = { scope.launch { store.setColorStyle(entry.ordinal) } },
@@ -476,7 +477,7 @@ private fun TextScaleRow(settings: Settings, store: SettingsStore) {
             steps = 5,
         )
         Text(
-            "正文示例 Aa · 17sp",
+            stringResource(R.string.set_text_scale_sample),
             style = AppType.Body.style().copy(fontSize = (17 * value).sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

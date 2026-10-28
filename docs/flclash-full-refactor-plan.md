@@ -1,8 +1,8 @@
 # shitu × FlClash 全量重构规划（执行中）
 
-> **进度：P0 令牌层、P1 组件库、P2 导航/设置入口/主题中心、P3 规则/日志/编辑页、P4 主要功能包 已完成（0.30.3 中间版本，未发布）。**
+> **进度：P0–P5 已完成（0.30.4 中间版本，未发布）：令牌、组件、导航、设置/主题中心、规则/日志/编辑页、F1–F9 功能、动效与无障碍收尾。**
 > 已确认：功能全量 F1–F9；默认主色 `#007AFF`；液态玻璃不做；WebDAV 不做。
-> 剩余：P4 的拖拽排序（现为上移/下移）、P5 动效收尾、P6 回归发版。
+> 剩余：P6 最终回归、文档与发版准备（推送/发布等用户发话）。
 
 > 依据：`D:\code\FlClash-DesignKit`（FlClash 0.9.2 逆向：令牌/组件/页面/设置 IA/动效/源码副本）
 > 与 https://github.com/chen08209/FlClash 。本文只引用数值与结构，**不复制** FlClash 的 GPL 代码、品牌 Logo、国旗与服务图标、插画素材。
@@ -68,7 +68,7 @@ FlClash 是 Flutter + 外部 `material_ui` 包；shitu 是 Android Compose。下
 
 ### 3.1 颜色：把 FlClash 的生成式色板搬过来
 
-新增依赖 `com.google.android.material:material:1.14.0`（只用 `com.google.android.material.color.utilities`，Apache-2.0；本机 Gradle 缓存已有，R8 会裁掉未用部分）。
+新增本地 jar `app/libs/material-color-utilities.jar`：只抽取 `com.google.android.material:material:1.14.0` 的 `com.google.android.material.color.utilities` 包（Apache-2.0，`third_party/material-color-utilities/NOTICE`），避免把整套 Material Views 拉进 APK。
 
 新建 `ui/design/AppColor.kt`，逐条移植 `lib/ui/color.dart`：
 

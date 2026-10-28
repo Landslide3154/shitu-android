@@ -109,5 +109,24 @@
     <string name="rules_card_stats">上次 %1$s · 上次搬 %2$d · 累计 %3$d · 失败 %4$d</string>
     <string name="rules_run_now">立即运行</string>
     <string name="rules_edit">编辑</string>
+    <string name="rules_search_hint">搜索规则名 / 源目录 / 目标目录</string>
+    <string name="rules_filter_all">全部</string>
+    <string name="rules_filter_active">运行中</string>
+    <string name="rules_filter_idle">待命</string>
+    <string name="rules_filter_paused">已暂停</string>
+    <string name="rules_filter_failed">失败</string>
+    <string name="rules_no_match_title">没有匹配的规则</string>
+    <string name="rules_no_match_body">换个关键词或筛选条件试试。</string>
+    <string name="rules_menu_compact">简略模式</string>
+    <string name="rules_menu_detailed">详细模式</string>
+    <string name="rules_menu_select">多选</string>
+    <string name="rules_menu_exit_select">退出多选</string>
+    <string name="rules_move_up">上移</string>
+    <string name="rules_move_down">下移</string>
+    <string name="rules_last_run_never">还没跑过</string>
+    <string name="rules_overview_total">累计搬运</string>
+    <string name="rules_overview_week">本周</string>
+    <string name="rules_overview_enabled">启用规则</string>
+    <string name="rules_self_check">自检</string>
 
 </resources>

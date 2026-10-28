@@ -34,4 +34,10 @@
     <string name="logs_src">源\u0020\u0020%1$s</string>
     <string name="logs_dst">目标\u0020\u0020%1$s</string>
     <string name="logs_thumb_desc">图片预览</string>
+    <string name="logs_search_hint">搜索源路径或目标路径</string>
+    <string name="logs_detail_title">日志详情</string>
+    <string name="logs_detail_source">来源</string>
+    <string name="logs_detail_destination">目标</string>
+    <string name="logs_detail_message">说明</string>
+    <string name="logs_paused_suffix">已暂停</string>
 </resources>
