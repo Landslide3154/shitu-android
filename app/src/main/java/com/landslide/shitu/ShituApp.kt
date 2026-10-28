@@ -391,9 +391,16 @@ class ShituApp : Application() {
     }
 
     /** 导入备份：规则一律建成暂停状态；文件里带设置就一并恢复。返回导入的规则条数。 */
-    suspend fun importBackup(text: String): Int {
+    suspend fun importBackup(
+        text: String,
+        restoreRules: Boolean = true,
+        restoreSettings: Boolean = true,
+    ): Int {
         val backup = BackupIo.decode(text)
-        backup.settings?.let { runCatching { settings.apply(it) } }
+        if (restoreSettings) {
+            backup.settings?.let { runCatching { settings.apply(it) } }
+        }
+        if (!restoreRules) return 0
         var n = 0
         for (r in backup.rules) {
             repo.insertRule(r)

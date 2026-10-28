@@ -182,4 +182,7 @@
     <string name="set_about_privacy">隐私</string>
     <string name="set_about_checking">正在检查…</string>
     <string name="set_text_scale_sample">正文示例 Aa · 17sp</string>
+    <string name="set_restore_scope">选择要恢复的内容：</string>
+    <string name="set_restore_rules">规则</string>
+    <string name="set_restore_settings">设置</string>
 </resources>

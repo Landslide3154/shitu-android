@@ -182,4 +182,7 @@
     <string name="set_about_privacy">Privacy</string>
     <string name="set_about_checking">Checking…</string>
     <string name="set_text_scale_sample">Body sample Aa · 17sp</string>
+    <string name="set_restore_scope">Choose what to restore:</string>
+    <string name="set_restore_rules">Rules</string>
+    <string name="set_restore_settings">Settings</string>
 </resources>

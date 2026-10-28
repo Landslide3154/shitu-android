@@ -176,6 +176,8 @@ fun BackupSettingsScreen(
     val scope = rememberCoroutineScope()
     var pendingText by remember { mutableStateOf<String?>(null) }
     var pendingCount by remember { mutableStateOf(0) }
+    var restoreRules by remember { mutableStateOf(true) }
+    var restoreSettings by remember { mutableStateOf(true) }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -242,12 +244,35 @@ fun BackupSettingsScreen(
             destructive = true,
             onDismiss = { pendingText = null },
             onConfirm = {
-                pendingText = null
-                scope.launch {
-                    val n = runCatching { app.importBackup(text) }.getOrDefault(0)
-                    onRefresh()
-                    onSnackbar(context.getString(R.string.set_restore_done, n))
+                val text = pendingText
+                if (text != null) {
+                    val rules = restoreRules
+                    val settings = restoreSettings
+                    pendingText = null
+                    scope.launch {
+                        val n = runCatching { app.importBackup(text, rules, settings) }.getOrDefault(0)
+                        onRefresh()
+                        onSnackbar(context.getString(R.string.set_restore_done, n))
+                    }
                 }
+            },
+            content = {
+                androidx.compose.material3.Text(
+                    stringResource(R.string.set_restore_scope),
+                    style = AppType.Footnote.style(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                com.landslide.shitu.ui.components.ListItemToggle(
+                    title = stringResource(R.string.set_restore_rules),
+                    checked = restoreRules,
+                    onCheckedChange = { restoreRules = it },
+                )
+                com.landslide.shitu.ui.components.ListItemToggle(
+                    title = stringResource(R.string.set_restore_settings),
+                    checked = restoreSettings,
+                    onCheckedChange = { restoreSettings = it },
+                    divider = false,
+                )
             },
         )
     }
