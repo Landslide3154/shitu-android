@@ -127,6 +127,8 @@
     <string name="rules_overview_total">累计搬运</string>
     <string name="rules_overview_week">本周</string>
     <string name="rules_overview_enabled">启用规则</string>
+    <string name="rules_overview_total_short">累计</string>
+    <string name="rules_overview_enabled_short">启用</string>
     <string name="rules_self_check">自检</string>
     <string name="rules_source_path">源目录</string>
     <string name="rules_target_path">目标目录</string>

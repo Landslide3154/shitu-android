@@ -127,6 +127,8 @@
     <string name="rules_overview_total">Moved</string>
     <string name="rules_overview_week">This week</string>
     <string name="rules_overview_enabled">Enabled</string>
+    <string name="rules_overview_total_short">Moved</string>
+    <string name="rules_overview_enabled_short">Enabled</string>
     <string name="rules_self_check">Self-check</string>
     <string name="rules_source_path">Source</string>
     <string name="rules_target_path">Target</string>

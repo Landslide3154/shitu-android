@@ -408,6 +408,13 @@ private fun OverviewCard(
     }
     val action = if (ready) null else shizukuActionLabel(state)?.let { stringResource(it) }
     val unit = stringResource(R.string.rules_unit_photos)
+    val compactStats = LocalDensity.current.fontScale > 1.2f
+    val totalLabel = stringResource(
+        if (compactStats) R.string.rules_overview_total_short else R.string.rules_overview_total,
+    )
+    val enabledLabel = stringResource(
+        if (compactStats) R.string.rules_overview_enabled_short else R.string.rules_overview_enabled,
+    )
     AppSurface(
         level = SurfaceLevel.CARD,
         shape = squircle(AppCorner.xl),
@@ -445,12 +452,9 @@ private fun OverviewCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatLine(stringResource(R.string.rules_overview_total), "$movedTotal $unit")
+                StatLine(totalLabel, "$movedTotal $unit")
                 StatLine(stringResource(R.string.rules_overview_week), "${stats?.weekMoved ?: 0} $unit")
-                StatLine(
-                    stringResource(R.string.rules_overview_enabled),
-                    "${rules.count { it.enabled }} / ${rules.size}",
-                )
+                StatLine(enabledLabel, "${rules.count { it.enabled }} / ${rules.size}")
             }
         }
     }
@@ -459,13 +463,15 @@ private fun OverviewCard(
 @Composable
 private fun StatLine(label: String, value: String) {
     Row(
-        Modifier.width(132.dp),
+        Modifier.width(136.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
             style = AppType.Caption1.style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         Text(
