@@ -3,6 +3,9 @@ package com.landslide.shitu.ui.rules
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +46,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,9 +63,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.landslide.shitu.R
 import com.landslide.shitu.ShituApp
 import com.landslide.shitu.core.RuleTemplate
@@ -111,6 +113,16 @@ import kotlinx.coroutines.launch
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
 private val REVEAL_WIDTH = 96.dp
 
+/** 一次排序拖拽的全局状态：被拖项用 offsetY 跟手，其余项按 targetIndex 让位。 */
+private data class SortDragState(
+    val seq: Int,
+    val id: Long,
+    val startIndex: Int,
+    val targetIndex: Int,
+    val offsetY: Float,
+    val stridePx: Float,
+)
+
 @Composable
 fun RuleListScreen(
     rules: List<RuleEntity>,
@@ -148,6 +160,10 @@ fun RuleListScreen(
     var selected by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var askBatchDelete by remember { mutableStateOf(false) }
     var sortMode by rememberSaveable { mutableStateOf(false) }
+    var sortDrag by remember { mutableStateOf<SortDragState?>(null) }
+    var sortSeq by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
 
     val shown = rules.filter { rule ->
         query.isBlank() ||
@@ -156,6 +172,83 @@ fun RuleListScreen(
             rule.dstPath.contains(query, ignoreCase = true)
     }
     val itemSpacing = if (compact) 4.dp else 8.dp
+
+    // 退出排序模式时清掉半路的位移，避免下一张卡带着旧偏移出现
+    LaunchedEffect(sortMode) {
+        if (!sortMode) sortDrag = null
+    }
+
+    fun startSortDrag(rule: RuleEntity, heightPx: Int) {
+        // 按当前列表重新取索引：拖过一次后，卡片的位置变了，不能再用组合时捕获的旧 index
+        val index = rules.indexOfFirst { it.id == rule.id }
+        if (index < 0) return
+        sortSeq += 1
+        sortDrag = SortDragState(
+            seq = sortSeq,
+            id = rule.id,
+            startIndex = index,
+            targetIndex = index,
+            offsetY = 0f,
+            stridePx = (heightPx + with(density) { itemSpacing.toPx() }).coerceAtLeast(1f),
+        )
+    }
+
+    fun updateSortDrag(id: Long, deltaY: Float, count: Int) {
+        val drag = sortDrag ?: return
+        if (drag.id != id || count <= 0) return
+        val minOffset = -drag.startIndex * drag.stridePx
+        val maxOffset = (count - 1 - drag.startIndex).coerceAtLeast(0) * drag.stridePx
+        val offset = (drag.offsetY + deltaY).coerceIn(minOffset, maxOffset)
+        val target = (drag.startIndex + (offset / drag.stridePx).roundToInt())
+            .coerceIn(0, count - 1)
+        sortDrag = drag.copy(offsetY = offset, targetIndex = target)
+    }
+
+    fun finishSortDrag(rule: RuleEntity) {
+        val drag = sortDrag ?: return
+        if (drag.id != rule.id) return
+        scope.launch {
+            // 先弹到目标格，再提交顺序；两件事同一帧完成，松手不会回弹。
+            val settle = (drag.targetIndex - drag.startIndex) * drag.stridePx
+            animate(
+                initialValue = drag.offsetY,
+                targetValue = settle,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                ),
+            ) { value, _ ->
+                val current = sortDrag
+                if (current?.seq == drag.seq) sortDrag = current.copy(offsetY = value)
+            }
+            val current = sortDrag
+            if (current?.seq == drag.seq) {
+                if (drag.targetIndex != drag.startIndex) {
+                    onMoveRule(rule, drag.targetIndex - drag.startIndex)
+                }
+                sortDrag = null
+            }
+        }
+    }
+
+    fun cancelSortDrag(id: Long) {
+        val drag = sortDrag ?: return
+        if (drag.id != id) return
+        scope.launch {
+            animate(
+                initialValue = drag.offsetY,
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                ),
+            ) { value, _ ->
+                val current = sortDrag
+                if (current?.seq == drag.seq) sortDrag = current.copy(offsetY = value)
+            }
+            if (sortDrag?.seq == drag.seq) sortDrag = null
+        }
+    }
 
     if (showNew) {
         NewRuleSheet(
@@ -341,8 +434,6 @@ fun RuleListScreen(
                             sortMode = sortMode,
                             selected = rule.id in selected,
                             index = index,
-                            count = shown.size,
-                            itemSpacing = itemSpacing,
                             canMoveUp = query.isBlank() && index > 0,
                             canMoveDown = query.isBlank() && index < shown.lastIndex,
                             onMoveUp = { onMoveRule(rule, -1) },
@@ -361,7 +452,11 @@ fun RuleListScreen(
                                     selected + rule.id
                                 }
                             },
-                            onMoveBy = { steps -> onMoveRule(rule, steps) },
+                            sortDrag = sortDrag,
+                            onSortDragStart = { heightPx -> startSortDrag(rule, heightPx) },
+                            onSortDrag = { deltaY -> updateSortDrag(rule.id, deltaY, rules.size) },
+                            onSortDragEnd = { finishSortDrag(rule) },
+                            onSortDragCancel = { cancelSortDrag(rule.id) },
                             modifier = if (sortMode) Modifier else Modifier.animateItem(),
                         )
                     }
@@ -550,8 +645,6 @@ private fun RuleCard(
     sortMode: Boolean,
     selected: Boolean,
     index: Int,
-    count: Int,
-    itemSpacing: Dp,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
@@ -564,23 +657,64 @@ private fun RuleCard(
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onToggleSelected: () -> Unit,
-    onMoveBy: (Int) -> Unit,
+    sortDrag: SortDragState?,
+    onSortDragStart: (Int) -> Unit,
+    onSortDrag: (Float) -> Unit,
+    onSortDragEnd: () -> Unit,
+    onSortDragCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val tone = cardTone(rule)
     var menu by remember { mutableStateOf(false) }
-    var dragY by remember { mutableFloatStateOf(0f) }
     var cardHeightPx by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
     val revealPx = with(LocalDensity.current) { REVEAL_WIDTH.toPx() }
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    // 退出/进入排序模式时清掉半路的位移，避免下一张卡带着旧偏移出现
-    LaunchedEffect(sortMode) { dragY = 0f }
+    val drag = sortDrag
+    val isDragging = drag?.id == rule.id
+    // 进入排序模式时把可能露出的左滑删除收回去，拖拽期间不再有横向位移
+    LaunchedEffect(sortMode) {
+        if (sortMode) offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy))
+    }
+    // 其他卡片按目标位置让位：向下拖时上方的项上移，向上拖时下方的项下移。
+    val shiftTarget = when {
+        drag == null || isDragging -> 0f
+        drag.targetIndex > drag.startIndex && index in (drag.startIndex + 1)..drag.targetIndex ->
+            -drag.stridePx
+        drag.targetIndex < drag.startIndex && index in drag.targetIndex until drag.startIndex ->
+            drag.stridePx
+        else -> 0f
+    }
+    val shift = remember { Animatable(0f) }
+    val dragActive = sortDrag != null
+    LaunchedEffect(shiftTarget, dragActive) {
+        if (!dragActive) {
+            // 落位提交时索引会同时变化，这里必须瞬间归零，不能跟着动画滑回去
+            shift.snapTo(0f)
+        } else {
+            shift.animateTo(
+                targetValue = shiftTarget,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
+        }
+    }
+    val lift by animateFloatAsState(
+        targetValue = if (isDragging) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "sortLift",
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (isDragging) 10.dp else 0.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "sortElevation",
+    )
     fun closeReveal() = scope.launch { offsetX.animateTo(0f, spring()) }
-    val dragModifier = if (selectionMode) {
+    val dragModifier = if (selectionMode || sortMode) {
         Modifier
     } else {
         Modifier.pointerInput(Unit) {
@@ -599,15 +733,20 @@ private fun RuleCard(
             }
         }
     }
-    val clickModifier = Modifier.combinedClickable(
-        onClick = { if (selectionMode) onToggleSelected() else onEdit() },
-        onLongClick = {
-            if (!selectionMode) {
-                closeReveal()
-                menu = true
-            }
-        },
-    )
+    val clickModifier = if (sortMode) {
+        // 排序时整张卡只负责拖拽，避免长按误开菜单或点击误进编辑
+        Modifier
+    } else {
+        Modifier.combinedClickable(
+            onClick = { if (selectionMode) onToggleSelected() else onEdit() },
+            onLongClick = {
+                if (!selectionMode) {
+                    closeReveal()
+                    menu = true
+                }
+            },
+        )
+    }
 
     @Composable
     fun TrailingControl() {
@@ -618,22 +757,14 @@ private fun RuleCard(
                 tint = scheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(40.dp)
-                    .pointerInput(rule.id, sortMode) {
+                    .pointerInput(rule.id, sortMode, index) {
                         detectDragGestures(
-                            onDragEnd = {
-                                // 用卡片的真实高度 + 实际间距算步数，不能写死 150dp
-                                val gapPx = with(density) { itemSpacing.toPx() }
-                                val stride = (cardHeightPx + gapPx).takeIf { it > 0f }
-                                    ?: with(density) { 60.dp.toPx() }
-                                val raw = (dragY / stride).roundToInt()
-                                val delta = raw.coerceIn(-index, (count - 1 - index).coerceAtLeast(0))
-                                dragY = 0f
-                                if (delta != 0) onMoveBy(delta)
-                            },
-                            onDragCancel = { dragY = 0f },
+                            onDragStart = { onSortDragStart(cardHeightPx) },
+                            onDragEnd = onSortDragEnd,
+                            onDragCancel = onSortDragCancel,
                         ) { change, amount ->
                             change.consume()
-                            dragY += amount.y
+                            onSortDrag(amount.y)
                         }
                     }
                     .padding(8.dp),
@@ -644,19 +775,31 @@ private fun RuleCard(
             ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
         }
     }
-    Box(modifier.fillMaxWidth()) {
-        if (!selectionMode) {
+    Box(modifier.fillMaxWidth().zIndex(if (isDragging) 1f else 0f)) {
+        // 排序时整层删除背景不参与组合，拖到任何位置都不会露出红色删除块。
+        // 普通模式仍保留左滑删除；进入排序会先把已露出的删除收回。
+        if (!selectionMode && !sortMode) {
             RevealDeleteAction { closeReveal(); onDelete() }
         }
         Surface(
             modifier = Modifier
                 .onGloballyPositioned { cardHeightPx = it.size.height }
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .graphicsLayer { translationY = dragY }
+                .graphicsLayer {
+                    translationY = when {
+                        isDragging -> drag.offsetY
+                        dragActive -> shift.value
+                        else -> 0f
+                    }
+                    val scale = 1f + lift * 0.02f
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .then(dragModifier)
                 .then(clickModifier),
             shape = squircle(AppCorner.xl),
             color = SurfaceLevel.CARD.colorOf(scheme),
+            shadowElevation = elevation,
         ) {
             if (compact) {
                 Row(

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -51,9 +52,15 @@ fun CommonDialog(
     body: String? = null,
     dismissLabel: String? = null,
     destructive: Boolean = false,
+    confirmColor: Color? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val confirmTint = when {
+        destructive -> scheme.destructive
+        confirmColor != null -> confirmColor
+        else -> scheme.primary
+    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -117,11 +124,11 @@ fun CommonDialog(
                         TextButton(
                             onClick = onConfirm,
                             modifier = Modifier.height(AppMetrics.DialogActionHeight),
+                            colors = ButtonDefaults.textButtonColors(contentColor = confirmTint),
                         ) {
                             Text(
                                 confirmLabel,
                                 style = AppType.Body.style(emphasized = true),
-                                color = if (destructive) scheme.destructive else scheme.primary,
                             )
                         }
                     }

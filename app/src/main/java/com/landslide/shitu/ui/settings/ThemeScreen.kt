@@ -65,11 +65,15 @@ import com.landslide.shitu.ui.design.ColorStyle
 import com.landslide.shitu.ui.design.ShituIcons
 import com.landslide.shitu.ui.design.SurfaceLevel
 import com.landslide.shitu.ui.design.appFontScale
+import com.landslide.shitu.ui.design.floatingColor
 import com.landslide.shitu.ui.design.hairline
+import com.landslide.shitu.ui.design.shiftTone
 import com.landslide.shitu.ui.design.squircle
 import com.landslide.shitu.ui.design.tabular
+import com.landslide.shitu.ui.design.toneOf
 import com.landslide.shitu.ui.theme.ThemeMode
 import com.landslide.shitu.ui.theme.resolveDark
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -564,10 +568,14 @@ private fun ColorPickerDialog(
     var saturation by remember { mutableStateOf(hsv[1]) }
     var value by remember { mutableStateOf(hsv[2]) }
     val color = Color.hsv(hue, saturation, value)
+    // 预览条和滑轨用原始颜色；文字/确认按钮用同色相的可读版本，
+    // 否则拖到纯白或纯黑时数字会消失在对话框底色里。
+    val accent = readableAccent(color, floatingColor(MaterialTheme.colorScheme))
     CommonDialog(
         title = stringResource(R.string.set_custom_color_title),
         confirmLabel = stringResource(R.string.set_confirm),
         dismissLabel = stringResource(R.string.set_cancel),
+        confirmColor = accent,
         onDismiss = onDismiss,
         onConfirm = { onConfirm(color) },
         content = {
@@ -590,6 +598,7 @@ private fun ColorPickerDialog(
                     value = hue,
                     valueRange = 0f..360f,
                     accent = color,
+                    valueColor = accent,
                     onValueChange = { hue = it },
                 )
                 ColorSlider(
@@ -598,6 +607,7 @@ private fun ColorPickerDialog(
                     value = saturation,
                     valueRange = 0f..1f,
                     accent = color,
+                    valueColor = accent,
                     onValueChange = { saturation = it },
                 )
                 ColorSlider(
@@ -606,6 +616,7 @@ private fun ColorPickerDialog(
                     value = value,
                     valueRange = 0f..1f,
                     accent = color,
+                    valueColor = accent,
                     onValueChange = { value = it },
                 )
             }
@@ -620,6 +631,7 @@ private fun ColorSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     accent: Color,
+    valueColor: Color,
     onValueChange: (Float) -> Unit,
 ) {
     Column {
@@ -629,7 +641,7 @@ private fun ColorSlider(
             Text(
                 valueLabel,
                 style = AppType.Footnote.style(emphasized = true).tabular(),
-                color = MaterialTheme.colorScheme.primary,
+                color = valueColor,
             )
         }
         Slider(
@@ -645,6 +657,18 @@ private fun ColorSlider(
             ),
         )
     }
+}
+
+/**
+ * 把当前自定义色压到当前主题可读的色调：亮色主题 ≤40，暗色主题 ≥80。
+ * 只改明度、保留色相与饱和度，所以拖动色相/饱和度时文字仍然跟着变，
+ * 拖到纯白/纯黑也不会和对话框底色糊在一起。
+ */
+private fun readableAccent(accent: Color, background: Color): Color {
+    val dark = toneOf(background) < 50.0
+    val tone = toneOf(accent)
+    val target = if (dark) tone.coerceAtLeast(80.0) else tone.coerceAtMost(40.0)
+    return if (abs(target - tone) < 0.5) accent else shiftTone(accent, target - tone)
 }
 
 private fun Color.toArgbInt(): Int = toArgb()
