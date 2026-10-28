@@ -27,8 +27,8 @@ android {
         applicationId = "com.landslide.shitu"
         minSdk = 30
         targetSdk = 36
-        versionCode = 39
-        versionName = "0.30.1"
+        versionCode = 40
+        versionName = "0.30.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.work.runtime)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+    // FlClash 的 HCT 配色生成只用 material 里的 color.utilities，不引入 Views
+    implementation(libs.material.color.utilities)
 
     debugImplementation(libs.compose.ui.tooling)
 

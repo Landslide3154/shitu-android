@@ -565,6 +565,7 @@ private fun RuleCard(
                 Modifier
                     .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                     .then(dragModifier),
+                shape = ShituRadius.CardShape,
                 colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
             ) {
                 Row(
@@ -612,6 +613,7 @@ private fun RuleCard(
             Modifier
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .then(dragModifier),
+            shape = ShituRadius.CardShape,
             colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
         ) {
             Column(Modifier.then(longPressModifier).padding(12.dp)) {

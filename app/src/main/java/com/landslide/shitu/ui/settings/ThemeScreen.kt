@@ -1,0 +1,520 @@
+package com.landslide.shitu.ui.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.landslide.shitu.R
+import com.landslide.shitu.data.AppLocale
+import com.landslide.shitu.data.Settings
+import com.landslide.shitu.data.SettingsStore
+import com.landslide.shitu.ui.components.CommonChip
+import com.landslide.shitu.ui.components.CommonDialog
+import com.landslide.shitu.ui.components.ListItem
+import com.landslide.shitu.ui.components.ListItemAction
+import com.landslide.shitu.ui.components.ListItemToggle
+import com.landslide.shitu.ui.components.Section
+import com.landslide.shitu.ui.components.SegmentedControl
+import com.landslide.shitu.ui.components.ShituToolbar
+import com.landslide.shitu.ui.design.AppColor
+import com.landslide.shitu.ui.design.AppCorner
+import com.landslide.shitu.ui.design.AppPalette
+import com.landslide.shitu.ui.design.AppType
+import com.landslide.shitu.ui.design.ColorStyle
+import com.landslide.shitu.ui.design.ShituIcons
+import com.landslide.shitu.ui.design.SurfaceLevel
+import com.landslide.shitu.ui.design.hairline
+import com.landslide.shitu.ui.design.squircle
+import com.landslide.shitu.ui.theme.ThemeMode
+import com.landslide.shitu.ui.theme.resolveDark
+import kotlinx.coroutines.launch
+
+/**
+ * 主题中心（FlClash `ThemeView`）：实时预览 → 模式 → 纯黑 → 主题色 → 风格 →
+ * 导航样式 → 标签动画 → 文字缩放。
+ */
+@Composable
+fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var showCustom by remember { mutableStateOf(false) }
+    var showReset by remember { mutableStateOf(false) }
+    val style = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)]
+    val navLabels = listOf(
+        stringResource(R.string.set_nav_floating),
+        stringResource(R.string.set_nav_docked),
+    )
+    val tabLabels = listOf(
+        stringResource(R.string.set_tab_slide),
+        stringResource(R.string.set_tab_fade),
+    )
+    val languageLabels = listOf(
+        stringResource(R.string.set_theme_follow_system),
+        "中文",
+        "English",
+    )
+
+    Column(Modifier.fillMaxSize()) {
+        ShituToolbar(stringResource(R.string.set_section_appearance_language), onBack = onBack)
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item { ThemePreviewCard(settings) }
+            item {
+                Section(stringResource(R.string.set_theme_mode)) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0, 1, 2).forEach { mode ->
+                            ThemeModeChoice(
+                                mode = mode,
+                                settings = settings,
+                                selected = settings.themeMode == mode,
+                                modifier = Modifier.weight(1f),
+                                onClick = { scope.launch { store.setThemeMode(mode) } },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Section {
+                    ListItemToggle(
+                        title = stringResource(R.string.set_theme_pure_black),
+                        subtitle = stringResource(R.string.set_theme_pure_black_desc),
+                        checked = settings.pureBlack,
+                        onCheckedChange = { scope.launch { store.setPureBlack(it) } },
+                        divider = false,
+                    )
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_primary_color)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ColorSwatch(
+                            color = MaterialTheme.colorScheme.primary,
+                            selected = settings.seedColor == 0,
+                            icon = true,
+                            onClick = {
+                                scope.launch {
+                                    store.setSeedColor(0)
+                                    store.setDynamicColor(true)
+                                }
+                            },
+                        )
+                        AppPalette.all.forEach { color ->
+                            ColorSwatch(
+                                color = color,
+                                selected = settings.seedColor == color.toArgbInt(),
+                                onClick = {
+                                    scope.launch {
+                                        store.setSeedColor(color.toArgbInt())
+                                        store.setDynamicColor(false)
+                                    }
+                                },
+                            )
+                        }
+                        ColorSwatch(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selected = false,
+                            custom = true,
+                            onClick = { showCustom = true },
+                        )
+                    }
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_color_style)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ColorStyle.entries.forEach { entry ->
+                            CommonChip(
+                                text = entry.labelZh,
+                                selected = entry == style,
+                                modifier = Modifier.weight(1f),
+                                onClick = { scope.launch { store.setColorStyle(entry.ordinal) } },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_nav_style)) {
+                    Column(Modifier.padding(12.dp)) {
+                        SegmentedControl(
+                            options = listOf(0, 1),
+                            selected = settings.navStyle,
+                            onSelect = { scope.launch { store.setNavStyle(it) } },
+                            label = { navLabels[it] },
+                        )
+                    }
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_tab_animation)) {
+                    Column(Modifier.padding(12.dp)) {
+                        SegmentedControl(
+                            options = listOf(0, 1),
+                            selected = settings.tabAnimation,
+                            onSelect = { scope.launch { store.setTabAnimation(it) } },
+                            label = { tabLabels[it] },
+                        )
+                    }
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_text_scale)) {
+                    TextScaleRow(settings, store)
+                }
+            }
+            item {
+                Section(stringResource(R.string.set_language)) {
+                    Column(Modifier.padding(12.dp)) {
+                        SegmentedControl(
+                            options = listOf(AppLocale.SYSTEM, AppLocale.CHINESE, AppLocale.ENGLISH),
+                            selected = settings.language,
+                            onSelect = { value ->
+                                if (settings.language != value) {
+                                    scope.launch {
+                                        store.setLanguage(value)
+                                        AppLocale.findActivity(context)?.recreate()
+                                    }
+                                }
+                            },
+                            label = { languageLabels[it] },
+                        )
+                    }
+                }
+            }
+            item {
+                Section {
+                    ListItemAction(
+                        title = stringResource(R.string.set_theme_reset),
+                        destructive = true,
+                        onClick = { showReset = true },
+                        divider = false,
+                    )
+                }
+            }
+        }
+    }
+
+    if (showCustom) {
+        ColorPickerDialog(
+            initial = if (settings.seedColor == 0) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                Color(settings.seedColor)
+            },
+            onDismiss = { showCustom = false },
+            onConfirm = { color ->
+                scope.launch {
+                    store.setSeedColor(color.toArgbInt())
+                    store.setDynamicColor(false)
+                }
+                showCustom = false
+            },
+        )
+    }
+    if (showReset) {
+        CommonDialog(
+            title = stringResource(R.string.set_reset_confirm_title),
+            body = stringResource(R.string.set_reset_confirm_body),
+            confirmLabel = stringResource(R.string.set_theme_reset),
+            dismissLabel = stringResource(R.string.set_cancel),
+            destructive = true,
+            onDismiss = { showReset = false },
+            onConfirm = {
+                showReset = false
+                scope.launch {
+                    store.setThemeMode(ThemeMode.SYSTEM)
+                    store.setSeedColor(0)
+                    store.setDynamicColor(true)
+                    store.setColorStyle(0)
+                    store.setPureBlack(false)
+                    store.setNavStyle(0)
+                    store.setTabAnimation(0)
+                    store.setTextScale(1f)
+                }
+            },
+        )
+    }
+}
+
+private val ThemeMode.value: Int
+    get() = 0
+
+@Composable
+private fun ThemePreviewCard(settings: Settings) {
+    val dark = resolveDark(settings.themeMode, isSystemInDarkTheme())
+    val seed = if (settings.seedColor == 0) AppPalette.Blue else Color(settings.seedColor)
+    val style = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)]
+    val scheme = remember(seed, dark, style, settings.pureBlack) {
+        AppColor.scheme(seed, dark, style, settings.pureBlack)
+    }
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.set_theme_preview),
+            style = AppType.Headline.style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(168.dp)
+                .clip(squircle(AppCorner.lg))
+                .background(SurfaceLevel.PAGE.colorOf(scheme))
+                .padding(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(scheme.primary),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("拾图 Shitu", style = AppType.Headline.style(), color = scheme.onSurface)
+                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(squircle(AppCorner.md))
+                        .background(SurfaceLevel.CARD.colorOf(scheme))
+                        .padding(12.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            Modifier
+                                .width(140.dp)
+                                .height(10.dp)
+                                .clip(CircleShape)
+                                .background(scheme.onSurface.copy(alpha = 0.85f)),
+                        )
+                        Box(
+                            Modifier
+                                .width(220.dp)
+                                .height(8.dp)
+                                .clip(CircleShape)
+                                .background(scheme.onSurfaceVariant.copy(alpha = 0.55f)),
+                        )
+                        Box(
+                            Modifier
+                                .width(120.dp)
+                                .height(32.dp)
+                                .clip(CircleShape)
+                                .background(scheme.primary),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeChoice(
+    mode: Int,
+    settings: Settings,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val dark = resolveDark(mode, isSystemInDarkTheme())
+    val seed = if (settings.seedColor == 0) AppPalette.Blue else Color(settings.seedColor)
+    val style = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)]
+    val preview = remember(seed, dark, style, settings.pureBlack) {
+        AppColor.scheme(seed, dark, style, settings.pureBlack)
+    }
+    Column(
+        modifier
+            .clip(squircle(AppCorner.md))
+            .background(if (selected) SurfaceLevel.BLOCK.colorOf(scheme) else Color.Transparent)
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) scheme.primary else scheme.hairline,
+                shape = squircle(AppCorner.md),
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(squircle(AppCorner.sm))
+                .background(SurfaceLevel.PAGE.colorOf(preview)),
+        ) {
+            Box(
+                Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .clip(squircle(AppCorner.xs))
+                    .background(SurfaceLevel.CARD.colorOf(preview)),
+            )
+            Box(
+                Modifier
+                    .padding(start = 8.dp, top = 36.dp)
+                    .width(24.dp)
+                    .height(16.dp)
+                    .clip(CircleShape)
+                    .background(preview.primary),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            when (mode) {
+                1 -> stringResource(R.string.set_theme_light)
+                2 -> stringResource(R.string.set_theme_dark)
+                else -> stringResource(R.string.set_theme_system)
+            },
+            style = AppType.Caption1.style(emphasized = selected),
+            color = if (selected) scheme.primary else scheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: Boolean = false,
+    custom: Boolean = false,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(if (icon || custom) SurfaceLevel.INSET.colorOf(scheme) else color)
+            .border(
+                width = if (selected) 2.5.dp else 1.dp,
+                color = if (selected) scheme.primary else scheme.hairline,
+                shape = CircleShape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            icon -> Icon(ShituIcons.Monitor, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            custom -> Icon(ShituIcons.Plus, null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            selected -> Icon(ShituIcons.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun TextScaleRow(settings: Settings, store: SettingsStore) {
+    val scope = rememberCoroutineScope()
+    var value by remember(settings.textScale) { mutableStateOf(settings.textScale) }
+    Column(Modifier.padding(12.dp)) {
+        Text(
+            "${(value * 100).toInt()}%",
+            style = AppType.Subheadline.style(emphasized = true),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Slider(
+            value = value,
+            onValueChange = { value = it },
+            onValueChangeFinished = { scope.launch { store.setTextScale(value) } },
+            valueRange = 0.8f..1.4f,
+            steps = 5,
+        )
+        Text(
+            "正文示例 Aa · 17sp",
+            style = AppType.Body.style().copy(fontSize = (17 * value).sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerDialog(
+    initial: Color,
+    onDismiss: () -> Unit,
+    onConfirm: (Color) -> Unit,
+) {
+    val hsv = remember(initial) { FloatArray(3).also { android.graphics.Color.colorToHSV(initial.toArgbInt(), it) } }
+    var hue by remember { mutableStateOf(hsv[0]) }
+    var saturation by remember { mutableStateOf(hsv[1]) }
+    var value by remember { mutableStateOf(hsv[2]) }
+    val color = Color.hsv(hue, saturation, value)
+    CommonDialog(
+        title = stringResource(R.string.set_custom_color_title),
+        confirmLabel = stringResource(R.string.set_confirm),
+        dismissLabel = stringResource(R.string.set_cancel),
+        onDismiss = onDismiss,
+        onConfirm = { onConfirm(color) },
+        content = {
+            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .clip(squircle(AppCorner.md))
+                        .background(color),
+                )
+                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
+                Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0f..1f)
+                Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f)
+            }
+        },
+    )
+}
+
+private fun Color.toArgbInt(): Int = toArgb()

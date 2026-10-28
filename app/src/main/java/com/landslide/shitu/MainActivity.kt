@@ -21,6 +21,7 @@ import com.landslide.shitu.data.AppLocale
 import com.landslide.shitu.data.Settings
 import com.landslide.shitu.service.WatchService
 import com.landslide.shitu.ui.ShituRoot
+import com.landslide.shitu.ui.design.ColorStyle
 import com.landslide.shitu.ui.theme.ShituTheme
 import com.landslide.shitu.ui.theme.resolveDark
 import kotlinx.coroutines.launch
@@ -64,7 +65,18 @@ class MainActivity : ComponentActivity() {
                 }
                 enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
-            ShituTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
+            ShituTheme(
+                themeMode = settings.themeMode,
+                dynamicColor = settings.dynamicColor,
+                seedColor = if (settings.seedColor == 0) {
+                    null
+                } else {
+                    androidx.compose.ui.graphics.Color(settings.seedColor)
+                },
+                colorStyle = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)],
+                pureBlack = settings.pureBlack,
+                textScale = settings.textScale,
+            ) {
                 ShituRoot(
                     app = app,
                     autoOpenUpdate = showUpdate.value,

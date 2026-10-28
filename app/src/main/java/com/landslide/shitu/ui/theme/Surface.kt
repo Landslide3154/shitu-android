@@ -4,54 +4,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import com.landslide.shitu.ui.design.SurfaceLevel
 
 /**
- * 全 App 表面层级的唯一来源（FlClash 迁移 P0）。
+ * 兼容层：旧页面调用 `ShituSurface.page()/card()` 仍可用。
  *
- * 以前卡片直接写 `surfaceContainerLow`：亮色下它比页面还深，看起来像「凹进去」；
- * 这里统一成「页面 → 卡片 → 卡内块 → 槽」四级，亮色是「灰页 + 近白卡」，暗色是「暗页 + 亮一档的卡」。
- *
- * | 层级 | 亮色 | 暗色 | 用途 |
- * | --- | --- | --- | --- |
- * | [page] | `surfaceContainer` (94) | `surface` (6) | 页面底、Scaffold 容器 |
- * | [card] | `surfaceBright` (98) | `surfaceContainer` (15) | 规则卡 / 设置卡 / 日志卡 |
- * | [block] | `surfaceContainer` (94) | `surfaceContainerHigh` (21) | 卡片里的分组块、对话框内分区 |
- * | [inset] | `surfaceContainerHighest` (90) | `surfaceContainerHighest` (27) | 进度条轨道、缩略图槽、选中底 |
- *
- * 不要在页面里再裸写 `surfaceContainer*`；改层级只改这一个文件。
- * 暗色的 15/21/27 与 `onSurface` 97 在 [shituDarkTones] 里覆写（见 Theme.kt）。
+ * 新组件应改用 [com.landslide.shitu.ui.design.AppSurface] + `LocalSurfaceLevel`，
+ * 让卡片内部自动取下一层；这两个函数只做「按当前主题算颜色」，不做作用域推进。
  */
 object ShituSurface {
-
-    /** 页面底：Scaffold / 整页 Surface 用。 */
     @Composable
     @ReadOnlyComposable
-    fun page(): Color = if (isDarkScheme()) {
-        MaterialTheme.colorScheme.surface
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
-    }
+    fun page(): Color = SurfaceLevel.PAGE.colorOf(MaterialTheme.colorScheme)
 
-    /** 卡片：比页面「抬起来」一层。 */
     @Composable
     @ReadOnlyComposable
-    fun card(): Color = if (isDarkScheme()) {
-        MaterialTheme.colorScheme.surfaceContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceBright
-    }
+    fun card(): Color = SurfaceLevel.CARD.colorOf(MaterialTheme.colorScheme)
 
-    /** 卡内分组块：卡片里的第二层容器。 */
     @Composable
     @ReadOnlyComposable
-    fun block(): Color = if (isDarkScheme()) {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
-    }
+    fun block(): Color = SurfaceLevel.BLOCK.colorOf(MaterialTheme.colorScheme)
 
-    /** 槽 / 轨道：进度条底、缩略图底、展开项的选中底。 */
     @Composable
     @ReadOnlyComposable
-    fun inset(): Color = MaterialTheme.colorScheme.surfaceContainerHighest
+    fun inset(): Color = SurfaceLevel.INSET.colorOf(MaterialTheme.colorScheme)
 }

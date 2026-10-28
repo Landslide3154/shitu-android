@@ -3,49 +3,42 @@ package com.landslide.shitu.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import com.landslide.shitu.ui.design.AppCorner
+import com.landslide.shitu.ui.design.AppShapes
+import com.landslide.shitu.ui.design.squircle
 
 /**
- * 全 App 圆角的唯一来源。
+ * 圆角的唯一来源（FlClash 阶梯：0/4/8/16/20/24/28/34/full）。
  *
- * 以前每个文件各写各的数字（8 / 10 / 12 / 14 / 18 / 20 / 24 / 28），同一种东西圆角都不一样；
- * 现在一律引用这里，改圆角只改这一个文件。
+ * 具体形状由 [squircle] 生成超椭圆；这里只保留语义名，页面不要写裸值。
  *
- * - [Card] 大卡片：规则卡 / 设置卡 / 状态卡 / 日志卡
- * - [Dialog] 自定义对话框（M3 的 AlertDialog 自动跟随 Theme 的 extraLarge）
- * - [Field] 所有输入框（见 `ui/components/ShituField.kt`）
- * - [Row] 列表行、小色块、弹窗里的选项行
- * - [Pill] 胶囊：状态标签 / 模式标签
+ * - [Card] 普通卡片 16；[Wide] 通栏卡/分组容器 24
+ * - [Dialog] 告警 34；[Sheet] 弹层顶部 28
+ * - [Field] 输入框 16；[Row] 菜单/列表行 16；[Chip] 小色块 8
+ * - [Pill] 胶囊（按钮/状态标签）
  */
 object ShituRadius {
-    val Card = 20.dp
-    val Dialog = 28.dp
-    val Field = 14.dp
-    val Row = 12.dp
-    val Pill = 50
+    val Card = AppCorner.md
+    val Wide = AppCorner.xl
+    val Dialog = AppCorner.alert
+    val Sheet = AppCorner.xxl
+    val Field = AppCorner.md
+    val Row = AppCorner.md
+    val Chip = AppCorner.sm
+    val Pill = AppCorner.full
 
-    val CardShape = RoundedCornerShape(Card)
-    val DialogShape = RoundedCornerShape(Dialog)
-    val FieldShape = RoundedCornerShape(Field)
-    val RowShape = RoundedCornerShape(Row)
-    val PillShape = RoundedCornerShape(Pill)
+    val CardShape = squircle(Card)
+    val WideShape = squircle(Wide)
+    val DialogShape = squircle(Dialog)
+    val SheetShape = squircle(Sheet)
+    val FieldShape = squircle(Field)
+    val RowShape = squircle(Row)
+    val ChipShape = squircle(Chip)
+    val PillShape = RoundedCornerShape(50)
 
-    /** 缩略图这类随尺寸等比缩放的块：半径 = 边长 / 6，本身没有固定尺寸，不算「不统一」。 */
-    fun thumb(size: Dp): RoundedCornerShape = RoundedCornerShape(size / 6f)
+    /** 缩略图随尺寸等比（半径 = 边长 / 6），本身没有固定尺寸。 */
+    fun thumb(size: Dp) = squircle(size / 6f)
 }
 
-/**
- * 交给 `MaterialTheme` 的形状表：M3 组件没显式传 shape 时会自动用这里，全 App 跟着统一。
- *
- * - medium = 卡片 20dp（Card 默认形状）
- * - extraLarge = 对话框 28dp（AlertDialog 默认形状）
- * - large = 20dp（FloatingActionButton 默认，变成 M3 Expressive 的圆角方形）
- * - small = 列表行 12dp；extraSmall = 菜单/提示条 8dp
- */
-internal val ShituShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = ShituRadius.RowShape,
-    medium = ShituRadius.CardShape,
-    large = ShituRadius.CardShape,
-    extraLarge = ShituRadius.DialogShape,
-)
+/** 交给 `MaterialTheme` 的形状表；M3 组件没显式传 shape 时自动跟随。 */
+internal val ShituShapes: Shapes = AppShapes

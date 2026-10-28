@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -83,9 +84,13 @@ import com.landslide.shitu.data.db.RuleState
 import com.landslide.shitu.engine.HealthChecker
 import com.landslide.shitu.shizuku.ShizukuState
 import com.landslide.shitu.ui.logs.LogScreen
+import com.landslide.shitu.ui.nav.ShituDockedBar
+import com.landslide.shitu.ui.nav.ShituDock
+import com.landslide.shitu.ui.nav.ShituSidebar
+import com.landslide.shitu.ui.nav.destinationLabel
 import com.landslide.shitu.ui.rules.RuleEditScreen
 import com.landslide.shitu.ui.rules.RuleListScreen
-import com.landslide.shitu.ui.settings.SettingsScreen
+import com.landslide.shitu.ui.settings.SettingsFlow
 import com.landslide.shitu.ui.theme.ShituSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -246,6 +251,7 @@ fun ShituRoot(
     // 宽屏（平板 / 折叠屏展开 / 横屏）走左侧导航栏；手机仍旧是底栏
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 600.dp
+        val expanded = maxWidth >= 840.dp
 
         Scaffold(
             containerColor = ShituSurface.page(),
@@ -260,24 +266,23 @@ fun ShituRoot(
         },
         bottomBar = {
             if (!wide) {
-                NavigationBar {
-                    ShituNavItem(
-                        selected = tab == 0,
-                        onClick = { leaveEditor(0) },
-                        icon = Icons.Filled.Share,
-                        label = stringResource(R.string.app_nav_rules),
-                    )
-                    ShituNavItem(
-                        selected = tab == 1,
-                        onClick = { leaveEditor(1) },
-                        icon = Icons.Filled.List,
-                        label = stringResource(R.string.app_nav_logs),
-                    )
-                    ShituNavItem(
-                        selected = tab == 2,
-                        onClick = { leaveEditor(2) },
-                        icon = Icons.Filled.Settings,
-                        label = stringResource(R.string.app_nav_settings),
+                if (settings.navStyle == 0) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(bottom = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ShituDock(
+                            selected = tab,
+                            onSelect = { leaveEditor(it) },
+                        )
+                    }
+                } else {
+                    ShituDockedBar(
+                        selected = tab,
+                        onSelect = { leaveEditor(it) },
                     )
                 }
             }
@@ -286,27 +291,11 @@ fun ShituRoot(
         Box(Modifier.fillMaxSize().padding(padding)) {
             Row(Modifier.fillMaxSize()) {
             if (wide) {
-                NavigationRail(containerColor = ShituSurface.page()) {
-                    Spacer(Modifier.height(8.dp))
-                    ShituRailItem(
-                        selected = tab == 0,
-                        onClick = { leaveEditor(0) },
-                        icon = Icons.Filled.Share,
-                        label = stringResource(R.string.app_nav_rules),
-                    )
-                    ShituRailItem(
-                        selected = tab == 1,
-                        onClick = { leaveEditor(1) },
-                        icon = Icons.Filled.List,
-                        label = stringResource(R.string.app_nav_logs),
-                    )
-                    ShituRailItem(
-                        selected = tab == 2,
-                        onClick = { leaveEditor(2) },
-                        icon = Icons.Filled.Settings,
-                        label = stringResource(R.string.app_nav_settings),
-                    )
-                }
+                ShituSidebar(
+                    selected = tab,
+                    onSelect = { leaveEditor(it) },
+                    expanded = expanded,
+                )
             }
             Box(
                 Modifier.weight(1f).fillMaxSize(),
@@ -520,65 +509,15 @@ fun ShituRoot(
                     },
                 )
 
-                else -> SettingsScreen(
+                else -> SettingsFlow(
+                    app = app,
                     settings = settings,
-                    store = app.settings,
-                    autoCheckUpdate = pendingUpdateCheck,
-                    onAutoCheckConsumed = { pendingUpdateCheck = false },
-                    onSelfCheck = { selfCheck() },
                     copiedCount = copiedCount,
-                    onClearCopied = {
-                        scope.launch {
-                            val n = app.ledger.clear()
-                            // 复制模式的完成条目也要清：否则「同大小同 mtime 就跳过」还会命中，清空看起来没生效
-                            val items = runCatching { app.repo.clearCopyDoneItems() }.getOrDefault(0)
-                            refresh()
-                            snackbar.showSnackbar(context.getString(R.string.app_copy_records_cleared, n, items))
-                        }
-                    },
-                    rulesCount = rules.size,
                     copiedItems = copiedItems,
-                    onClearCopiedSelected = { fingerprints ->
-                        scope.launch {
-                            val n = runCatching { app.ledger.deleteSelected(fingerprints) }
-                                .getOrDefault(0)
-                            refresh()
-                            snackbar.showSnackbar(
-                                context.getString(R.string.app_copied_removed, n),
-                            )
-                        }
-                    },
-                    onExportBackup = {
-                        scope.launch {
-                            val res = runCatching { app.exportBackup() }
-                            refresh()
-                            res.onSuccess { path ->
-                                snackbar.showSnackbar(
-                                    context.getString(R.string.app_rules_exported, path),
-                                )
-                            }.onFailure { e ->
-                                snackbar.showSnackbar(
-                                    context.getString(
-                                        R.string.app_rules_export_failed,
-                                        e.message ?: "?",
-                                    ),
-                                )
-                            }
-                        }
-                    },
-                    onImportBackup = { text ->
-                        scope.launch {
-                            val n = runCatching { app.importBackup(text) }.getOrDefault(0)
-                            refresh()
-                            snackbar.showSnackbar(
-                                if (n > 0) {
-                                    context.getString(R.string.app_rules_imported, n)
-                                } else {
-                                    context.getString(R.string.app_rules_import_empty)
-                                },
-                            )
-                        }
-                    },
+                    rulesCount = rules.size,
+                    onSelfCheck = { selfCheck() },
+                    onRefresh = { scope.launch { refresh() } },
+                    onSnackbar = { message -> scope.launch { snackbar.showSnackbar(message) } },
                 )
                     }
                 }
@@ -738,43 +677,6 @@ fun ShituRoot(
             },
         )
     }
-}
-
-/** 手机底栏：NavigationBarItem 是 RowScope 扩展，所以这里也挂在 RowScope 上。 */
-@Composable
-private fun RowScope.ShituNavItem(
-    selected: Boolean,
-    onClick: () -> Unit,
-    icon: ImageVector,
-    label: String,
-) {
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = { Icon(icon, contentDescription = null) },
-        label = { Text(label) },
-    )
-}
-
-/** 宽屏侧栏：选中态是中性底 + 主色图标，不铺整块主色。 */
-@Composable
-private fun ShituRailItem(
-    selected: Boolean,
-    onClick: () -> Unit,
-    icon: ImageVector,
-    label: String,
-) {
-    NavigationRailItem(
-        selected = selected,
-        onClick = onClick,
-        icon = { Icon(icon, contentDescription = null) },
-        label = { Text(label) },
-        colors = NavigationRailItemDefaults.colors(
-            indicatorColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            selectedIconColor = MaterialTheme.colorScheme.primary,
-            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    )
 }
 
 private fun renderReport(context: Context, report: List<HealthChecker.Item>): String =

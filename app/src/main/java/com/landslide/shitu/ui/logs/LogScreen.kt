@@ -62,6 +62,7 @@ import com.landslide.shitu.ui.components.FileThumbnail
 import com.landslide.shitu.ui.components.ShituField
 import com.landslide.shitu.ui.components.StatusPill
 import com.landslide.shitu.ui.status.logTone
+import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.ShituSurface
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -385,6 +386,7 @@ private fun LogRow(l: LogEntity, modifier: Modifier = Modifier) {
     val tone = logTone(l.result)
     Card(
         modifier.fillMaxWidth(),
+        shape = ShituRadius.CardShape,
         colors = CardDefaults.cardColors(containerColor = ShituSurface.card()),
     ) {
         // 缩略图固定在左边 48dp，读不到也只画占位块，文字排版不跟着跳

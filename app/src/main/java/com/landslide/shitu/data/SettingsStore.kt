@@ -3,6 +3,7 @@ package com.landslide.shitu.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -45,6 +46,18 @@ data class Settings(
     val themeMode: Int = 0,
     /** Material You 动态取色（Android 12+ 从壁纸取色） */
     val dynamicColor: Boolean = true,
+    /** FlClash 配色风格：0 vivid / 1 tinted / 2 soft / 3 monochrome */
+    val colorStyle: Int = 0,
+    /** 0 = 跟随系统壁纸；否则是 ARGB 种子色 */
+    val seedColor: Int = 0,
+    /** 纯黑：只对暗色生效 */
+    val pureBlack: Boolean = false,
+    /** 0 = 浮起 Dock；1 = 停靠底栏 */
+    val navStyle: Int = 0,
+    /** 0 = 滑动；1 = 淡入 */
+    val tabAnimation: Int = 0,
+    /** 文字缩放 0.8–1.4 */
+    val textScale: Float = 1f,
     /** 用户自建的规则模板（存在 DataStore 的一段文本里） */
     val ruleTemplates: List<RuleTemplate> = emptyList(),
     // —— 界面与运行状态项 ——
@@ -99,6 +112,12 @@ class SettingsStore(private val context: Context) {
         val RULE_CARDS_COMPACT = booleanPreferencesKey("rule_cards_compact")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val COLOR_STYLE = intPreferencesKey("color_style")
+        val SEED_COLOR = intPreferencesKey("seed_color")
+        val PURE_BLACK = booleanPreferencesKey("pure_black")
+        val NAV_STYLE = intPreferencesKey("nav_style")
+        val TAB_ANIMATION = intPreferencesKey("tab_animation")
+        val TEXT_SCALE = floatPreferencesKey("text_scale")
         val RULE_TEMPLATES = stringPreferencesKey("rule_templates")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
@@ -140,6 +159,12 @@ class SettingsStore(private val context: Context) {
             ruleCardsCompact = p[K.RULE_CARDS_COMPACT] ?: false,
             themeMode = p[K.THEME_MODE] ?: 0,
             dynamicColor = p[K.DYNAMIC_COLOR] ?: true,
+            colorStyle = (p[K.COLOR_STYLE] ?: 0).coerceIn(0, 3),
+            seedColor = p[K.SEED_COLOR] ?: 0,
+            pureBlack = p[K.PURE_BLACK] ?: false,
+            navStyle = (p[K.NAV_STYLE] ?: 0).coerceIn(0, 1),
+            tabAnimation = (p[K.TAB_ANIMATION] ?: 0).coerceIn(0, 1),
+            textScale = (p[K.TEXT_SCALE] ?: 1f).coerceIn(0.8f, 1.4f),
             ruleTemplates = RuleTemplate.decode(p[K.RULE_TEMPLATES]),
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
@@ -183,6 +208,12 @@ class SettingsStore(private val context: Context) {
     suspend fun setRuleCardsCompact(v: Boolean) = put(K.RULE_CARDS_COMPACT, v)
     suspend fun setThemeMode(v: Int) = put(K.THEME_MODE, v)
     suspend fun setDynamicColor(v: Boolean) = put(K.DYNAMIC_COLOR, v)
+    suspend fun setColorStyle(v: Int) = put(K.COLOR_STYLE, v.coerceIn(0, 3))
+    suspend fun setSeedColor(v: Int) = put(K.SEED_COLOR, v)
+    suspend fun setPureBlack(v: Boolean) = put(K.PURE_BLACK, v)
+    suspend fun setNavStyle(v: Int) = put(K.NAV_STYLE, v.coerceIn(0, 1))
+    suspend fun setTabAnimation(v: Int) = put(K.TAB_ANIMATION, v.coerceIn(0, 1))
+    suspend fun setTextScale(v: Float) = put(K.TEXT_SCALE, v.coerceIn(0.8f, 1.4f))
     suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
     suspend fun setLastUpdateCheckAt(v: Long) = put(K.LAST_UPDATE_CHECK_AT, v)
@@ -228,6 +259,12 @@ class SettingsStore(private val context: Context) {
             p[K.RULE_CARDS_COMPACT] = s.ruleCardsCompact
             p[K.THEME_MODE] = s.themeMode
             p[K.DYNAMIC_COLOR] = s.dynamicColor
+            p[K.COLOR_STYLE] = s.colorStyle
+            p[K.SEED_COLOR] = s.seedColor
+            p[K.PURE_BLACK] = s.pureBlack
+            p[K.NAV_STYLE] = s.navStyle
+            p[K.TAB_ANIMATION] = s.tabAnimation
+            p[K.TEXT_SCALE] = s.textScale
             p[K.NOTIFY] = s.notifyEnabled
             p[K.LANGUAGE] = s.language
             p[K.RUN_ONLY_CHARGING] = s.runOnlyCharging

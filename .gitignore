@@ -45,3 +45,6 @@ __pycache__/
 
 # Kotlin 2.x 会话目录（编译期生成）
 .kotlin/
+
+# 图标生成脚本的 SVG 缓存（可重新下载）
+.icon-cache/
