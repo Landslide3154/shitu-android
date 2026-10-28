@@ -31,10 +31,17 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** 「有新版本」通知里带的 extra：点通知进来直接打开设置页的更新弹窗。 */
         const val EXTRA_SHOW_UPDATE = "show_update"
+
+        /** 桌面快捷方式带的 tab：0 规则 / 1 日志 / 2 设置。 */
+        const val EXTRA_TAB = "tab"
+        const val ACTION_RUN_NOW = "com.landslide.shitu.action.RUN_NOW"
     }
 
     /** 通知点进来的「打开更新」标记；用 State 让 Compose 能跟着变。 */
     private val showUpdate = mutableStateOf(false)
+
+    /** 快捷方式指定的落地页；消费一次后清空。 */
+    private val startTab = mutableStateOf<Int?>(null)
 
     /**
      * 语言开关真正生效的地方：给 Activity 套一层指定 Locale 的 Context。
@@ -53,6 +60,7 @@ class MainActivity : ComponentActivity() {
         WatchService.start(this)
         val app = application as ShituApp
         showUpdate.value = intent?.getBooleanExtra(EXTRA_SHOW_UPDATE, false) == true
+        intent?.let { handleShortcut(it, app) }
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = Settings())
             val dark = resolveDark(settings.themeMode, isSystemInDarkTheme())
@@ -81,6 +89,8 @@ class MainActivity : ComponentActivity() {
                     app = app,
                     autoOpenUpdate = showUpdate.value,
                     onAutoOpenUpdateConsumed = { showUpdate.value = false },
+                    startTab = startTab.value,
+                    onStartTabConsumed = { startTab.value = null },
                 )
             }
         }
@@ -100,6 +110,20 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         // singleTop：点「有新版本」通知时 Activity 已存在，走这里
         if (intent.getBooleanExtra(EXTRA_SHOW_UPDATE, false)) showUpdate.value = true
+        handleShortcut(intent, application as ShituApp)
+    }
+
+    /** 桌面长按快捷方式：立即搬运 / 日志 / 设置。 */
+    private fun handleShortcut(intent: Intent, app: ShituApp) {
+        if (intent.action == ACTION_RUN_NOW) {
+            lifecycleScope.launch {
+                runCatching { app.runDueRules(force = true) }
+                android.widget.Toast.makeText(this@MainActivity, "已扫一遍", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        val tab = intent.getIntExtra(EXTRA_TAB, -1)
+        if (tab in 0..2) startTab.value = tab
     }
 
     private fun requestNotificationPermission() {

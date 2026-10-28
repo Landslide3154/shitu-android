@@ -41,6 +41,7 @@ import com.landslide.shitu.ui.design.AppMetrics
 import com.landslide.shitu.ui.design.AppMotion
 import com.landslide.shitu.ui.design.AppType
 import com.landslide.shitu.ui.design.SurfaceLevel
+import com.landslide.shitu.ui.design.destructive
 import com.landslide.shitu.ui.design.squircle
 import com.landslide.shitu.ui.design.AppCorner
 
@@ -170,13 +171,23 @@ fun ShituButton(
     modifier: Modifier = Modifier,
     primary: Boolean = true,
     enabled: Boolean = true,
+    destructive: Boolean = false,
 ) {
     if (primary) {
+        val scheme = MaterialTheme.colorScheme
         Button(
             onClick = onClick,
             modifier = modifier.height(AppMetrics.ButtonHeightBar),
             enabled = enabled,
             shape = CircleShape,
+            colors = if (destructive) {
+                ButtonDefaults.buttonColors(
+                    containerColor = scheme.destructive,
+                    contentColor = Color.White,
+                )
+            } else {
+                ButtonDefaults.buttonColors()
+            },
             contentPadding = ButtonDefaults.ContentPadding,
         ) {
             Text(text, style = AppType.Subheadline.style(emphasized = true))

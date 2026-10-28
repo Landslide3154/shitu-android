@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="run_now"
+        android:enabled="true"
+        android:icon="@drawable/ic_notify"
+        android:shortcutShortLabel="@string/shortcut_run"
+        android:shortcutLongLabel="@string/shortcut_run_long">
+        <intent
+            android:action="com.landslide.shitu.action.RUN_NOW"
+            android:targetPackage="com.landslide.shitu"
+            android:targetClass="com.landslide.shitu.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_logs"
+        android:enabled="true"
+        android:icon="@drawable/ic_notify"
+        android:shortcutShortLabel="@string/shortcut_logs"
+        android:shortcutLongLabel="@string/shortcut_logs_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.landslide.shitu"
+            android:targetClass="com.landslide.shitu.MainActivity">
+            <extra android:name="tab" android:value="1" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_settings"
+        android:enabled="true"
+        android:icon="@drawable/ic_notify"
+        android:shortcutShortLabel="@string/shortcut_settings"
+        android:shortcutLongLabel="@string/shortcut_settings_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.landslide.shitu"
+            android:targetClass="com.landslide.shitu.MainActivity">
+            <extra android:name="tab" android:value="2" />
+        </intent>
+    </shortcut>
+</shortcuts>

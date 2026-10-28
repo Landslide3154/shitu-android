@@ -58,6 +58,8 @@ data class Settings(
     val tabAnimation: Int = 0,
     /** 文字缩放 0.8–1.4 */
     val textScale: Float = 1f,
+    /** 规则手动排序（规则 id，按显示顺序）；空 = 默认顺序 */
+    val ruleOrder: List<Long> = emptyList(),
     /** 用户自建的规则模板（存在 DataStore 的一段文本里） */
     val ruleTemplates: List<RuleTemplate> = emptyList(),
     // —— 界面与运行状态项 ——
@@ -118,6 +120,7 @@ class SettingsStore(private val context: Context) {
         val NAV_STYLE = intPreferencesKey("nav_style")
         val TAB_ANIMATION = intPreferencesKey("tab_animation")
         val TEXT_SCALE = floatPreferencesKey("text_scale")
+        val RULE_ORDER = stringPreferencesKey("rule_order")
         val RULE_TEMPLATES = stringPreferencesKey("rule_templates")
         val NOTIFY = booleanPreferencesKey("notify_enabled")
         val SELF_CHECK = stringPreferencesKey("last_self_check")
@@ -165,6 +168,10 @@ class SettingsStore(private val context: Context) {
             navStyle = (p[K.NAV_STYLE] ?: 0).coerceIn(0, 1),
             tabAnimation = (p[K.TAB_ANIMATION] ?: 0).coerceIn(0, 1),
             textScale = (p[K.TEXT_SCALE] ?: 1f).coerceIn(0.8f, 1.4f),
+            ruleOrder = p[K.RULE_ORDER]
+                ?.split(',')
+                ?.mapNotNull { it.toLongOrNull() }
+                ?: emptyList(),
             ruleTemplates = RuleTemplate.decode(p[K.RULE_TEMPLATES]),
             notifyEnabled = p[K.NOTIFY] ?: true,
             lastSelfCheck = p[K.SELF_CHECK],
@@ -214,6 +221,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setNavStyle(v: Int) = put(K.NAV_STYLE, v.coerceIn(0, 1))
     suspend fun setTabAnimation(v: Int) = put(K.TAB_ANIMATION, v.coerceIn(0, 1))
     suspend fun setTextScale(v: Float) = put(K.TEXT_SCALE, v.coerceIn(0.8f, 1.4f))
+    suspend fun setRuleOrder(v: List<Long>) = put(K.RULE_ORDER, v.joinToString(","))
     suspend fun setRuleTemplates(list: List<RuleTemplate>) = put(K.RULE_TEMPLATES, RuleTemplate.encode(list))
     suspend fun setNotifyEnabled(v: Boolean) = put(K.NOTIFY, v)
     suspend fun setLastUpdateCheckAt(v: Long) = put(K.LAST_UPDATE_CHECK_AT, v)
@@ -265,6 +273,7 @@ class SettingsStore(private val context: Context) {
             p[K.NAV_STYLE] = s.navStyle
             p[K.TAB_ANIMATION] = s.tabAnimation
             p[K.TEXT_SCALE] = s.textScale
+            p[K.RULE_ORDER] = s.ruleOrder.joinToString(",")
             p[K.NOTIFY] = s.notifyEnabled
             p[K.LANGUAGE] = s.language
             p[K.RUN_ONLY_CHARGING] = s.runOnlyCharging

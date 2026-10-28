@@ -76,10 +76,14 @@ fun SettingsFlow(
     onSelfCheck: () -> Unit,
     onRefresh: () -> Unit,
     onSnackbar: (String) -> Unit,
+    onDetailChanged: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var route by rememberSaveable { mutableStateOf(SettingsRoute.HOME) }
+    androidx.compose.runtime.LaunchedEffect(route) {
+        onDetailChanged(route != SettingsRoute.HOME)
+    }
     BackHandler(enabled = route != SettingsRoute.HOME) { route = SettingsRoute.HOME }
 
     AnimatedContent(

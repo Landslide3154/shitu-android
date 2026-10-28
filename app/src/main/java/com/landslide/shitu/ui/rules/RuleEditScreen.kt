@@ -55,6 +55,7 @@ import com.landslide.shitu.ui.components.HelpDot
 import com.landslide.shitu.ui.components.SectionCard
 import com.landslide.shitu.ui.components.ShituField
 import com.landslide.shitu.ui.components.ShituSwitch
+import com.landslide.shitu.ui.components.ShituToolbar
 import com.landslide.shitu.ui.theme.ShituRadius
 import com.landslide.shitu.ui.theme.ShituSurface
 import com.landslide.shitu.ui.theme.Tone
@@ -231,17 +232,27 @@ fun RuleEditScreen(
         continueSave()
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            if (isNew) stringResource(R.string.edit_title_new) else stringResource(R.string.edit_title_edit),
-            style = MaterialTheme.typography.titleLarge,
-        )
+    Column(Modifier.fillMaxSize()) {
+        ShituToolbar(
+            title = if (isNew) {
+                stringResource(R.string.edit_title_new)
+            } else {
+                stringResource(R.string.edit_title_edit)
+            },
+            onBack = onCancel,
+        ) {
+            TextButton(
+                onClick = { onSaveClick() },
+                enabled = !previewing,
+            ) { Text(stringResource(R.string.edit_save_and_start)) }
+        }
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
 
         // 配置提醒放到最上面：改的时候一眼能看到哪里有问题。
         // 一张卡装全部（以前一条提醒一张卡，两三条就把屏幕占掉一半）
@@ -532,6 +543,7 @@ fun RuleEditScreen(
                 onClick = { onSaveClick() },
                 enabled = !previewing,
             ) { Text(stringResource(R.string.edit_save_and_start)) }
+        }
         }
     }
 

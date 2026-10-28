@@ -90,6 +90,7 @@ object BackupIo {
         "navStyle" to s.navStyle,
         "tabAnimation" to s.tabAnimation,
         "textScale" to s.textScale,
+        "ruleOrder" to s.ruleOrder.joinToString(","),
         "notifyEnabled" to s.notifyEnabled,
         "language" to s.language,
         "runOnlyCharging" to s.runOnlyCharging,
@@ -136,6 +137,10 @@ object BackupIo {
             navStyle = i("navStyle", d.navStyle).coerceIn(0, 1),
             tabAnimation = i("tabAnimation", d.tabAnimation).coerceIn(0, 1),
             textScale = f("textScale", d.textScale).coerceIn(0.8f, 1.4f),
+            ruleOrder = m["ruleOrder"]
+                ?.split(',')
+                ?.mapNotNull { it.toLongOrNull() }
+                ?: d.ruleOrder,
             notifyEnabled = b("notifyEnabled", d.notifyEnabled),
             language = i("language", d.language).coerceIn(0, 2),
             runOnlyCharging = b("runOnlyCharging", d.runOnlyCharging),

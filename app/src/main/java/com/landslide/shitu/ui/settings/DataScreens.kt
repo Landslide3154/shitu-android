@@ -267,6 +267,9 @@ fun AboutSettingsScreen(
     var checking by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<com.landslide.shitu.core.UpdateInfo?>(null) }
     var failed by remember { mutableStateOf(false) }
+    var downloading by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf(-1) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
     val version = remember {
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
@@ -363,6 +366,7 @@ fun AboutSettingsScreen(
     }
     update?.let { info ->
         val newer = UpdateChecker.isNewer(version, info.version)
+        val apkUrl = info.apkUrl
         CommonDialog(
             title = if (newer) {
                 context.getString(R.string.set_update_available_title, info.version)
@@ -372,18 +376,105 @@ fun AboutSettingsScreen(
             body = if (newer) info.notes.ifBlank { context.getString(R.string.set_update_notes_fallback) } else {
                 context.getString(R.string.set_update_latest_body, version, info.version)
             },
-            confirmLabel = if (newer) stringResource(R.string.set_go_download) else stringResource(R.string.set_got_it),
-            dismissLabel = stringResource(R.string.set_later),
-            onDismiss = { update = null },
+            confirmLabel = when {
+                downloading -> context.getString(R.string.set_downloading)
+                newer && apkUrl != null -> context.getString(R.string.set_download_and_install)
+                newer -> context.getString(R.string.set_go_download)
+                else -> context.getString(R.string.set_got_it)
+            },
+            dismissLabel = if (downloading) null else stringResource(R.string.set_later),
+            onDismiss = {
+                if (!downloading) {
+                    update = null
+                    downloadError = null
+                }
+            },
             onConfirm = {
-                if (newer) {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(info.pageUrl)),
+                when {
+                    downloading -> Unit
+                    newer && apkUrl != null -> {
+                        if (!com.landslide.shitu.core.UpdateInstaller.canInstall(context)) {
+                            com.landslide.shitu.core.UpdateInstaller.requestInstallPermission(context)
+                            downloadError = context.getString(R.string.set_install_permission_needed)
+                        } else {
+                            downloading = true
+                            downloadError = null
+                            progress = -1
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        com.landslide.shitu.core.UpdateInstaller.download(
+                                            context,
+                                            apkUrl,
+                                            info.version,
+                                        ) { read, total ->
+                                            progress = if (total > 0) {
+                                                ((read * 100) / total).toInt().coerceIn(0, 100)
+                                            } else {
+                                                -1
+                                            }
+                                        }
+                                    }
+                                }
+                                downloading = false
+                                result.onSuccess { apk ->
+                                    runCatching {
+                                        com.landslide.shitu.core.UpdateInstaller.install(context, apk)
+                                    }.onSuccess {
+                                        update = null
+                                    }.onFailure { e ->
+                                        downloadError = context.getString(
+                                            R.string.set_install_failed,
+                                            e.message ?: e.javaClass.simpleName,
+                                        )
+                                    }
+                                }.onFailure { e ->
+                                    downloadError = context.getString(
+                                        R.string.set_download_failed,
+                                        e.message ?: e.javaClass.simpleName,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    newer -> {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.pageUrl)))
+                        }
+                        update = null
+                    }
+
+                    else -> update = null
+                }
+            },
+            content = if (downloading || downloadError != null) {
+                {
+                    if (downloading) {
+                        Text(
+                            if (progress >= 0) {
+                                context.getString(R.string.set_downloading_pct, progress)
+                            } else {
+                                context.getString(R.string.set_downloading)
+                            },
+                            style = AppType.Footnote.style(),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { if (progress >= 0) progress / 100f else 0f },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    downloadError?.let { message ->
+                        Text(
+                            message,
+                            style = AppType.Footnote.style(),
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
-                update = null
+            } else {
+                null
             },
         )
     }

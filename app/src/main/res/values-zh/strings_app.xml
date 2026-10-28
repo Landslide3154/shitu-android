@@ -19,6 +19,13 @@
     <string name="app_rule_deleted">已删除「%1$s」</string>
     <string name="app_rule_restored">已恢复「%1$s」，什么都没少</string>
     <string name="app_rules_deleted">已删除 %1$s</string>
+    <string name="app_rules_deleted_count">已删除 %1$d 条规则</string>
+    <string name="shortcut_run">立即搬运</string>
+    <string name="shortcut_run_long">马上扫一遍并搬运</string>
+    <string name="shortcut_logs">日志</string>
+    <string name="shortcut_logs_long">查看搬运日志</string>
+    <string name="shortcut_settings">设置</string>
+    <string name="shortcut_settings_long">打开拾图设置</string>
     <string name="app_rules_restored">已恢复 %1$s，什么都没少</string>
     <string name="app_rule_name_quoted">「%1$s」</string>
     <string name="app_rules_count">%1$d 条规则</string>

@@ -91,6 +91,7 @@ import com.landslide.shitu.ui.nav.destinationLabel
 import com.landslide.shitu.ui.rules.RuleEditScreen
 import com.landslide.shitu.ui.rules.RuleListScreen
 import com.landslide.shitu.ui.settings.SettingsFlow
+import com.landslide.shitu.ui.design.AppMotion
 import com.landslide.shitu.ui.theme.ShituSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -102,6 +103,9 @@ fun ShituRoot(
     /** 从「有新版本」通知点进来：直接切到设置页并打开更新弹窗 */
     autoOpenUpdate: Boolean = false,
     onAutoOpenUpdateConsumed: () -> Unit = {},
+    /** 桌面快捷方式：0 规则 / 1 日志 / 2 设置 */
+    startTab: Int? = null,
+    onStartTabConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -109,6 +113,7 @@ fun ShituRoot(
 
     // 旋转屏幕、折叠屏展开后 Tab 不能丢
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var settingsDetail by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RuleEntity?>(null) }
     // 编辑页在做退出动画时 editing 已经变成 null，用它撑住那几帧画面
     var lastEdit by remember { mutableStateOf<RuleEntity?>(null) }
@@ -136,7 +141,16 @@ fun ShituRoot(
     val reduceMotion = remember { !ValueAnimator.areAnimatorsEnabled() }
 
     suspend fun refresh() {
-        rules = app.repo.allRules()
+        val order = runCatching { app.currentSettings().ruleOrder }.getOrDefault(emptyList())
+        rules = app.repo.allRules().let { list ->
+            if (order.isEmpty()) {
+                list
+            } else {
+                list.sortedBy { rule ->
+                    order.indexOf(rule.id).takeIf { it >= 0 } ?: Int.MAX_VALUE
+                }
+            }
+        }
         logs = app.repo.recentLogs(500)
         copiedCount = app.ledger.count()
         copiedItems = runCatching { app.ledger.recent(500) }.getOrDefault(emptyList())
@@ -153,8 +167,26 @@ fun ShituRoot(
         if (nextTab != null) tab = nextTab
     }
 
-    fun saveDraft() {
-        val r = draft ?: editing ?: return
+    /** 规则手动排序：把当前显示顺序写进设置，刷新后按新顺序显示。 */
+    fun moveRule(rule: RuleEntity, delta: Int) {
+        scope.launch {
+            val order = runCatching { app.currentSettings().ruleOrder }
+                .getOrDefault(emptyList())
+                .toMutableList()
+            val ids = if (order.isEmpty()) rules.map { it.id }.toMutableList() else order
+            val from = ids.indexOf(rule.id)
+            if (from < 0) return@launch
+            val to = from + delta
+            if (to !in ids.indices) return@launch
+            val tmp = ids[from]
+            ids[from] = ids[to]
+            ids[to] = tmp
+            app.settings.setRuleOrder(ids)
+            refresh()
+        }
+    }
+
+    fun saveDraft() {        val r = draft ?: editing ?: return
         val next = pendingTab
         scope.launch {
             if (r.id == 0L) app.repo.insertRule(r) else app.repo.updateRule(r)
@@ -193,6 +225,12 @@ fun ShituRoot(
             tab = 2
             pendingUpdateCheck = true
             onAutoOpenUpdateConsumed()
+        }
+    }
+    LaunchedEffect(startTab) {
+        if (startTab != null) {
+            tab = startTab
+            onStartTabConsumed()
         }
     }
     LaunchedEffect(Unit) {
@@ -265,7 +303,7 @@ fun ShituRoot(
             }
         },
         bottomBar = {
-            if (!wide) {
+            if (!wide && editing == null && !settingsDetail) {
                 if (settings.navStyle == 0) {
                     Box(
                         Modifier
@@ -308,20 +346,25 @@ fun ShituRoot(
                 AnimatedContent(
                     targetState = tab,
                     transitionSpec = {
-                        val dir = if (targetState < initialState) -1 else 1
-                        val duration = if (reduceMotion) 0 else 300
-                        val shift = { full: Int -> (full * 0.15f * dir).toInt() }
-                        (
-                            fadeIn(tween(duration, easing = FastOutSlowInEasing)) +
-                                slideInHorizontally(
-                                    tween(duration, easing = FastOutSlowInEasing),
-                                ) { shift(it) }
-                            ) togetherWith (
-                            fadeOut(tween(duration / 2, easing = FastOutSlowInEasing)) +
-                                slideOutHorizontally(
-                                    tween(duration, easing = FastOutSlowInEasing),
-                                ) { -shift(it) }
-                            )
+                        if (settings.tabAnimation == 1) {
+                            val d = if (reduceMotion) 0 else AppMotion.TabFadeMs
+                            fadeIn(tween(d)) togetherWith fadeOut(tween(if (reduceMotion) 0 else 150))
+                        } else {
+                            val dir = if (targetState < initialState) -1 else 1
+                            val duration = if (reduceMotion) 0 else AppMotion.PageMs
+                            val shift = { full: Int -> (full * 0.25f * dir).toInt() }
+                            (
+                                fadeIn(tween(duration, easing = AppMotion.PageEasing)) +
+                                    slideInHorizontally(
+                                        tween(duration, easing = AppMotion.PageEasing),
+                                    ) { shift(it) }
+                                ) togetherWith (
+                                fadeOut(tween(duration * 3 / 10)) +
+                                    slideOutHorizontally(
+                                        tween(duration, easing = AppMotion.PageEasing),
+                                    ) { -shift(it) }
+                                )
+                        }
                     },
                     label = "tab",
                     modifier = Modifier.fillMaxSize(),
@@ -486,6 +529,28 @@ fun ShituRoot(
                             }
                         }
                     },
+                    onSetRulesEnabled = { ids, enabled ->
+                        scope.launch {
+                            app.setRulesEnabled(ids, enabled)
+                            refresh()
+                            snackbar.showSnackbar(
+                                context.getString(
+                                    if (enabled) R.string.app_rules_enabled_count else R.string.app_rules_disabled_count,
+                                    ids.size,
+                                ),
+                            )
+                        }
+                    },
+                    onMoveRule = { rule, delta -> moveRule(rule, delta) },
+                    onDeleteSelected = { list ->
+                        scope.launch {
+                            list.forEach { r -> app.repo.deleteRule(r.id) }
+                            refresh()
+                            snackbar.showSnackbar(
+                                context.getString(R.string.app_rules_deleted_count, list.size),
+                            )
+                        }
+                    },
                 )
 
                 1 -> LogScreen(
@@ -518,6 +583,7 @@ fun ShituRoot(
                     onSelfCheck = { selfCheck() },
                     onRefresh = { scope.launch { refresh() } },
                     onSnackbar = { message -> scope.launch { snackbar.showSnackbar(message) } },
+                    onDetailChanged = { settingsDetail = it },
                 )
                     }
                 }

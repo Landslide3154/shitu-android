@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 
 /**
  * 全 App 唯一的开关：M3 Switch + 切换时的 spring 回弹（FlClash 迁移 P4）。
@@ -29,6 +31,7 @@ fun ShituSwitch(
     enabled: Boolean = true,
 ) {
     val animationsEnabled = remember { ValueAnimator.areAnimatorsEnabled() }
+    val haptic = LocalHapticFeedback.current
     val scale = remember { Animatable(1f) }
     var first by remember { mutableStateOf(true) }
 
@@ -47,7 +50,10 @@ fun ShituSwitch(
 
     Switch(
         checked = checked,
-        onCheckedChange = onCheckedChange,
+        onCheckedChange = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onCheckedChange?.invoke(it)
+        },
         enabled = enabled,
         modifier = modifier.scale(scale.value),
     )
