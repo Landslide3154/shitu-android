@@ -7,7 +7,7 @@
 **把手机里藏起来的图片，自动搬进你自己的文件夹。**
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Landslide3154/shitu-android)](https://github.com/Landslide3154/shitu-android/releases)
+[![Release](https://img.shields.io/github/v/release/Landslide3154/shitu-android?sort=semver&cacheSeconds=300)](https://github.com/Landslide3154/shitu-android/releases)
 
 下载：[最新版 APK](https://github.com/Landslide3154/shitu-android/releases)　·　包名：`com.landslide.shitu`
 
