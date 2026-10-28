@@ -130,5 +130,9 @@
     <string name="rules_self_check">Self-check</string>
     <string name="rules_source_path">Source</string>
     <string name="rules_target_path">Target</string>
+    <string name="rules_menu_sort">Sort</string>
+    <string name="rules_menu_sort_done">Done sorting</string>
+    <string name="rules_drag_sort">Drag to reorder</string>
+    <string name="rules_unit_photos">photos</string>
 
 </resources>

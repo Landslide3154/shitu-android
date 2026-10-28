@@ -130,5 +130,9 @@
     <string name="rules_self_check">自检</string>
     <string name="rules_source_path">源目录</string>
     <string name="rules_target_path">目标目录</string>
+    <string name="rules_menu_sort">排序</string>
+    <string name="rules_menu_sort_done">完成排序</string>
+    <string name="rules_drag_sort">拖动排序</string>
+    <string name="rules_unit_photos">张</string>
 
 </resources>

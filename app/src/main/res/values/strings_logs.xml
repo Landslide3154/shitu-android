@@ -40,4 +40,6 @@
     <string name="logs_detail_destination">Destination</string>
     <string name="logs_detail_message">Message</string>
     <string name="logs_paused_suffix">paused</string>
+    <string name="logs_pause_refresh">Pause refresh</string>
+    <string name="logs_resume_refresh">Resume refresh</string>
 </resources>

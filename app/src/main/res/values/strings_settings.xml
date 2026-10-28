@@ -85,10 +85,10 @@
     <string name="set_help_backup">Rules and settings go into one text file; import it after switching phones or reinstalling. Imported rules start paused.</string>
 
     <!-- 6. 外观与语言 -->
-    <string name="set_section_appearance_language">Appearance &amp; language</string>
+    <string name="set_section_appearance_language">Appearance</string>
     <string name="set_language">Language</string>
     <string name="set_language_system">Follow system</string>
-    <string name="set_language_chinese">中文</string>
+    <string name="set_language_chinese">汉语</string>
     <string name="set_language_english">English</string>
     <string name="set_theme">Theme</string>
     <string name="set_theme_system">Follow system</string>
@@ -142,7 +142,7 @@
     <string name="set_theme_pure_black">Pure black</string>
     <string name="set_theme_pure_black_desc">Dark theme uses true black for the page; saves power on OLED.</string>
     <string name="set_primary_color">Primary color</string>
-    <string name="set_theme_follow_system">Follow system</string>
+    <string name="set_theme_follow_system">System</string>
     <string name="set_theme_custom">Custom</string>
     <string name="set_theme_reset">Reset theme</string>
     <string name="set_color_style">Color style</string>
@@ -181,8 +181,29 @@
     <string name="set_about_license">Open-source licenses</string>
     <string name="set_about_privacy">Privacy</string>
     <string name="set_about_checking">Checking…</string>
-    <string name="set_text_scale_sample">Body sample Aa · 17sp</string>
+    <string name="set_text_scale_sample">Body sample Aa</string>
     <string name="set_restore_scope">Choose what to restore:</string>
     <string name="set_restore_rules">Rules</string>
     <string name="set_restore_settings">Settings</string>
+    <string name="set_style_vivid">Vivid</string>
+    <string name="set_style_tinted">Tinted</string>
+    <string name="set_style_soft">Soft</string>
+    <string name="set_style_mono">Mono</string>
+    <string name="set_on">On</string>
+    <string name="set_off">Off</string>
+    <string name="set_seconds_value">%1$d s</string>
+    <string name="set_summary_storage_shizuku">Shizuku ready</string>
+    <string name="set_summary_storage_denied">Not granted</string>
+    <string name="set_summary_conditions_any">Any time</string>
+    <string name="set_summary_conditions_count">%1$d selected</string>
+    <string name="set_summary_fast">Fast %1$s</string>
+    <string name="set_summary_fast_settle">Fast %1$s · settle %2$s</string>
+    <string name="set_summary_max_per_run">%1$d per run</string>
+    <string name="set_summary_last_check">Last: %1$s</string>
+    <string name="set_copy_history_summary">%1$d records. Tick the ones to clear; cleared photos count as new and may be copied again.</string>
+    <string name="set_select">Select</string>
+    <string name="set_clear_selected">Clear selected</string>
+    <string name="set_test_notification_title">Shitu test notification</string>
+    <string name="set_test_notification_body">If you see this, notifications are working.</string>
+    <string name="set_text_scale_value">%1$d sp</string>
 </resources>

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -61,10 +63,13 @@ import com.landslide.shitu.ui.design.AppType
 import com.landslide.shitu.ui.design.ColorStyle
 import com.landslide.shitu.ui.design.ShituIcons
 import com.landslide.shitu.ui.design.SurfaceLevel
+import com.landslide.shitu.ui.design.appFontScale
 import com.landslide.shitu.ui.design.hairline
 import com.landslide.shitu.ui.design.squircle
+import com.landslide.shitu.ui.design.tabular
 import com.landslide.shitu.ui.theme.ThemeMode
 import com.landslide.shitu.ui.theme.resolveDark
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
@@ -88,8 +93,8 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
     )
     val languageLabels = listOf(
         stringResource(R.string.set_theme_follow_system),
-        "中文",
-        "English",
+        stringResource(R.string.set_language_chinese),
+        stringResource(R.string.set_language_english),
     )
     // 0 = 默认绿色；-1 = 跟随系统；其余是 ARGB
     val effectiveSeed = when (settings.seedColor) {
@@ -205,9 +210,8 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ColorStyle.entries.forEach { entry ->
-                            val zh = java.util.Locale.getDefault().language.startsWith("zh")
                             CommonChip(
-                                text = if (zh) entry.labelZh else entry.labelEn,
+                                text = colorStyleLabel(entry),
                                 selected = entry == style,
                                 modifier = Modifier.weight(1f),
                                 center = true,
@@ -315,6 +319,16 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
         )
     }
 }
+
+@Composable
+private fun colorStyleLabel(entry: ColorStyle): String = stringResource(
+    when (entry) {
+        ColorStyle.VIVID -> R.string.set_style_vivid
+        ColorStyle.TINTED -> R.string.set_style_tinted
+        ColorStyle.SOFT -> R.string.set_style_soft
+        ColorStyle.MONOCHROME -> R.string.set_style_mono
+    },
+)
 
 private val ThemeMode.value: Int
     get() = 0
@@ -497,13 +511,29 @@ private fun ColorSwatch(
 @Composable
 private fun TextScaleRow(settings: Settings, store: SettingsStore) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val currentScale = LocalDensity.current.fontScale
+    val systemScale = context.resources.configuration.fontScale
     var value by remember(settings.textScale) { mutableStateOf(settings.textScale) }
+    // 主题中心整体已经按 settings.textScale 缩过一次；这里按滑块实时算出「最终会多大」，
+    // 再除掉当前密度倍率，保证示例文字预览和右上角数字一致。
+    val previewScale = appFontScale(systemScale, value)
+    val previewSp = (17 * previewScale).roundToInt()
+    val sampleScale = if (currentScale > 0f) previewScale / currentScale else 1f
     Column(Modifier.padding(12.dp)) {
-        Text(
-            "${(value * 100).toInt()}%",
-            style = AppType.Subheadline.style(emphasized = true),
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${(value * 100).toInt()}%",
+                style = AppType.Subheadline.style(emphasized = true),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                stringResource(R.string.set_text_scale_value, previewSp),
+                style = AppType.Caption1.style().tabular(),
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Slider(
             value = value,
             onValueChange = { value = it },
@@ -513,7 +543,10 @@ private fun TextScaleRow(settings: Settings, store: SettingsStore) {
         )
         Text(
             stringResource(R.string.set_text_scale_sample),
-            style = AppType.Body.style().copy(fontSize = (17 * value).sp),
+            style = AppType.Body.style().copy(
+                fontSize = (17 * sampleScale).sp,
+                lineHeight = (22 * sampleScale).sp,
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -537,20 +570,65 @@ private fun ColorPickerDialog(
         onDismiss = onDismiss,
         onConfirm = { onConfirm(color) },
         content = {
-            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier
+                    .padding(top = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(44.dp)
                         .clip(squircle(AppCorner.md))
                         .background(color),
                 )
-                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
-                Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0f..1f)
-                Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f)
+                ColorSlider(
+                    label = stringResource(R.string.set_hue),
+                    valueLabel = "${hue.roundToInt()}°",
+                    value = hue,
+                    valueRange = 0f..360f,
+                    onValueChange = { hue = it },
+                )
+                ColorSlider(
+                    label = stringResource(R.string.set_saturation),
+                    valueLabel = "${(saturation * 100).roundToInt()}%",
+                    value = saturation,
+                    valueRange = 0f..1f,
+                    onValueChange = { saturation = it },
+                )
+                ColorSlider(
+                    label = stringResource(R.string.set_brightness),
+                    valueLabel = "${(value * 100).roundToInt()}%",
+                    value = value,
+                    valueRange = 0f..1f,
+                    onValueChange = { value = it },
+                )
             }
         },
     )
+}
+
+@Composable
+private fun ColorSlider(
+    label: String,
+    valueLabel: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+) {
+    Column {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = AppType.Footnote.style(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.weight(1f))
+            Text(
+                valueLabel,
+                style = AppType.Footnote.style(emphasized = true).tabular(),
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
+    }
 }
 
 private fun Color.toArgbInt(): Int = toArgb()

@@ -204,9 +204,9 @@ private fun SettingsHome(
     }
     val shizuku = app.bridge.state()
     val storageSummary = when {
-        allFilesGranted -> "已授权"
-        shizuku == ShizukuState.READY -> "Shizuku 已就绪"
-        else -> "未授权"
+        allFilesGranted -> stringResource(R.string.set_storage_granted)
+        shizuku == ShizukuState.READY -> stringResource(R.string.set_summary_storage_shizuku)
+        else -> stringResource(R.string.set_summary_storage_denied)
     }
     val conditionCount = listOf(
         settings.runOnlyCharging,
@@ -216,9 +216,25 @@ private fun SettingsHome(
         settings.lockTimeoutMin > 0,
         settings.runMinBatteryPct > 0,
     ).count { it }
-    val conditionValue = if (conditionCount == 0) "随时都搬" else "$conditionCount 条"
-    val fast = if (settings.fastWhileActive) "${settings.fastIntervalSec} 秒" else "关"
-    val detectionValue = if (settings.settleDetect) "快检 $fast · 写完 ${settings.settleGapSec} 秒" else "快检 $fast"
+    val conditionValue = if (conditionCount == 0) {
+        stringResource(R.string.set_summary_conditions_any)
+    } else {
+        stringResource(R.string.set_summary_conditions_count, conditionCount)
+    }
+    val fast = if (settings.fastWhileActive) {
+        stringResource(R.string.set_seconds_value, settings.fastIntervalSec)
+    } else {
+        stringResource(R.string.set_off)
+    }
+    val detectionValue = if (settings.settleDetect) {
+        stringResource(
+            R.string.set_summary_fast_settle,
+            fast,
+            stringResource(R.string.set_seconds_value, settings.settleGapSec),
+        )
+    } else {
+        stringResource(R.string.set_summary_fast, fast)
+    }
 
     Column(Modifier.fillMaxSize()) {
         ShituToolbar(stringResource(R.string.app_nav_settings))
@@ -243,7 +259,7 @@ private fun SettingsHome(
                     )
                     ListItemNext(
                         title = stringResource(R.string.set_section_run_params),
-                        value = "${settings.maxPerRun} 张/次",
+                        value = stringResource(R.string.set_summary_max_per_run, settings.maxPerRun),
                         leading = { Icon(ShituIcons.HardDrive, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onNavigate(SettingsRoute.PARAMS) },
                     )
@@ -266,19 +282,19 @@ private fun SettingsHome(
                     )
                     ListItemNext(
                         title = stringResource(R.string.set_section_copy_history),
-                        value = "$copiedCount 条",
+                        value = stringResource(R.string.set_copy_history_count, copiedCount),
                         leading = { Icon(ShituIcons.Image, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onNavigate(SettingsRoute.COPY_HISTORY) },
                     )
                     ListItemNext(
                         title = stringResource(R.string.set_section_backup),
-                        value = "$rulesCount 条规则",
+                        value = stringResource(R.string.set_rules_count, rulesCount),
                         leading = { Icon(ShituIcons.Database, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onNavigate(SettingsRoute.BACKUP) },
                     )
                     ListItemNext(
                         title = stringResource(R.string.set_section_notify),
-                        value = if (settings.notifyEnabled) "开" else "关",
+                        value = stringResource(if (settings.notifyEnabled) R.string.set_on else R.string.set_off),
                         leading = { Icon(ShituIcons.Bell, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onNavigate(SettingsRoute.NOTIFY) },
                         divider = false,
@@ -314,18 +330,23 @@ private fun SettingsHome(
     }
 }
 
+@Composable
 private fun themeSummary(s: Settings): String {
-    val mode = when (s.themeMode) {
-        1 -> "浅色"
-        2 -> "深色"
-        else -> "跟随系统"
-    }
-    val style = when (s.colorStyle) {
-        1 -> "着色"
-        2 -> "柔和"
-        3 -> "单色"
-        else -> "鲜明"
-    }
+    val mode = stringResource(
+        when (s.themeMode) {
+            1 -> R.string.set_theme_light
+            2 -> R.string.set_theme_dark
+            else -> R.string.set_theme_follow_system
+        },
+    )
+    val style = stringResource(
+        when (s.colorStyle) {
+            1 -> R.string.set_style_tinted
+            2 -> R.string.set_style_soft
+            3 -> R.string.set_style_mono
+            else -> R.string.set_style_vivid
+        },
+    )
     return "$mode · $style"
 }
 
@@ -333,9 +354,20 @@ private fun versionName(context: android.content.Context): String = runCatching 
     context.packageManager.getPackageInfo(context.packageName, 0).versionName
 }.getOrNull() ?: "?"
 
+@Composable
 private fun lastCheckLabel(s: Settings): String {
-    val at = s.lastSelfCheckAt ?: return if (s.lastSelfCheck != null) "上次自检更早" else "还没自检"
-    return runCatching {
+    val at = s.lastSelfCheckAt
+    if (at == null) {
+        return stringResource(
+            if (s.lastSelfCheck != null) R.string.set_self_check_earlier else R.string.set_no_self_check,
+        )
+    }
+    val formatted = runCatching {
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(at * 1000L))
-    }.getOrNull() ?: "还没自检"
+    }.getOrNull()
+    return if (formatted == null) {
+        stringResource(R.string.set_no_self_check)
+    } else {
+        stringResource(R.string.set_last_self_check, formatted)
+    }
 }

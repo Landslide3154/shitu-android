@@ -34,8 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.landslide.shitu.R
 import com.landslide.shitu.data.db.Labels
@@ -110,7 +113,9 @@ fun LogScreen(
             ) {
                 Icon(
                     if (paused) ShituIcons.Play else ShituIcons.Pause,
-                    contentDescription = if (paused) "继续刷新" else "暂停刷新",
+                    contentDescription = stringResource(
+                        if (paused) R.string.logs_resume_refresh else R.string.logs_pause_refresh,
+                    ),
                     modifier = Modifier.size(24.dp),
                     tint = if (paused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -298,6 +303,19 @@ private fun DetailLine(label: String, value: String) {
 private fun LogCard(log: LogEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val tone = logTone(log.result)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val srcLabel = stringResource(R.string.logs_detail_source)
+    val dstLabel = stringResource(R.string.logs_detail_destination)
+    // 按当前语言量一遍标签宽度：「来源/目标」40dp 够用，「Destination」不够。
+    val labelWidth = remember(measurer, density, srcLabel, dstLabel) {
+        val style = AppType.Caption1.style()
+        val px = maxOf(
+            measurer.measure(srcLabel, style).size.width,
+            measurer.measure(dstLabel, style).size.width,
+        )
+        with(density) { px.toDp() } + 8.dp
+    }
     Surface(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = squircle(AppCorner.md),
@@ -318,15 +336,15 @@ private fun LogCard(log: LogEntity, onClick: () -> Unit, modifier: Modifier = Mo
                     )
                 }
                 Spacer(Modifier.height(4.dp))
-                LogPathLine(stringResource(R.string.logs_detail_source), log.srcPath ?: "—")
-                LogPathLine(stringResource(R.string.logs_detail_destination), log.dstPath ?: "—")
+                LogPathLine(srcLabel, log.srcPath ?: "—", labelWidth)
+                LogPathLine(dstLabel, log.dstPath ?: "—", labelWidth)
             }
         }
     }
 }
 
 @Composable
-private fun LogPathLine(label: String, path: String) {
+private fun LogPathLine(label: String, path: String, labelWidth: Dp) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 1.dp),
         verticalAlignment = Alignment.Top,
@@ -335,7 +353,7 @@ private fun LogPathLine(label: String, path: String) {
             label,
             style = AppType.Caption1.style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(40.dp).padding(top = 1.dp),
+            modifier = Modifier.width(labelWidth).padding(top = 1.dp),
         )
         Text(
             path,

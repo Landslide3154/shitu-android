@@ -319,7 +319,7 @@ fun DetectionSettingsScreen(settings: Settings, store: SettingsStore, onBack: ()
                 if (settings.fastWhileActive) {
                     ListItemInput(
                         title = stringResource(R.string.set_fast_interval_sec),
-                        value = "${settings.fastIntervalSec} 秒",
+                        value = stringResource(R.string.set_seconds_value, settings.fastIntervalSec),
                         onClick = { editing = "fast" to 3..60 },
                     )
                 }
@@ -332,7 +332,7 @@ fun DetectionSettingsScreen(settings: Settings, store: SettingsStore, onBack: ()
                 if (settings.settleDetect) {
                     ListItemInput(
                         title = stringResource(R.string.set_settle_gap_sec),
-                        value = "${settings.settleGapSec} 秒",
+                        value = stringResource(R.string.set_seconds_value, settings.settleGapSec),
                         onClick = { editing = "settle" to 2..15 },
                         divider = false,
                     )
@@ -528,11 +528,22 @@ fun StorageSettingsScreen(settings: Settings, onSelfCheck: () -> Unit, onBack: (
     }
 }
 
+@Composable
 private fun lastCheckText(s: Settings): String {
-    val at = s.lastSelfCheckAt ?: return if (s.lastSelfCheck != null) "上次自检更早" else "还没自检"
-    return runCatching {
-        "上次：" + SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(at * 1000L))
-    }.getOrDefault("还没自检")
+    val at = s.lastSelfCheckAt
+    if (at == null) {
+        return stringResource(
+            if (s.lastSelfCheck != null) R.string.set_self_check_earlier else R.string.set_no_self_check,
+        )
+    }
+    val formatted = runCatching {
+        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(at * 1000L))
+    }.getOrNull()
+    return if (formatted == null) {
+        stringResource(R.string.set_no_self_check)
+    } else {
+        stringResource(R.string.set_summary_last_check, formatted)
+    }
 }
 
 @Composable
@@ -559,7 +570,10 @@ fun NotifySettingsScreen(app: ShituApp, settings: Settings, store: SettingsStore
                     onClick = {
                         runCatching {
                             Notifier(context).ensureChannels()
-                            Notifier(context).event("拾图测试通知", "如果你看到这条，说明通知是通的。")
+                            Notifier(context).event(
+                                context.getString(R.string.set_test_notification_title),
+                                context.getString(R.string.set_test_notification_body),
+                            )
                         }
                     },
                     divider = false,

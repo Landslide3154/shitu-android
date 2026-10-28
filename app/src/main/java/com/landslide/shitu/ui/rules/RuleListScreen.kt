@@ -88,6 +88,7 @@ import com.landslide.shitu.ui.design.destructive
 import com.landslide.shitu.ui.design.floatingColor
 import com.landslide.shitu.ui.design.hairline
 import com.landslide.shitu.ui.design.squircle
+import com.landslide.shitu.ui.design.tabular
 import com.landslide.shitu.ui.status.canResume
 import com.landslide.shitu.ui.status.ruleStatusText
 import com.landslide.shitu.ui.status.ruleTone
@@ -248,7 +249,13 @@ fun RuleListScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text(if (sortMode) "完成排序" else "排序") },
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (sortMode) R.string.rules_menu_sort_done else R.string.rules_menu_sort,
+                                    ),
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 sortMode = !sortMode
@@ -395,22 +402,29 @@ private fun OverviewCard(
         else -> stringResource(shizukuTitle(state))
     }
     val body = when {
-        state == ShizukuState.READY -> stringResource(shizukuAdvice(state))
+        state == ShizukuState.READY -> null
         localReady -> stringResource(R.string.rules_local_mode_body)
         else -> stringResource(shizukuAdvice(state))
     }
     val action = if (ready) null else shizukuActionLabel(state)?.let { stringResource(it) }
+    val unit = stringResource(R.string.rules_unit_photos)
     AppSurface(
         level = SurfaceLevel.CARD,
         shape = squircle(AppCorner.xl),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ToneDot(tone)
-                Spacer(Modifier.width(8.dp))
-                Text(title, style = AppType.Headline.style(emphasized = true), color = scheme.onSurface)
-                Spacer(Modifier.weight(1f))
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ToneDot(tone)
+                    Spacer(Modifier.width(8.dp))
+                    Text(title, style = AppType.Headline.style(emphasized = true), color = scheme.onSurface)
+                }
+                if (body != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(body, style = AppType.Footnote.style(), color = scheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(10.dp))
                 if (action != null) {
                     ShituButton(
                         text = action,
@@ -424,19 +438,18 @@ private fun OverviewCard(
                         },
                     )
                 } else {
-                    TextButtonText(stringResource(R.string.rules_self_check), onSelfCheck)
+                    Box(Modifier.padding(start = 8.dp)) {
+                        TextButtonText(stringResource(R.string.rules_self_check), onSelfCheck)
+                    }
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(body, style = AppType.Footnote.style(), color = scheme.onSurfaceVariant)
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Stat(stringResource(R.string.rules_overview_total), "$movedTotal", "张")
-                Stat(stringResource(R.string.rules_overview_week), "${stats?.weekMoved ?: 0}", "张")
-                Stat(
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatLine(stringResource(R.string.rules_overview_total), "$movedTotal $unit")
+                StatLine(stringResource(R.string.rules_overview_week), "${stats?.weekMoved ?: 0} $unit")
+                StatLine(
                     stringResource(R.string.rules_overview_enabled),
-                    "${rules.count { it.enabled }}",
-                    "/ ${rules.size}",
+                    "${rules.count { it.enabled }} / ${rules.size}",
                 )
             }
         }
@@ -444,22 +457,23 @@ private fun OverviewCard(
 }
 
 @Composable
-private fun Stat(label: String, value: String, unit: String) {
-    Column {
-        Text(label, style = AppType.Caption1.style(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                value,
-                style = AppType.Title2.style(emphasized = true),
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                unit,
-                style = AppType.Caption1.style(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 2.dp, bottom = 2.dp),
-            )
-        }
+private fun StatLine(label: String, value: String) {
+    Row(
+        Modifier.width(132.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = AppType.Caption1.style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            value,
+            style = AppType.Subheadline.style(emphasized = true).tabular(),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+        )
     }
 }
 
@@ -548,7 +562,7 @@ private fun RuleCard(
         if (sortMode) {
             Icon(
                 ShituIcons.GripVertical,
-                contentDescription = "拖动排序",
+                contentDescription = stringResource(R.string.rules_drag_sort),
                 tint = scheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(40.dp)

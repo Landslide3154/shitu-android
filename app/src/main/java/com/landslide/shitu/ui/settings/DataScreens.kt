@@ -75,7 +75,7 @@ fun CopyHistoryScreen(
         ) {
             item {
                 Text(
-                    "共 $total 条。勾选后只清掉选中的记录；清空后这些图会被当成没复制过，下次遇到会再复制一份。",
+                    stringResource(R.string.set_copy_history_summary, total),
                     style = AppType.Footnote.style(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -97,7 +97,7 @@ fun CopyHistoryScreen(
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            record.dstPath ?: "（位置未知）",
+                            record.dstPath ?: stringResource(R.string.set_copy_unknown_path),
                             style = AppType.Subheadline.style(),
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
@@ -117,7 +117,11 @@ fun CopyHistoryScreen(
                             }
                         },
                     ) {
-                        Text(if (checked) "取消" else "选择")
+                        Text(
+                            stringResource(
+                                if (checked) R.string.set_cancel else R.string.set_select,
+                            ),
+                        )
                     }
                 }
             }
@@ -129,7 +133,11 @@ fun CopyHistoryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ShituButton(
-                text = if (selected.isEmpty()) "清除选中" else "清除选中（${selected.size}）",
+                text = if (selected.isEmpty()) {
+                    stringResource(R.string.set_clear_selected)
+                } else {
+                    stringResource(R.string.set_clear_selected_count, selected.size)
+                },
                 onClick = {
                     onClearSelected(selected.toList())
                     selected = emptySet()
