@@ -194,7 +194,10 @@ fun LogScreen(
                     style = AppType.Headline.style(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     CommonChip(
                         stringResource(R.string.logs_all_results),
                         selected = resultFilter == null,
@@ -208,13 +211,16 @@ fun LogScreen(
                         )
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(20.dp))
                 Text(
                     stringResource(R.string.logs_by_rule),
                     style = AppType.Headline.style(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     CommonChip(
                         stringResource(R.string.logs_all_rules),
                         selected = ruleFilter == null,
@@ -312,22 +318,32 @@ private fun LogCard(log: LogEntity, onClick: () -> Unit, modifier: Modifier = Mo
                     )
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    log.srcPath ?: "—",
-                    style = AppType.Footnote.style(),
-                    color = scheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    "→ " + (log.dstPath ?: "—"),
-                    style = AppType.Footnote.style(),
-                    color = scheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                LogPathLine(stringResource(R.string.logs_detail_source), log.srcPath ?: "—")
+                LogPathLine(stringResource(R.string.logs_detail_destination), log.dstPath ?: "—")
             }
         }
+    }
+}
+
+@Composable
+private fun LogPathLine(label: String, path: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            label,
+            style = AppType.Caption1.style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(40.dp).padding(top = 1.dp),
+        )
+        Text(
+            path,
+            style = AppType.Footnote.style(),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

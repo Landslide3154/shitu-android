@@ -303,26 +303,12 @@ fun ShituRoot(
             }
         },
         bottomBar = {
-            if (!wide && editing == null && !settingsDetail) {
-                if (settings.navStyle == 0) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(bottom = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ShituDock(
-                            selected = tab,
-                            onSelect = { leaveEditor(it) },
-                        )
-                    }
-                } else {
-                    ShituDockedBar(
-                        selected = tab,
-                        onSelect = { leaveEditor(it) },
-                    )
-                }
+            // 浮起 Dock 不占 Scaffold 的底栏空间：它叠在内容上，页面自己留底部内衬。
+            if (!wide && editing == null && !settingsDetail && settings.navStyle == 1) {
+                ShituDockedBar(
+                    selected = tab,
+                    onSelect = { leaveEditor(it) },
+                )
             }
         },
     ) { padding ->
@@ -630,6 +616,15 @@ fun ShituRoot(
                         }
                     }
                 }
+            }
+            if (!wide && editing == null && !settingsDetail && settings.navStyle == 0) {
+                ShituDock(
+                    selected = tab,
+                    onSelect = { leaveEditor(it) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                )
             }
         } // 外层 Box
         } // Scaffold

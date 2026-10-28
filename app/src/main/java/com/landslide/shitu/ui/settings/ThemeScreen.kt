@@ -91,6 +91,12 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
         "中文",
         "English",
     )
+    // 0 = 默认绿色；-1 = 跟随系统；其余是 ARGB
+    val effectiveSeed = when (settings.seedColor) {
+        0 -> AppPalette.Default.toArgbInt()
+        -1 -> MaterialTheme.colorScheme.primary.toArgbInt()
+        else -> settings.seedColor
+    }
 
     Column(Modifier.fillMaxSize()) {
         ShituToolbar(stringResource(R.string.set_section_appearance_language), onBack = onBack)
@@ -128,29 +134,41 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
             }
             item {
                 Section(stringResource(R.string.set_primary_color)) {
-                    Row(
+                    androidx.compose.foundation.layout.FlowRow(
                         Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 12.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        ColorSwatch(
-                            color = MaterialTheme.colorScheme.primary,
-                            selected = settings.seedColor == 0,
-                            icon = true,
-                            onClick = {
-                                scope.launch {
-                                    store.setSeedColor(0)
-                                    store.setDynamicColor(true)
-                                }
-                            },
-                        )
+                        Column(
+                            Modifier.width(64.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            ColorSwatch(
+                                color = MaterialTheme.colorScheme.primary,
+                                selected = settings.seedColor == -1,
+                                icon = true,
+                                onClick = {
+                                    scope.launch {
+                                        store.setSeedColor(-1)
+                                        store.setDynamicColor(true)
+                                    }
+                                },
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.set_theme_follow_system),
+                                style = AppType.Caption1.style(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
                         AppPalette.all.forEach { color ->
                             ColorSwatch(
                                 color = color,
-                                selected = settings.seedColor == color.toArgbInt(),
+                                selected = settings.seedColor != -1 &&
+                                    effectiveSeed == color.toArgbInt(),
                                 onClick = {
                                     scope.launch {
                                         store.setSeedColor(color.toArgbInt())
@@ -159,12 +177,24 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
                                 },
                             )
                         }
-                        ColorSwatch(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selected = false,
-                            custom = true,
-                            onClick = { showCustom = true },
-                        )
+                        Column(
+                            Modifier.width(64.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            ColorSwatch(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selected = false,
+                                custom = true,
+                                onClick = { showCustom = true },
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.set_theme_custom),
+                                style = AppType.Caption1.style(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
@@ -180,6 +210,7 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
                                 text = if (zh) entry.labelZh else entry.labelEn,
                                 selected = entry == style,
                                 modifier = Modifier.weight(1f),
+                                center = true,
                                 onClick = { scope.launch { store.setColorStyle(entry.ordinal) } },
                             )
                         }
@@ -249,11 +280,7 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
 
     if (showCustom) {
         ColorPickerDialog(
-            initial = if (settings.seedColor == 0) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                Color(settings.seedColor)
-            },
+            initial = Color(effectiveSeed),
             onDismiss = { showCustom = false },
             onConfirm = { color ->
                 scope.launch {
@@ -277,7 +304,7 @@ fun ThemeScreen(settings: Settings, store: SettingsStore, onBack: () -> Unit) {
                 scope.launch {
                     store.setThemeMode(ThemeMode.SYSTEM)
                     store.setSeedColor(0)
-                    store.setDynamicColor(true)
+                    store.setDynamicColor(false)
                     store.setColorStyle(0)
                     store.setPureBlack(false)
                     store.setNavStyle(0)
@@ -295,7 +322,11 @@ private val ThemeMode.value: Int
 @Composable
 private fun ThemePreviewCard(settings: Settings) {
     val dark = resolveDark(settings.themeMode, isSystemInDarkTheme())
-    val seed = if (settings.seedColor == 0) AppPalette.Blue else Color(settings.seedColor)
+    val seed = when (settings.seedColor) {
+        -1 -> MaterialTheme.colorScheme.primary
+        0 -> AppPalette.Default
+        else -> Color(settings.seedColor)
+    }
     val style = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)]
     val scheme = remember(seed, dark, style, settings.pureBlack) {
         AppColor.scheme(seed, dark, style, settings.pureBlack)
@@ -373,7 +404,11 @@ private fun ThemeModeChoice(
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = resolveDark(mode, isSystemInDarkTheme())
-    val seed = if (settings.seedColor == 0) AppPalette.Blue else Color(settings.seedColor)
+    val seed = when (settings.seedColor) {
+        -1 -> MaterialTheme.colorScheme.primary
+        0 -> AppPalette.Default
+        else -> Color(settings.seedColor)
+    }
     val style = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)]
     val preview = remember(seed, dark, style, settings.pureBlack) {
         AppColor.scheme(seed, dark, style, settings.pureBlack)

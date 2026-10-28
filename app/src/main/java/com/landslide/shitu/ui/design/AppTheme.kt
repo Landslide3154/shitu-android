@@ -33,7 +33,7 @@ fun AppTheme(
     content: @Composable () -> Unit,
 ) {
     val systemSeed = rememberSystemSeedColor()
-    val seed = seedColor ?: if (dynamicColor) systemSeed else AppPalette.Blue
+    val seed = seedColor ?: if (dynamicColor) systemSeed else AppPalette.Default
     val scheme = remember(seed, dark, colorStyle, pureBlack) {
         AppColor.scheme(seed, dark, colorStyle, pureBlack)
     }
@@ -71,6 +71,6 @@ fun rememberSystemSeedColor(): Color {
                 .getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
                 ?.primaryColor
         }.getOrNull()
-        platformColor?.let { Color(it.toArgb()) } ?: AppPalette.Blue
+        platformColor?.let { Color(it.toArgb()) } ?: AppPalette.Default
     }
 }

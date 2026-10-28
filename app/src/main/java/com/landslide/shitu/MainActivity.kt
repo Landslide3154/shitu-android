@@ -75,11 +75,12 @@ class MainActivity : ComponentActivity() {
             }
             ShituTheme(
                 themeMode = settings.themeMode,
-                dynamicColor = settings.dynamicColor,
-                seedColor = if (settings.seedColor == 0) {
-                    null
-                } else {
-                    androidx.compose.ui.graphics.Color(settings.seedColor)
+                dynamicColor = settings.seedColor == -1,
+                seedColor = when (settings.seedColor) {
+                    -1 -> null
+                    // 0 = 默认绿色（老版本遗留的 0 也走这里）
+                    0 -> com.landslide.shitu.ui.design.AppPalette.Default
+                    else -> androidx.compose.ui.graphics.Color(settings.seedColor)
                 },
                 colorStyle = ColorStyle.entries[settings.colorStyle.coerceIn(0, 3)],
                 pureBlack = settings.pureBlack,

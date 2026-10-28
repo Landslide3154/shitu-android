@@ -36,6 +36,9 @@ object AppPalette {
     val Green = Color(0xFF34C759)
     val Gray = Color(0xFF8E8E93)
 
+    /** 默认主题色：FlClash 的绿色。 */
+    val Default = Green
+
     val all = listOf(Blue, Magenta, Pink, Red, Orange, Yellow, Green, Gray)
 }
 

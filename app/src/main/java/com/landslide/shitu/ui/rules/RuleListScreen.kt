@@ -106,8 +106,6 @@ import kotlinx.coroutines.launch
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.US)
 private val REVEAL_WIDTH = 96.dp
 
-private enum class RuleFilter { ALL, ACTIVE, IDLE, PAUSED, FAILED }
-
 @Composable
 fun RuleListScreen(
     rules: List<RuleEntity>,
@@ -141,27 +139,16 @@ fun RuleListScreen(
     var showMenu by remember { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf(RuleFilter.ALL) }
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var askBatchDelete by remember { mutableStateOf(false) }
     var sortMode by rememberSaveable { mutableStateOf(false) }
 
     val shown = rules.filter { rule ->
-        val matchQuery = query.isBlank() ||
+        query.isBlank() ||
             rule.name.contains(query, ignoreCase = true) ||
             rule.srcPath.contains(query, ignoreCase = true) ||
             rule.dstPath.contains(query, ignoreCase = true)
-        val matchFilter = when (filter) {
-            RuleFilter.ALL -> true
-            RuleFilter.ACTIVE -> rule.enabled && rule.state == RuleState.RUNNING
-            RuleFilter.IDLE -> rule.enabled && rule.state == RuleState.IDLE
-            RuleFilter.PAUSED -> !rule.enabled ||
-                rule.state == RuleState.PAUSED_MANUAL ||
-                rule.state == RuleState.PAUSED_LOOP
-            RuleFilter.FAILED -> rule.state == RuleState.PAUSED_ERROR
-        }
-        matchQuery && matchFilter
     }
 
     if (showNew) {
@@ -292,27 +279,6 @@ fun RuleListScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf(
-                    RuleFilter.ALL to stringResource(R.string.rules_filter_all),
-                    RuleFilter.ACTIVE to stringResource(R.string.rules_filter_active),
-                    RuleFilter.IDLE to stringResource(R.string.rules_filter_idle),
-                    RuleFilter.PAUSED to stringResource(R.string.rules_filter_paused),
-                    RuleFilter.FAILED to stringResource(R.string.rules_filter_failed),
-                ).forEach { (value, label) ->
-                    CommonChip(
-                        text = label,
-                        selected = filter == value,
-                        onClick = { filter = value },
-                    )
-                }
-            }
             if (rules.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyState(
@@ -332,8 +298,8 @@ fun RuleListScreen(
             } else {
                 LazyColumn(
                     Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 130.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
                 ) {
                     item {
                         OverviewCard(
@@ -397,7 +363,9 @@ fun RuleListScreen(
                     selectionMode = false
                     selected = emptySet()
                 },
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 88.dp),
             )
         }
     }
@@ -574,6 +542,38 @@ private fun RuleCard(
             }
         },
     )
+
+    @Composable
+    fun TrailingControl() {
+        if (sortMode) {
+            Icon(
+                ShituIcons.GripVertical,
+                contentDescription = "拖动排序",
+                tint = scheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(40.dp)
+                    .pointerInput(rule.id, sortMode) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                val steps = (dragY / with(density) { 150.dp.toPx() })
+                                    .roundToInt()
+                                dragY = 0f
+                                if (steps != 0) onMoveBy(steps)
+                            },
+                            onDragCancel = { dragY = 0f },
+                        ) { change, amount ->
+                            change.consume()
+                            dragY += amount.y
+                        }
+                    }
+                    .padding(8.dp),
+            )
+        } else if (selectionMode) {
+            SelectionMark(selected)
+        } else {
+            ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
+        }
+    }
     Box(modifier.fillMaxWidth()) {
         if (!selectionMode) {
             RevealDeleteAction { closeReveal(); onDelete() }
@@ -587,69 +587,60 @@ private fun RuleCard(
             shape = squircle(AppCorner.xl),
             color = SurfaceLevel.CARD.colorOf(scheme),
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ToneDot(tone)
-                    Spacer(Modifier.width(8.dp))
+            if (compact) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         rule.name,
-                        style = AppType.Headline.style(emphasized = true),
+                        style = AppType.Body.style(emphasized = true),
                         color = scheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    if (sortMode) {
-                        Icon(
-                            ShituIcons.GripVertical,
-                            contentDescription = "拖动排序",
-                            tint = scheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .pointerInput(rule.id, sortMode) {
-                                    detectDragGestures(
-                                        onDragEnd = {
-                                            val steps = (dragY / with(density) { 150.dp.toPx() })
-                                                .roundToInt()
-                                            dragY = 0f
-                                            if (steps != 0) onMoveBy(steps)
-                                        },
-                                        onDragCancel = { dragY = 0f },
-                                    ) { change, amount ->
-                                        change.consume()
-                                        dragY += amount.y
-                                    }
-                                }
-                                .padding(8.dp),
-                        )
-                    } else if (selectionMode) {
-                        SelectionMark(selected)
-                    } else {
-                        ShituSwitch(checked = rule.enabled, onCheckedChange = onToggleEnabled)
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "${rule.srcPath} → ${rule.dstPath}",
-                    style = AppType.Footnote.style(),
-                    color = scheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RuleStatusChip(rule)
                     Spacer(Modifier.width(6.dp))
                     TonalChip(Labels.mode(context, rule.mode), color = modeTone(rule.mode).color())
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        rule.lastRunAt?.let { timeFmt.format(Date(it)) }
-                            ?: stringResource(R.string.rules_last_run_never),
-                        style = AppType.Caption1.style(),
-                        color = scheme.onSurfaceVariant,
-                    )
+                    Spacer(Modifier.width(6.dp))
+                    RuleStatusChip(rule)
+                    Spacer(Modifier.width(8.dp))
+                    TrailingControl()
                 }
-                if (!compact) {
+            } else {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ToneDot(tone)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            rule.name,
+                            style = AppType.Headline.style(emphasized = true),
+                            color = scheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TrailingControl()
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    DetailPath(stringResource(R.string.rules_source_path), rule.srcPath)
+                    DetailPath(stringResource(R.string.rules_target_path), rule.dstPath)
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RuleStatusChip(rule)
+                        Spacer(Modifier.width(6.dp))
+                        TonalChip(Labels.mode(context, rule.mode), color = modeTone(rule.mode).color())
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            rule.lastRunAt?.let { timeFmt.format(Date(it)) }
+                                ?: stringResource(R.string.rules_last_run_never),
+                            style = AppType.Caption1.style(),
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
                     Spacer(Modifier.height(6.dp))
                     Text(
                         stringResource(
@@ -662,10 +653,10 @@ private fun RuleCard(
                         style = AppType.Footnote.style(),
                         color = scheme.onSurfaceVariant,
                     )
-                }
-                rule.pauseReason?.let {
-                    Spacer(Modifier.height(6.dp))
-                    Text(it, style = AppType.Footnote.style(), color = scheme.error)
+                    rule.pauseReason?.let {
+                        Spacer(Modifier.height(6.dp))
+                        Text(it, style = AppType.Footnote.style(), color = scheme.error)
+                    }
                 }
             }
         }
@@ -718,9 +709,31 @@ private fun RuleCard(
     }
 }
 
+/** 详情模式的两行路径：标签定宽，路径左端对齐。 */
 @Composable
-private fun RuleStatusChip(rule: RuleEntity) {
-    val color = cardTone(rule).color()
+private fun DetailPath(label: String, path: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            label,
+            style = AppType.Caption1.style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(52.dp).padding(top = 1.dp),
+        )
+        Text(
+            path.ifBlank { "—" },
+            style = AppType.Footnote.style(),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun RuleStatusChip(rule: RuleEntity) {    val color = cardTone(rule).color()
     Row(
         Modifier
             .clip(CircleShape)

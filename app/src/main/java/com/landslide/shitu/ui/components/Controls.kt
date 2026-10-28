@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -124,6 +125,7 @@ fun CommonChip(
     selected: Boolean = false,
     onClick: (() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
+    center: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val bg = if (selected) scheme.primary else SurfaceLevel.INSET.colorOf(scheme)
@@ -135,6 +137,7 @@ fun CommonChip(
             .background(bg)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp),
+        horizontalArrangement = if (center) Arrangement.Center else Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
